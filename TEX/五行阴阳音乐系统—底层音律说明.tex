@@ -1,0 +1,137 @@
+% !TEX TS-program = xelatex
+\documentclass{article}
+
+\usepackage{fontspec}
+\usepackage{amsmath,amssymb}
+\usepackage{xeCJK}
+\usepackage[normalem]{ulem} % 提供 \uline 用于中文下划线替代斜体
+\usepackage{geometry}      % <-- 修复：确保 geometry 已加载
+\geometry{a4paper, margin=25mm}
+
+% 字体（按系统 fc-list 确认）
+\setmainfont{Kode Mono}
+\setCJKmainfont{Songti SC}[ItalicFont={Songti SC}]
+\setCJKmonofont{Songti SC}[ItalicFont={Songti SC}]
+
+% 中文下划线强调命令（替代斜体）
+\newcommand{\emphzh}[1]{\uline{#1}}
+
+\title{Petersen 五行阴阳音乐系统 — 底层音律说明}
+\author{Abe.Chua (初稿)}
+\date{2025-08-25}
+
+\begin{document}
+\maketitle
+
+本文件定义音高空间、五行阴阳音阶分配、音色映射、和弦与旋律生成的底层数学与实现要点。设计目标是清晰、参数化并便于程序化实现（MIDI / 合成器）。
+
+\section{符号与常量}
+\begin{itemize}
+  \item 黄金比例： $\varphi=\dfrac{1+\sqrt{5}}{2}\approx1.6180339887$。
+  \item 基频： $F_0$（默认 $220\ \mathrm{Hz}$，可改）。
+  \item 五行角度基位： $\theta_e=72^\circ\cdot e,\ e\in\{0,\dots,4\}$（0:金,1:木,2:水,3:火,4:土）。
+  \item 阴阳极性： $p\in\{-1,0,+1\}$（阴、中、阳）。
+  \item 阴阳角度偏移： $\Delta\theta$（默认 $5^\circ$，可调）。
+  \item 折叠基准比（八度选择）： $R_{\mathrm{oct}}$，常见取值 $2$ 或 $\varphi$。
+\end{itemize}
+
+\section{角度到频率的映射（核心公式）}
+先定义该音的角度：
+\[
+\theta = \theta_e + p\cdot\Delta\theta .
+\]
+定义原始比例因子（未经折叠）：
+\[
+r_{\mathrm{raw}}(\theta)=\varphi^{\theta/72}.
+\]
+原始频率：
+\[
+f_{\mathrm{raw}} = F_{0}\cdot r_{\mathrm{raw}}(\theta) = F_{0}\cdot \varphi^{\theta/72}.
+\]
+为便于听感，将频率折叠到一个期望区间：
+\[
+F = f_{\mathrm{raw}}\cdot R_{\mathrm{oct}}^{k},\qquad k\in\mathbb{Z},
+\]
+其中选择整数 $k$ 使得
+\[
+F\in [F_{0},\ F_{0}\cdot R_{\mathrm{oct}}).
+\]
+可取
+\[
+k = -\left\lfloor \log_{R_{\mathrm{oct}}}\dfrac{f_{\mathrm{raw}}}{F_{0}} \right\rfloor.
+\]
+
+\subsection{以 cents 表示}
+\[
+\mathrm{cents}(F) = 1200\log_2\frac{F}{F_0}.
+\]
+单位角度对应的 cents 增量为：
+\[
+\Delta_{\text{1}^\circ} = \frac{1200}{72}\log_2\varphi \approx 11.57\ \text{cents/deg}.
+\]
+
+\section{15 方位与 45 音区的定义}
+\begin{itemize}
+  \item 15 方位：五行 $\times$ 三极性，共 15 个音位，索引表示为 $(e,p)$。
+  \item 三音区扩展（45 音符）：复制 15 方位到低/中/高区，音区缩放因子 $s\in\{1/\varphi,\,1,\,\varphi\}$（或 $2^{-1},1,2$）。频率：
+  \[
+  F_{r} = F(e,p)\cdot s_r,\qquad r\in\{L,M,H\}.
+  \]
+\end{itemize}
+
+\section{五行-阴阳到音色与合成参数的映射}
+每个方位映射到一组合成控制参数：
+\[
+\mathrm{timbre}(e,p)=\{\ \mathrm{instr\_set},\ \mathrm{filter\_cutoff},\ \mathrm{harmonic\_richness},\ \mathrm{env}\ \}.
+\]
+建议映射（候选乐器/合成器风格）：
+\begin{itemize}
+  \item 金（e=0）: 钟/铃类；阳亮，高谐波；阴暗，轻混响。
+  \item 木（e=1）: 拨弦/木琴；强调基频与击发噪声。
+  \item 水（e=2）: 垫/木笛；滑音与微分音。
+  \item 火（e=3）: 铜管/合成铅；强攻与饱和。
+  \item 土（e=4）: 低音弦/鼓；厚重低频。
+\end{itemize}
+阴阳参数示例：
+\[
+\begin{array}{ll}
+\text{阳}\ (p=+1):& \ \text{cutoff}+\Delta_c,\ \text{harmonic}+\Delta_h,\ \text{attack}\downarrow\\[2pt]
+\text{中}\ (p=0):&\ \text{baseline}\\[2pt]
+\text{阴}\ (p=-1):&\ \text{cutoff}-\Delta_c,\ \text{harmonic}-\Delta_h,\ \text{decay}+\Delta_d
+\end{array}
+\]
+
+\section{和弦设计（规则化生成）}
+给定候选频率 $\{F_i\}$，两音间相对于小整数比 $(n:m)$ 的差异：
+\[
+\delta_{ij}^{(n:m)}=\left|1200\log_2\frac{F_i}{F_j}-1200\log_2\frac{n}{m}\right|.
+\]
+取 $\delta_{ij}=\min_{(n:m)\in\mathcal{S}}\delta_{ij}^{(n:m)}$，常用 $\mathcal{S}=\{1:1,2:1,3:2,4:3,5:4\}$。
+和弦评分：
+\[
+S(C)=\sum_{i<j}\exp\!\Big(-\frac{\delta_{ij}^2}{2\sigma^2}\Big).
+\]
+
+生成策略：选根音 $(e,p,r)$，在 15 方位或相邻音区中搜索候选并计算 $S$，挑选高分 2--3 音为 triad。
+
+\section{旋律生成（底层语法）}
+优先小步移动：在同一五行的三极性间或相邻五行 $(e\pm1)\ \mathrm{mod}\ 5$ 移动；偶尔长跳 $(e\pm2)$。阴阳用于微分音与音色修饰。概率模型：
+\[
+P(\Delta e,\Delta p)\propto \exp\!\big(-\alpha_e|\Delta e|-\alpha_p|\Delta p|\big)\cdot W(e',p'),
+\]
+其中 $W$ 为音色/和谐权重。
+
+\section{节奏、循环与时间}
+基础 BPM = $B$。段落间可按黄金比例调整：$\mathrm{BPM}'=B\cdot\varphi^{\pm q}$。五行到节奏密度示例：金短音，木琶音，水 rubato，火重拍，土长音。micro-timing:
+\[
+\delta t = \alpha_t \sin\!\big( \tfrac{\pi}{180}\theta \big)\,T_{\mathrm{beat}}.
+\]
+
+\section{实现注意事项}
+MIDI 实现建议使用 pitch-bend 或 MPE；合成器要求支持可编程滤波、谐波控制、ADSR、portamento。建议批量扫描超参 $\Delta\theta,\ F_0,\ R_{\mathrm{oct}},\ \sigma,\ \alpha_e$ 并导出 MIDI 进行听感测试。
+
+\section{结语}
+此文档提供可工程化的底层规范：参数化的角度映射、折叠策略、五行/阴阳到音色与时域行为的映射，以及和弦/旋律生成的评分函数。
+下一步可基于此实现最小原型（Python + MIDO 或 SuperCollider），进行主观听觉测试并迭代超参。
+
+\end{document}
