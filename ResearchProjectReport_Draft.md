@@ -1,4 +1,4 @@
-# Petersen Graph–Inspired Five-Element Music System: Theoretical Framework and Innovative Potential
+# Petersen Graph–Inspired Five-Element Yin-Yang Music System: Theoretical Framework and Innovative Potential
 
 ## Research Project Proposal (Draft)
 
@@ -89,4 +89,6 @@ If numerical simulation or example MIDI is desired, run parameter sweeps and sub
 
 ### Conclusion and Recommendations
 
-The Petersen music system offers an original and realizable framework that combines graph theory, Five Elements philosophy, and golden-ratio tuning, with potential to generate new, harmonious music. Recommended next steps: build a prototype, run listening tests and parameter optimization, and conduct cross-cultural comparative research. The system is not constrained by existing music theory and can open new paradigms in experimental music.
+The Petersen music system offers an original and realizable framework that combines graph theory, Five Elements philosophy, and golden-ratio tuning, with potential to generate new, harmonious music. 
+
+Recommended next steps: build a prototype, run listening tests and parameter optimization, and conduct cross-cultural comparative research. The system is not constrained by existing music theory and can open new paradigms in experimental music.
