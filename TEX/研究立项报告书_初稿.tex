@@ -1,0 +1,175 @@
+% !TEX TS-program = xelatex
+\documentclass{article}
+\usepackage{fontspec}
+\usepackage{xeCJK}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{amsmath}
+\geometry{a4paper, margin=25mm}
+
+\setmainfont{Kode Mono}
+\setCJKmainfont{Songti SC}
+
+\title{基于 Petersen 图启发的五行阴阳音乐系统\\[6pt] \large 理论框架与创新潜力}
+\author{Abe.Chua}
+\date{2025-08-24}
+
+\begin{document}
+\maketitle
+
+\section*{研究立项报告书（初稿）}
+\textbf{关键词}：Petersen Graph、五行阴阳、黄金比例调律、非八度音阶、实验音乐系统
+
+\section*{摘要}
+本报告提出一种基于 Petersen 图拓扑结构的原创音乐系统，融入中国传统五行（金、木、水、火、土）与阴阳极性哲学，构建脱离 12-TET 的非线性音律框架。核心包括 15 方位音阶（5 五行 × 3 极性），可扩展至 45 音符（3 音区 × 15 方位），通过黄金比例缩放与图约束生成旋律。系统强调规则驱动的和谐探索，潜在产生新颖且悦耳的音乐作品。报告讨论理论基础、创新点、可行性分析及应用前景，为后续研究立项提供依据（无实验数据）。
+
+\section{引言}
+传统音乐系统多依赖 12-TET，等分八度便于转调但牺牲纯律和谐，导致若干音程偏差。受 Petersen 图（3-正则、10 节点）启发，本系统探索几何与哲学混合框架：以图拓扑作为音程约束，结合五行与阴阳生成非线性音阶。五行作为生成—克制循环的象征，可用于音乐疗愈和情感映射。本报告旨在重新构想 Petersen 音乐系统，评估其产生和谐音乐的潜力与可行性。
+
+\section{系统概述}
+\subsection{核心框架}
+\begin{itemize}
+  \item 基于 Petersen 图，定义 15 方位音阶：5 个五行元素在角度上分布为 金 0\textdegree、木 72\textdegree、水 144\textdegree、火 216\textdegree、土 288\textdegree，每元素对应 3 个极性（阴 -1、中 0、阳 +1）。
+  \item 阴阳偏移参数 $\Delta\theta$（默认 5\textdegree）用于调整角度：$\theta=\theta_0+\Delta\theta\cdot p$（$p\in\{-1,0,1\}$）。
+  \item 音高比例采用黄金比例尺度 $\rho=\varphi^{\theta/72}$，$\varphi\approx1.618$。基准频率 $F_0=220\,$Hz，结果折叠到单八度区间以保证听感。
+  \item Petersen 图的无向边定义音程语法：旋律按邻接节点游走，形成“受限自由”的作曲机制。
+  \item 五行映射到音色与情感（例如：金＝钟声／坚定，水＝滑音／流动）；阴阳调制影响音色亮度（阳倾向明亮谐波，阴倾向暗淡滤波）。
+\end{itemize}
+
+\subsection{阴阳偏移参数（默认 5\textdegree）}
+推荐默认值 $\Delta\theta=5$\textdegree。理由概述：
+\begin{itemize}
+  \item 5\textdegree 对应的微分音偏移约 116 cents，能产生温和的微分音效果而非突兀跳变。
+  \item 相较于 10\textdegree（约 231 cents），5\textdegree 降低不谐风险，同时保留 72\textdegree（≈833 cents）為五行基間隔。
+  \item 参数应可调（例如尝试 18\textdegree 探索“黄金规模”模式），並通过听感测试验证不同设置的影响。
+\end{itemize}
+
+\subsection{扩展到 45 音符}
+参考 Petersen 图的三环结构：内环／中环／外环分别对应低／中／高音区，采用倍率 $1/\varphi,\,1,\,\varphi$ 将 15 方位复制为 45 音符。系统为动态网络：旋律可在环间转移，形成层级叙事。
+
+\section{创新点与理论基础}
+\subsection{规则驱动 vs 数据驱动}
+本系统为规则驱动：无需大规模训练样本即可生成音乐；以黄金比例产生非线性音程，并以图论约束减少不协调跳跃。与基于深度学习的生成模型不同，本系统强调可解释的规则与音乐语法。
+
+\subsection{非八度循环潜力}
+可选采用“黄金八度”（比值 $\varphi:1$，约 833 cents）替代传统 2:1 八度，产生非周期、持续演化的听感；该思路借鉴 Bohlen--Pierce 等非八度音阶实验。
+
+\subsection{五行与阴阳整合}
+将五行生克关系映射到旋律生成规则（例如“木生火”“火克金”）以影响旋律趋向与和声化学；可调节阴阳参数以探索“平衡音乐”与情绪表达。
+
+\section{可行性分析}
+\subsection{和谐性潜力}
+黄金比例调律在特定配置下可接近纯律音程，结合图约束有望生成有机且悦耳的旋律。45 音符增加和声色彩，但需通过参数优化避免刺耳间隔。
+
+\subsection{实现路径}
+建议使用 Python + MIDI（或音频合成库）实现 Petersen 图上的规则游走与黄金比例频率映射。风险为不均匀间隔可能导致不适听感，缓解途径包括路径权重化、和谐优先策略與听觉测试。
+
+\subsection{与 12-TET 的比较}
+该系统放弃部分转调自由以换取几何與哲学驱动的和谐表达，适合实验音乐、疗愈音乐與跨学科艺术项目。
+
+\section{潜在应用与扩展}
+\begin{itemize}
+  \item 音乐创作：生成“五行叙事”作品（包括疗愈类音乐）。
+  \item 跨领域：声化数据、艺术装置、新型演奏界面或 MPE 合成器设计。
+  \item 扩展方向：与 AI 提示整合（保持规则核心）、探索其他图结构与更多音区。
+\end{itemize}
+
+\section{结论与建议}
+Petersen 音乐系统提供一个原创且可实现的框架，融合图论、五行與黄金比例调律，具有生成和谐新音乐的潜力。建议立项步骤：
+\begin{enumerate}
+  \item 开发原型；
+  \item 进行听觉测试与参数优化；
+  \item 开展跨文化比較研究。
+\end{enumerate}
+
+\end{document}
+% ...existing code...
+```// filepath: /Users/tsb/vootaa/vootaa@github/PetersenMusicSystem/TEX/研究立项报告书_初稿.tex
+% ...existing code...
+% !TEX TS-program = xelatex
+\documentclass{article}
+\usepackage{fontspec}
+\usepackage{xeCJK}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{amsmath}
+\geometry{a4paper, margin=25mm}
+
+\setmainfont{Kode Mono}
+\setCJKmainfont{Songti SC}
+
+\title{基于 Petersen 图启发的五行阴阳音乐系统：理论框架与创新潜力}
+\author{Abe.Chua}
+\date{2025-08-24}
+
+\begin{document}
+\maketitle
+
+\section*{研究立项报告书（初稿）}
+\textbf{作者}：Abe.Chua \\
+\textbf{日期}：2025年8月24日 \\
+\textbf{关键词}：Petersen Graph、五行阴阳、黄金比例调律、非八度音阶、实验音乐系统
+
+\section*{摘要}
+本报告提出一种基于 Petersen 图拓扑结构的原创音乐系统，融入中国传统五行（金、木、水、火、土）与阴阳极性哲学，构建脱离 12-TET 的非线性音律框架。核心包括 15 方位音阶（5 五行 × 3 极性），可扩展至 45 音符（3 音区 × 15 方位），通过黄金比例缩放与图约束生成旋律。系统强调规则驱动的和谐探索，潜在产生新颖且悦耳的音乐作品。报告讨论理论基础、创新点、可行性分析及应用前景，为后续研究立项提供依据（无实验数据）。
+
+\section{引言}
+传统音乐系统多依赖 12-TET，等分八度便于转调但牺牲纯律和谐，导致若干音程偏差。受 Petersen 图（3-正则、10 节点）启发，本系统探索几何与哲学混合框架：以图拓扑作为音程约束，结合五行与阴阳生成非线性音阶。五行作为生成—克制循环的象征，可用于音乐疗愈和情感映射。本报告旨在重新构想 Petersen 音乐系统，评估其产生和谐音乐的潜力与可行性。
+
+\section{系统概述}
+\subsection{核心框架}
+\begin{itemize}
+  \item 基于 Petersen 图，定义 15 方位音阶：5 个五行元素在角度上分布为 金 0\textdegree、木 72\textdegree、水 144\textdegree、火 216\textdegree、土 288\textdegree，每元素对应 3 个极性（阴 -1、中 0、阳 +1）。
+  \item 阴阳偏移参数 $\Delta\theta$（默认 5\textdegree）用于调整角度：$\theta=\theta_0+\Delta\theta\cdot p$（$p\in\{-1,0,1\}$）。
+  \item 音高比例采用黄金比例尺度 $\rho=\varphi^{\theta/72}$，$\varphi\approx1.618$。基准频率 $F_0=220\,$Hz，结果折叠到单八度区间以保证听感。
+  \item Petersen 图的无向边定义音程语法：旋律按邻接节点游走，形成“受限自由”的作曲机制。
+  \item 五行映射到音色与情感（例如：金＝钟声／坚定，水＝滑音／流动）；阴阳调制影响音色亮度（阳倾向明亮谐波，阴倾向暗淡滤波）。
+\end{itemize}
+
+\subsection{阴阳偏移参数（默认 5\textdegree）}
+推荐默认值 $\Delta\theta=5$\textdegree。理由概述：
+\begin{itemize}
+  \item 5\textdegree 对应的微分音偏移约 116 cents，能产生温和的微分音效果而非突兀跳变。
+  \item 相较于 10\textdegree（约 231 cents），5\textdegree 降低不谐风险，同时保留 72\textdegree（≈833 cents）為五行基間隔。
+  \item 参数应可调（例如尝试 18\textdegree 探索“黄金规模”模式），並通过听感测试验证不同设置的影响。
+\end{itemize}
+
+\subsection{扩展到 45 音符}
+参考 Petersen 图的三环结构：内环／中环／外环分别对应低／中／高音区，采用倍率 $1/\varphi,\,1,\,\varphi$ 将 15 方位复制为 45 音符。系统为动态网络：旋律可在环间转移，形成层级叙事。
+
+\section{创新点与理论基础}
+\subsection{规则驱动 vs 数据驱动}
+本系统为规则驱动：无需大规模训练样本即可生成音乐；以黄金比例产生非线性音程，并以图论约束减少不协调跳跃。与基于深度学习的生成模型不同，本系统强调可解释的规则与音乐语法。
+
+\subsection{非八度循环潜力}
+可选采用“黄金八度”（比值 $\varphi:1$，约 833 cents）替代传统 2:1 八度，产生非周期、持续演化的听感；该思路借鉴 Bohlen--Pierce 等非八度音阶实验。
+
+\subsection{五行与阴阳整合}
+将五行生克关系映射到旋律生成规则（例如“木生火”“火克金”）以影响旋律趋向与和声化学；可调节阴阳参数以探索“平衡音乐”与情绪表达。
+
+\section{可行性分析}
+\subsection{和谐性潜力}
+黄金比例调律在特定配置下可接近纯律音程，结合图约束有望生成有机且悦耳的旋律。45 音符增加和声色彩，但需通过参数优化避免刺耳间隔。
+
+\subsection{实现路径}
+建议使用 Python + MIDI（或音频合成库）实现 Petersen 图上的规则游走与黄金比例频率映射。风险为不均匀间隔可能导致不适听感，缓解途径包括路径权重化、和谐优先策略與听觉测试。
+
+\subsection{与 12-TET 的比较}
+该系统放弃部分转调自由以换取几何與哲学驱动的和谐表达，适合实验音乐、疗愈音乐與跨学科艺术项目。
+
+\section{潜在应用与扩展}
+\begin{itemize}
+  \item 音乐创作：生成“五行叙事”作品（包括疗愈类音乐）。
+  \item 跨领域：声化数据、艺术装置、新型演奏界面或 MPE 合成器设计。
+  \item 扩展方向：与 AI 提示整合（保持规则核心）、探索其他图结构与更多音区。
+\end{itemize}
+
+\section{结论与建议}
+Petersen 音乐系统提供一个原创且可实现的框架，融合图论、五行與黄金比例调律，具有生成和谐新音乐的潜力。建议立项步骤：
+\begin{enumerate}
+  \item 开发原型；
+  \item 进行听觉测试与参数优化；
+  \item 开展跨文化比較研究。
+\end{enumerate}
+
+\end{document}
