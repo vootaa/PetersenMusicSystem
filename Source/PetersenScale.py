@@ -666,51 +666,42 @@ class PetersenScale:
                 # 小数格式
                 return float(line)
         
-        base_freq = None
-        for i, line in enumerate(lines[3:13]):  # 跳过描述、音数、注释行，显示前10个
+        ratio_lines = []
+        for i, line in enumerate(lines[3:]):  # 跳过描述、音数、注释行
             if line.strip() == '' or line.strip().startswith('!'):
                 continue
-                
+            ratio_lines.append(line.strip())
+        
+        # 显示前10个比值
+        for i, line in enumerate(ratio_lines[:10]):
             try:
                 ratio = parse_scala_ratio(line)
-                if base_freq is None:
-                    base_freq = ratio  # 第一个比值作为基准
-                
                 cents_val = 1200 * math.log2(ratio) if ratio > 0 else 0
-                print(f"  {i+1:2d}: {line.strip():<12} = {ratio:.6f} ({cents_val:+7.1f} cents)")
+                print(f"  {i+1:2d}: {line:<12} = {ratio:.6f} ({cents_val:+7.1f} cents)")
             except (ValueError, ZeroDivisionError) as e:
-                print(f"  {i+1:2d}: {line.strip():<12} = 解析错误: {e}")
+                print(f"  {i+1:2d}: {line:<12} = 解析错误: {e}")
         
         # 额外统计信息
         try:
-            total_entries = int(lines[1].strip())
-            actual_entries = len([l for l in lines[3:] if l.strip() and not l.strip().startswith('!')])
-            print(f"\n声明音数: {total_entries}")
-            print(f"实际音数: {actual_entries}")
-            if total_entries != actual_entries:
-                print(f"⚠️  音数不匹配！")
+            declared_count = int(lines[1].strip())
+            actual_count = len(ratio_lines)
+            print(f"\n声明音数: {declared_count}")
+            print(f"实际音数: {actual_count}")
+            print(f"包含基准音1/1: {'是' if '1/1' in ratio_lines else '否'}")
+            
+            # Scala格式说明：声明的音数应该是实际音数减去基准音1/1
+            if '1/1' in ratio_lines:
+                expected_declared = actual_count - 1
             else:
-                print(f"✓ 音数匹配")
-        except:
-            print(f"无法验证音数")
-            """
-            验证生成的 .scl 文件格式是否正确
-            
-            Args:
-                scl_path: .scl 文件路径
-            """
-            with open(scl_path, 'r', encoding='utf-8') as f:
-                lines = f.readlines()
-            
-            print(f"=== Scala 文件验证: {scl_path} ===")
-            print(f"描述: {lines[0].strip()}")
-            print(f"音数: {lines[1].strip()}")
-            print(f"前5个比值:")
-            
-            for i, line in enumerate(lines[3:8]):  # 跳过描述、音数、注释行
-                ratio = float(line.strip())
-                cents_val = 1200 * math.log2(ratio) if ratio > 0 else 0
-                print(f"  {i+1}: {ratio:.6f} ({cents_val:+.1f} cents)")
+                expected_declared = actual_count
+                
+            if declared_count == expected_declared:
+                print(f"✓ 音数匹配 (Scala格式正确)")
+            else:
+                print(f"⚠️  音数不匹配！应该声明 {expected_declared} 个音")
+                
+        except Exception as e:
+            print(f"无法验证音数: {e}")
 
 if __name__ == "__main__":
     """
