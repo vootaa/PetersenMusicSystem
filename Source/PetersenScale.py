@@ -583,63 +583,56 @@ class PetersenScale:
                             # 用小数表示
                             f.write(f"{ratio:.10f}\n")
 
-    def to_midi_tuning(self, path: Union[str, Path], name: str = "Petersen Scale") -> None:
+    def to_midi_tuning(self, path: Union[str, Path], name: str = "Petersen Scale",
+                       entries: Optional[List[ScaleEntry]] = None) -> None:
         """
-        导出为MIDI调音表(.tun)格式
-        
-        Args:
-            path: 输出文件路径
-            name: 调音表名称
-        
-        .tun格式是Scala软件使用的二进制格式，包含128个MIDI音符的频率调音信息
+        导出为MIDI调音表(.tun)
+        如果传入 entries（例如已按规则剪枝后的条目），将使用这些条目作为 scale 源；
+        否则使用 self.generate_raw()。
+
+        映射策略：对每个 MIDI note (0..127) 计算目标等音体频率，
+        在所有 scale_freq * 2^k 中选择与目标最近的频率，确保键盘上的 octave 连贯性。
         """
-        entries = self.generate_raw()
+        if entries is None:
+            entries = self.generate_raw()
         if not entries:
             raise ValueError("No entries to export")
         
         p = Path(path)
+        base_freq = 8.1757989156  # MIDI 0 的频率
         
-        # 准备128个MIDI音符的频率（默认使用12平均律作为基础）
-        frequencies = []
-        base_freq = 8.1757989156  # MIDI 0 (C-1) 的频率
+        # 原始 scale 频率（去重并排序）
+        scale_freqs = sorted({e.freq for e in entries if e.freq > 0})
+        if not scale_freqs:
+            raise ValueError("No valid scale frequencies")
         
-        # 计算基础的12平均律频率表
+        midi_freqs = []
         for midi_note in range(128):
-            freq_12tet = base_freq * (2 ** (midi_note / 12.0))
-            frequencies.append(freq_12tet)
-        
-        # 尝试将我们的音阶映射到最接近的MIDI音符
-        entries_sorted = sorted(entries, key=lambda x: x.freq)
-        
-        # 简单映射策略：找到每个生成频率最接近的MIDI音符并替换
-        for entry in entries_sorted:
-            # 找到最接近的MIDI音符
-            best_midi = 0
-            best_diff = abs(frequencies[0] - entry.freq)
+            # 目标等十二平均律频率（用于匹配）
+            target = base_freq * (2 ** (midi_note / 12.0))
+            best_freq = scale_freqs[0]
+            best_diff = abs(best_freq - target)
             
-            for midi_note in range(128):
-                diff = abs(frequencies[midi_note] - entry.freq)
+            for sf in scale_freqs:
+                # 估算最合适的 octave 偏移 k（将 sf 移到接近 target 的 octave）
+                k = round(math.log2(target / sf))
+                cand = sf * (2 ** k)
+                diff = abs(cand - target)
                 if diff < best_diff:
                     best_diff = diff
-                    best_midi = midi_note
+                    best_freq = cand
             
-            # 替换该MIDI音符的频率
-            frequencies[best_midi] = entry.freq
+            midi_freqs.append(best_freq)
         
-        # 写入.tun文件（简化的二进制格式）
+        # 写入简化 .tun 文件（原实现的二进制头）
         with p.open("wb") as f:
-            # 写入文件头（简化版本）
-            f.write(b"TUN ")  # 格式标识
-            f.write(struct.pack("<I", 1))  # 版本号
-            
-            # 写入名称（32字节，补零）
+            f.write(b"TUN ")
+            f.write(struct.pack("<I", 1))
             name_bytes = name.encode('ascii', errors='ignore')[:31]
             name_padded = name_bytes + b'\x00' * (32 - len(name_bytes))
             f.write(name_padded)
-            
-            # 写入128个频率值（双精度浮点数）
-            for freq in frequencies:
-                f.write(struct.pack("<d", freq))
+            for freq in midi_freqs:
+                f.write(struct.pack("<d", float(freq)))
 
     def verify_scala_file(self, scl_path: Union[str, Path]) -> None:
         """
@@ -704,6 +697,20 @@ class PetersenScale:
         except Exception as e:
             print(f"无法验证音数: {e}")
 
+    def prune_keep_neutral_zones(self,
+                                 entries: Optional[List[ScaleEntry]] = None,
+                                 zones: Optional[List[int]] = None) -> List[ScaleEntry]:
+        """
+        在给定音区列表中只保留中性(p==0)条目，其它音区保持不变。
+        如果 entries 为 None，会调用 generate_raw() 获取完整条目列表。
+        """
+        if entries is None:
+            entries = self.generate_raw()
+        if not zones:
+            return entries
+        zones_set = set(zones)
+        filtered = [e for e in entries if not (e.n in zones_set and e.p != 0)]
+        return filtered
 
 def parse_args():
     p = argparse.ArgumentParser()
@@ -725,10 +732,12 @@ if __name__ == "__main__":
     # 简单文件名安全化：把小数点替换为 'p'，例如 1.25 -> 1p25
     def fmt(x):
         return str(x).replace('.', 'p')
-    
-    csv_file = f"petersen_scale_F{fmt(F_base)}_dth{fmt(delta_theta)}.csv"
-    scl_file = f"petersen_scale_F{fmt(F_base)}_dth{fmt(delta_theta)}.scl"
-    tun_file = f"petersen_scale_F{fmt(F_base)}_dth{fmt(delta_theta)}.tun"
+
+    name_safe = f"petersen_scale_F{fmt(F_base)}_dth{fmt(delta_theta)}"
+    csv_file = f"{name_safe}.csv"
+    scl_file = f"{name_safe}.scl"
+    tun_file = f"{name_safe}.tun"
+    prune_tun_file = f"{name_safe}_prune.tun"
 
     print("=== Petersen 黄金率音阶系统测试 ===\n")
     
@@ -798,9 +807,16 @@ if __name__ == "__main__":
         print(f"✗ Scala导出失败: {ex}")
     
     try:
-        scale.to_midi_tuning(tun_file)
-        print(f"✓ MIDI调音表导出成功: {tun_file}")
+        scale.to_midi_tuning(tun_file, name_safe)
+        print(f"✓ MIDI调音表导出成功: {tun_file} (name header='{name_safe}')")
     except Exception as ex:
         print(f"✗ MIDI调音表导出失败: {ex}")
+
+    try:
+        pruned = scale.prune_keep_neutral_zones(raw_entries, zones=[1, 2, 10, 11])
+        scale.to_midi_tuning(prune_tun_file, name_safe, pruned)
+        print(f"✓ 裁剪版MIDI调音表导出成功: {prune_tun_file} (name header='{name_safe}')")
+    except Exception as ex:
+        print(f"✗ 裁剪版MIDI调音表导出失败: {ex}")
     
     print(f"\n=== 测试完成 ===")
