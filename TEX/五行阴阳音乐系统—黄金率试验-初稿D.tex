@@ -1,0 +1,127 @@
+% !TEX TS-program = xelatex
+\documentclass{article}
+
+\usepackage{fontspec}
+\usepackage{amsmath,amssymb}
+\usepackage{xeCJK}
+\usepackage[normalem]{ulem}
+\usepackage{geometry}
+\geometry{a4paper, margin=25mm}
+
+% 段落间距与缩进：使段落更清晰
+\setlength{\parskip}{6pt}
+\setlength{\parindent}{0pt}
+
+\setmainfont{Kode Mono}
+\setCJKmainfont{Songti SC}[ItalicFont={Songti SC}]
+\setCJKmonofont{Songti SC}[ItalicFont={Songti SC}]
+
+\newcommand{\emphzh}[1]{\uline{#1}}
+
+\title{五行阴阳音乐系统 — 黄金率试验}
+\author{Abe.Chua（初稿D）}
+\date{2025-08-25}
+
+\begin{document}
+\maketitle
+
+\section*{目标（简要）}
+本试验以可参数化的基点频率 \(F_{\mathrm{base}}\)（默认 20\,Hz，调整范围视为转调，小于1个 \(\varphi\)）为出发点，按黄金比例 \(\varphi\) 向上生成一系列音区；
+\\在每个音区（$360^\circ$）内，按五行（$72^\circ$/方位）—阴阳极性（3个）角度分布，决定15个音位在该区内的落点。
+\\下面给出公式、两种可选映射方案、枚举区间的方法与简单示例。
+
+\section*{参数与符号}
+主要符号定义如下：
+\[
+\varphi=\frac{1+\sqrt5}{2}\approx1.61803398875,\qquad F_{\mathrm{base}}\ (\text{default}=20\ \mathrm{Hz}).
+\]
+五行角度基位与极性定义为：
+\[
+\theta_e = 72^\circ\cdot e,\quad e\in\{0,1,2,3,4\},\qquad p\in\{-1,0,+1\},\qquad \Delta\theta\ (\text{default}=4.8^\circ).
+\]
+
+令 p=-1 对应基准角（即 \(\theta_e\) 本身），向上按步进 \(\Delta\theta\) 配置三极性位置：
+\[
+\theta=\theta_e + (p+1)\cdot\Delta\theta,\qquad p\in\{-1,0,+1\}.
+\]
+% 注：72^\circ 为五行间隔，360^\circ 为完整音区周期（对应 φ 的一次幂跨度）。
+
+\section*{方案 A — 折叠（folding）方式}
+方案 A 是对早前文档折叠逻辑的扩展，适用于需要把原始频率折叠回目标音区的情况。
+
+先计算原始比例因子：（以 $360^\circ$ 为周期）：
+\[
+r_{\mathrm{raw}}(\theta)=\varphi^{\theta/360}.
+\]
+
+原始频率（未折叠）为
+\[
+f_{\mathrm{raw}} = F_{\mathrm{base}}\cdot r_{\mathrm{raw}}(\theta).
+\]
+
+将 \(f_{\mathrm{raw}}\) 折叠到第 \(n\) 音区（区间定义见下）：
+\[
+f_{e,p,n} = f_{\mathrm{raw}}\cdot\varphi^{k},\qquad k\in\mathbb{Z},
+\]
+其中选取 \(k\) 使得
+\[
+f_{e,p,n}\in[\,F_{\mathrm{base}}\varphi^{n},\ F_{\mathrm{base}}\varphi^{n+1}).
+\]
+
+方案 A 适合于兼容已有折叠逻辑或当角度范围超出一个周期时复用，但会引入折叠带来的二义性。
+
+\section*{方案 B — 归一化（intra-zone placement）方式（推荐）}
+方案 B 将角度映射到单一区间内的位置参数 \(u\in[0,1)\)，从而在每个音区内按相对位置放置音位——此法直观且无额外折叠。
+
+角度到区内位置的映射为（以 $360^\circ$ 为周期）：
+\[
+u=\frac{(\theta \bmod 360^\circ)}{360^\circ}.
+\]
+
+第 \(n\) 音区定义为
+\[
+\text{区}_n=[\,F_{\mathrm{base}}\varphi^{n},\ F_{\mathrm{base}}\varphi^{n+1}\,).
+\]
+
+在区内按 \(u\) 放置该音位：
+\[
+f_{e,p,n} = F_{\mathrm{base}}\cdot \varphi^{\,n+u}.
+\]
+% 说明：以上保持与底层文档（已修正）的一致性：360° 对应一完整 φ 区间，72° 为五行间隔，Δθ 为三极性在该格内的局部偏移。
+
+方案 B 的优点在于每 $360^\circ$ 的角度周期对应完整的一个黄金率音区，计算简单且无折叠不确定性。因此推荐优先使用方案 B 生成可解释的区间分布。
+
+\section*{如何枚举有效的 \(n\)}
+为了使频率落在工程带宽 \([F_{\min},F_{\max}]\) 内（示例取 \(F_{\min}=30\ \mathrm{Hz},\ F_{\max}=6000\ \mathrm{Hz}\)），对于给定 \(u\) 需要满足：
+\[
+F_{\min}\le F_{\mathrm{base}}\varphi^{n+u}<F_{\max}.
+\]
+等价地，
+\[
+\log_{\varphi}\frac{F_{\min}}{F_{\mathrm{base}}}-u \le n < \log_{\varphi}\frac{F_{\max}}{F_{\mathrm{base}}}-u.
+\]
+因此可以取
+\[
+n_{\min}=\left\lceil \log_{\varphi}\frac{F_{\min}}{F_{\mathrm{base}}}-u \right\rceil,\quad
+n_{\max}=\left\lfloor \log_{\varphi}\frac{F_{\max}}{F_{\mathrm{base}}}-u \right\rfloor.
+\]
+对所有 15 个 \((e,p)\) 计算对应的 \(u\)，再合并不同 \(n\) 的结果即可得到完整候选集合。
+
+\section*{简单示例}
+参数示例： \(F_{\mathrm{base}}=20\ \mathrm{Hz},\ \Delta\theta=4.8^\circ,\ F_{\min}=30\ \mathrm{Hz},\ F_{\max}=6000\ \mathrm{Hz}\)。
+
+按方案 B 枚举 \(n\)：从最小的 \(n_{\min}\) 开始，对每个 \(u\) 逐步增加 \(n\) 直到区间上界超出 \(F_{\max}\)。该过程在脚本中易于实现并可直接导出每个 \(f_{e,p,n}\) 与其所属区间。
+
+\section*{实现建议与比较}
+首选方案 B（归一化）用于生成可解释的、无折叠二义性的区间分布。方案 A 可用于兼容已有折叠逻辑或当角度范围超出一个周期时复用。
+
+导出时建议同时给出：绝对频率、相对 cents（以某一基准如 220\,Hz 或局部区下界为基准）、以及所属 \(n\)。在脚本中提供可调参数：\(F_{\mathrm{base}},\ \Delta\theta,\ F_{\min},\ F_{\max}\) 与是否使用方案 A/B。
+
+\section*{下一步（工程化清单）}
+\begin{enumerate}
+  \item 编写生成脚本（Python），实现方案 B 的 \(f_{e,p,n}\) 枚举并输出 CSV/Scala/.tun。
+  \item 生成每个候选区段的频率范围表并可视化（热图/频谱带图）。
+  \item 在小样本上进行听测与参数微调（调整 \(F_{\mathrm{base}}\) 与 \(\Delta\theta\)）。
+\end{enumerate}
+
+\end{document}
