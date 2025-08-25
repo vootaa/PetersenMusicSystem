@@ -52,6 +52,7 @@ import math
 import csv
 import logging
 import struct
+import argparse
 from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Dict, Optional, Tuple, Union
@@ -703,16 +704,36 @@ class PetersenScale:
         except Exception as e:
             print(f"无法验证音数: {e}")
 
+
+def parse_args():
+    p = argparse.ArgumentParser()
+    p.add_argument('--F_base', type=float, default=20.0, help='base F value (default: 20.0)')
+    p.add_argument('--delta_theta', type=float, default=4.8, help='delta theta (default: 4.8)')
+    return p.parse_args()
+
 if __name__ == "__main__":
     """
     测试和演示代码
     
     运行方式：python PetersenScale.py
     """
+
+    args = parse_args()
+    F_base = args.F_base
+    delta_theta = args.delta_theta
+
+    # 简单文件名安全化：把小数点替换为 'p'，例如 1.25 -> 1p25
+    def fmt(x):
+        return str(x).replace('.', 'p')
+    
+    csv_file = f"petersen_scale_F{fmt(F_base)}_dth{fmt(delta_theta)}.csv"
+    scl_file = f"petersen_scale_F{fmt(F_base)}_dth{fmt(delta_theta)}.scl"
+    tun_file = f"petersen_scale_F{fmt(F_base)}_dth{fmt(delta_theta)}.tun"
+
     print("=== Petersen 黄金率音阶系统测试 ===\n")
     
     # 创建音阶对象
-    scale = PetersenScale(F_base=20.0, delta_theta=4.8, F_min=30.0, F_max=6000.0, reference=220.0)
+    scale = PetersenScale(F_base=F_base, delta_theta=delta_theta, F_min=30.0, F_max=6000.0, reference=220.0)
     
     # 验证实现正确性
     if scale.validate_implementation():
@@ -764,21 +785,21 @@ if __name__ == "__main__":
     # 导出功能测试
     print(f"\n=== 导出功能测试 ===")
     try:
-        scale.export_csv("petersen_scale.csv")
-        print("✓ CSV导出成功: petersen_scale.csv")
+        scale.export_csv(csv_file)
+        print(f"✓ CSV导出成功:{csv_file}")
     except Exception as ex:
         print(f"✗ CSV导出失败: {ex}")
     
     try:
-        scale.to_scala_file("petersen_scale.scl")
-        print("✓ Scala导出成功: petersen_scale.scl")
-        scale.verify_scala_file("petersen_scale.scl")
+        scale.to_scala_file(scl_file)
+        print(f"✓ Scala导出成功: {scl_file}")
+        scale.verify_scala_file(scl_file)
     except Exception as ex:
         print(f"✗ Scala导出失败: {ex}")
     
     try:
-        scale.to_midi_tuning("petersen_scale.tun")
-        print("✓ MIDI调音表导出成功: petersen_scale.tun")
+        scale.to_midi_tuning(tun_file)
+        print(f"✓ MIDI调音表导出成功: {tun_file}")
     except Exception as ex:
         print(f"✗ MIDI调音表导出失败: {ex}")
     
