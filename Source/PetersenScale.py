@@ -813,7 +813,7 @@ if __name__ == "__main__":
         print(f"✗ MIDI调音表导出失败: {ex}")
 
     try:
-        pruned = scale.prune_keep_neutral_zones(raw_entries, zones=[1, 2, 10, 11])
+        pruned = scale.prune_keep_neutral_zones(raw_entries, zones=[1, 2]) # 最后一个:第10个音区土阴
         scale.to_midi_tuning(prune_tun_file, name_safe, pruned)
         print(f"✓ 裁剪版MIDI调音表导出成功: {prune_tun_file} (name header='{name_safe}')")
     except Exception as ex:
