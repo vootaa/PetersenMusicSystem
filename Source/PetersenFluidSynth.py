@@ -147,78 +147,121 @@ class PetersenPlayer:
         self.selected_entries: List[ScaleEntry] = []
         self.midi_mapping: Dict[int, ScaleEntry] = {}  # midi_key -> entry
         
-        # 初始化FluidSynth
-        self.fluidsynth = ctypes.CDLL(fluidsynth_lib)
-        self._setup_fluidsynth_signatures()
+        # 初始化FluidSynth（使用更保守的方式）
+        self.fluidsynth = None
         self.settings = None
         self.synth = None
         self.driver = None
         self.sf_id = None
         self.current_channel = 0
         self.tuning_enabled = False
+        self.tuning_method = None
         
-        print(f"✓ Loaded FluidSynth from: {fluidsynth_lib}")
         print(f"✓ Generated {len(self.all_entries)} Petersen scale entries")
         
         # 启动FluidSynth
-        self._init_fluidsynth()
+        try:
+            self.fluidsynth = ctypes.CDLL(fluidsynth_lib)
+            print(f"✓ Loaded FluidSynth from: {fluidsynth_lib}")
+            self._setup_fluidsynth_signatures()
+            self._init_fluidsynth()
+        except Exception as e:
+            self.cleanup()
+            raise Exception(f"FluidSynth initialization failed: {e}")
         
     def _setup_fluidsynth_signatures(self):
         """设置FluidSynth函数签名"""
-        # 基本函数
-        self.fluidsynth.new_fluid_settings.restype = ctypes.c_void_p
-        self.fluidsynth.new_fluid_synth.restype = ctypes.c_void_p
-        self.fluidsynth.new_fluid_audio_driver.restype = ctypes.c_void_p
-        
-        # SoundFont和程序
-        self.fluidsynth.fluid_synth_sfload.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int]
-        self.fluidsynth.fluid_synth_program_change.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_int]
-        
-        # 音符控制
-        self.fluidsynth.fluid_synth_noteon.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_int, ctypes.c_int]
-        self.fluidsynth.fluid_synth_noteoff.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_int]
-        
-        # 尝试不同的调音API
         try:
-            # 新版本API：激活键调音（推荐方式）
-            self.fluidsynth.fluid_synth_activate_key_tuning.argtypes = [
-                ctypes.c_void_p, ctypes.c_int, ctypes.c_int, 
-                ctypes.c_char_p, ctypes.POINTER(ctypes.c_double), ctypes.c_int
-            ]
-            self.tuning_method = 'activate_key_tuning'
-            print("✓ 使用 activate_key_tuning API")
-        except AttributeError:
+            # 基本函数签名
+            self.fluidsynth.new_fluid_settings.restype = ctypes.c_void_p
+            self.fluidsynth.new_fluid_synth.restype = ctypes.c_void_p
+            self.fluidsynth.new_fluid_synth.argtypes = [ctypes.c_void_p]
+            self.fluidsynth.new_fluid_audio_driver.restype = ctypes.c_void_p
+            self.fluidsynth.new_fluid_audio_driver.argtypes = [ctypes.c_void_p, ctypes.c_void_p]
+            
+            # SoundFont函数
+            self.fluidsynth.fluid_synth_sfload.restype = ctypes.c_int
+            self.fluidsynth.fluid_synth_sfload.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int]
+            
+            # 程序切换
+            self.fluidsynth.fluid_synth_program_change.restype = ctypes.c_int
+            self.fluidsynth.fluid_synth_program_change.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_int]
+            
+            # 音符控制
+            self.fluidsynth.fluid_synth_noteon.restype = ctypes.c_int
+            self.fluidsynth.fluid_synth_noteon.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_int, ctypes.c_int]
+            self.fluidsynth.fluid_synth_noteoff.restype = ctypes.c_int
+            self.fluidsynth.fluid_synth_noteoff.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_int]
+            
+            # 弯音轮（作为备用方案）
+            self.fluidsynth.fluid_synth_pitch_bend.restype = ctypes.c_int
+            self.fluidsynth.fluid_synth_pitch_bend.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_int]
+            
+            # 清理函数
+            self.fluidsynth.delete_fluid_audio_driver.argtypes = [ctypes.c_void_p]
+            self.fluidsynth.delete_fluid_synth.argtypes = [ctypes.c_void_p]
+            self.fluidsynth.delete_fluid_settings.argtypes = [ctypes.c_void_p]
+            
+            # 尝试调音API（可选）
+            self.tuning_method = 'pitch_bend'  # 默认使用弯音轮
             try:
-                # 旧版本API：创建调音
-                self.fluidsynth.fluid_synth_create_key_tuning.argtypes = [
+                # 尝试新版本调音API
+                self.fluidsynth.fluid_synth_activate_key_tuning.restype = ctypes.c_int
+                self.fluidsynth.fluid_synth_activate_key_tuning.argtypes = [
                     ctypes.c_void_p, ctypes.c_int, ctypes.c_int, 
-                    ctypes.c_char_p, ctypes.POINTER(ctypes.c_double)
+                    ctypes.c_char_p, ctypes.POINTER(ctypes.c_double), ctypes.c_int
                 ]
-                self.fluidsynth.fluid_synth_select_tuning.argtypes = [
-                    ctypes.c_void_p, ctypes.c_int, ctypes.c_int, ctypes.c_int
-                ]
-                self.tuning_method = 'create_key_tuning'
-                print("✓ 使用 create_key_tuning API")
+                self.tuning_method = 'activate_key_tuning'
+                print("✓ 检测到 activate_key_tuning API")
             except AttributeError:
-                # 如果没有调音API，使用弯音轮模拟
-                self.fluidsynth.fluid_synth_pitch_bend.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_int]
-                self.tuning_method = 'pitch_bend'
-                print("⚠️  使用弯音轮模拟调音（精度有限）")
-        
+                try:
+                    # 尝试旧版本调音API
+                    self.fluidsynth.fluid_synth_create_key_tuning.restype = ctypes.c_int
+                    self.fluidsynth.fluid_synth_create_key_tuning.argtypes = [
+                        ctypes.c_void_p, ctypes.c_int, ctypes.c_int, 
+                        ctypes.c_char_p, ctypes.POINTER(ctypes.c_double)
+                    ]
+                    self.fluidsynth.fluid_synth_select_tuning.restype = ctypes.c_int
+                    self.fluidsynth.fluid_synth_select_tuning.argtypes = [
+                        ctypes.c_void_p, ctypes.c_int, ctypes.c_int, ctypes.c_int
+                    ]
+                    self.tuning_method = 'create_key_tuning'
+                    print("✓ 检测到 create_key_tuning API")
+                except AttributeError:
+                    print("⚠️  仅支持弯音轮调音（精度有限）")
+                    
+        except Exception as e:
+            raise Exception(f"Failed to setup FluidSynth function signatures: {e}")
+    
     def _init_fluidsynth(self):
         """初始化FluidSynth引擎"""
         try:
+            # 创建设置
+            print("创建FluidSynth设置...")
             self.settings = self.fluidsynth.new_fluid_settings()
+            if not self.settings:
+                raise Exception("Failed to create FluidSynth settings")
+            
+            # 创建合成器
+            print("创建FluidSynth合成器...")
             self.synth = self.fluidsynth.new_fluid_synth(self.settings)
+            if not self.synth:
+                raise Exception("Failed to create FluidSynth synthesizer")
+            
+            # 创建音频驱动
+            print("创建FluidSynth音频驱动...")
             self.driver = self.fluidsynth.new_fluid_audio_driver(self.settings, self.synth)
+            if not self.driver:
+                raise Exception("Failed to create FluidSynth audio driver")
             
             # 加载SoundFont
+            print(f"加载SoundFont: {self.soundfont_path}")
             sf_path_bytes = str(self.soundfont_path).encode('utf-8')
             self.sf_id = self.fluidsynth.fluid_synth_sfload(self.synth, sf_path_bytes, 1)
             if self.sf_id == -1:
                 raise Exception(f"Failed to load SoundFont: {self.soundfont_path}")
             
-            print(f"✓ FluidSynth initialized, SoundFont loaded")
+            print(f"✓ FluidSynth初始化成功，SoundFont已加载 (ID: {self.sf_id})")
             
         except Exception as e:
             self.cleanup()
@@ -294,14 +337,15 @@ class PetersenPlayer:
             standard_freq = 440.0 * (2 ** ((midi_key - 69) / 12.0))
             frequencies.append(standard_freq)
         
-        # 应用调音
-        if self.tuning_method == 'activate_key_tuning':
-            self._apply_activate_key_tuning(frequencies)
-        elif self.tuning_method == 'create_key_tuning':
-            self._apply_create_key_tuning(frequencies)
-        else:
-            print("⚠️  将在播放时使用弯音轮调音")
-            
+        # 应用调音（仅在有自定义频率时）
+        if len(self.midi_mapping) > 0:
+            if self.tuning_method == 'activate_key_tuning':
+                self._apply_activate_key_tuning(frequencies)
+            elif self.tuning_method == 'create_key_tuning':
+                self._apply_create_key_tuning(frequencies)
+            else:
+                print("⚠️  将在播放时使用弯音轮调音")
+                
         print(f"✓ 映射了 {len(self.midi_mapping)} 个频率到MIDI键")
     
     def _apply_activate_key_tuning(self, frequencies: List[float]):
@@ -321,8 +365,10 @@ class PetersenPlayer:
                 print("✓ 调音已激活")
             else:
                 print(f"⚠️  调音激活返回代码: {result}")
+                self.tuning_enabled = False
         except Exception as e:
             print(f"❌ 调音激活失败: {e}")
+            self.tuning_enabled = False
     
     def _apply_create_key_tuning(self, frequencies: List[float]):
         """使用create_key_tuning API应用调音"""
@@ -346,8 +392,10 @@ class PetersenPlayer:
                 print("✓ 调音已创建并选择")
             else:
                 print(f"⚠️  调音创建结果: {result1}, 选择结果: {result2}")
+                self.tuning_enabled = False
         except Exception as e:
             print(f"❌ 调音创建失败: {e}")
+            self.tuning_enabled = False
     
     def _calculate_pitch_bend(self, target_freq: float, midi_key: int) -> int:
         """计算达到目标频率所需的弯音轮值"""
@@ -396,8 +444,11 @@ class PetersenPlayer:
             raise TypeError("instrument must be str, int, or InstrumentType")
         
         # 设置MIDI程序
-        self.fluidsynth.fluid_synth_program_change(self.synth, self.current_channel, program)
-        print(f"✓ 加载乐器: 程序号 {program}")
+        result = self.fluidsynth.fluid_synth_program_change(self.synth, self.current_channel, program)
+        if result == 0:
+            print(f"✓ 加载乐器: 程序号 {program}")
+        else:
+            print(f"⚠️  乐器加载可能失败: 程序号 {program}, 返回码 {result}")
     
     def play_note(self, key_name: str, duration: float = 0.5, velocity: int = 80) -> bool:
         """
@@ -431,9 +482,15 @@ class PetersenPlayer:
             self.fluidsynth.fluid_synth_pitch_bend(self.synth, self.current_channel, pitch_bend + 8192)
         
         # 播放音符
-        self.fluidsynth.fluid_synth_noteon(self.synth, self.current_channel, midi_key, velocity)
+        result_on = self.fluidsynth.fluid_synth_noteon(self.synth, self.current_channel, midi_key, velocity)
+        if result_on != 0:
+            print(f"⚠️  noteon返回码: {result_on}")
+            
         time.sleep(duration)
-        self.fluidsynth.fluid_synth_noteoff(self.synth, self.current_channel, midi_key)
+        
+        result_off = self.fluidsynth.fluid_synth_noteoff(self.synth, self.current_channel, midi_key)
+        if result_off != 0:
+            print(f"⚠️  noteoff返回码: {result_off}")
         
         # 重置弯音轮
         if not self.tuning_enabled and self.tuning_method == 'pitch_bend':
@@ -574,13 +631,16 @@ class PetersenPlayer:
         try:
             if self.driver:
                 self.fluidsynth.delete_fluid_audio_driver(self.driver)
+                self.driver = None
             if self.synth:
                 self.fluidsynth.delete_fluid_synth(self.synth)
+                self.synth = None
             if self.settings:
                 self.fluidsynth.delete_fluid_settings(self.settings)
+                self.settings = None
             print("✓ FluidSynth资源已清理")
-        except:
-            pass
+        except Exception as e:
+            print(f"⚠️  清理资源时出错: {e}")
     
     def __del__(self):
         """析构函数，自动清理资源"""
