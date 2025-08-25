@@ -528,15 +528,13 @@ class PetersenScale:
         """
         导出为Scala (.scl) 格式
         推荐软件：
-        1. Scala (http://www.huygens-fokker.org/scala/) - 官方软件，免费
-        2. Pianoteq - 直接支持导入
-        3. VCV Rack + 微音模块
-        4. Surge XT 合成器
-        
-        使用方法：
-        1. 用 Scala 软件打开 .scl 文件进行分析
-        2. 在 Pianoteq 中：Tuning -> Load Scale File
-        3. 在 VCV Rack 中：使用支持 .scl 的振荡器模块
+        # 安装 Surge XT（免费合成器，支持 .scl 文件）
+        # 下载地址：https://surge-synthesizer.github.io/
+        # 直接支持 Apple Silicon，现代 macOS
+
+        # 或者使用 VCV Rack（免费模块化合成器）
+        # 下载地址：https://vcvrack.com/
+        # 支持微音模块，可以加载 .scl 文件
         
         Args:
             path: 输出文件路径
@@ -560,15 +558,29 @@ class PetersenScale:
         
         with p.open("w", encoding="utf-8") as f:
             f.write(f"! {description}\n")
-            f.write(f"{len(entries)}\n")
+            # Scala 格式：音数不包括基准音 1/1
+            f.write(f"{len(entries) - 1}\n")
             f.write("!\n")
             
-            for entry in entries_sorted:
-                if abs(entry.freq - base_freq) < 1e-10:
-                    f.write("1/1\n")  # 基准音
+            for i, entry in enumerate(entries_sorted):
+                if i == 0:  # 第一个音作为基准音
+                    f.write("1/1\n")
                 else:
                     ratio = entry.freq / base_freq
-                    f.write(f"{ratio:.10f}\n")
+                    # 尝试表示为简单分数，否则用小数
+                    if abs(ratio - round(ratio)) < 1e-6:
+                        # 接近整数
+                        f.write(f"{int(round(ratio))}/1\n")
+                    else:
+                        # 检查是否为简单分数
+                        for denom in [2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15, 16]:
+                            num = ratio * denom
+                            if abs(num - round(num)) < 1e-6:
+                                f.write(f"{int(round(num))}/{denom}\n")
+                                break
+                        else:
+                            # 用小数表示
+                            f.write(f"{ratio:.10f}\n")
 
     def to_midi_tuning(self, path: Union[str, Path], name: str = "Petersen Scale") -> None:
         """
@@ -627,6 +639,78 @@ class PetersenScale:
             # 写入128个频率值（双精度浮点数）
             for freq in frequencies:
                 f.write(struct.pack("<d", freq))
+
+    def verify_scala_file(self, scl_path: Union[str, Path]) -> None:
+        """
+        验证生成的 .scl 文件格式是否正确
+        
+        Args:
+            scl_path: .scl 文件路径
+        """
+        with open(scl_path, 'r', encoding='utf-8') as f:
+            lines = f.readlines()
+        
+        print(f"=== Scala 文件验证: {scl_path} ===")
+        print(f"描述: {lines[0].strip()}")
+        print(f"音数: {lines[1].strip()}")
+        print(f"前10个比值:")
+        
+        def parse_scala_ratio(line: str) -> float:
+            """解析 Scala 格式的比值（支持 1/1, 小数, 分数等格式）"""
+            line = line.strip()
+            if '/' in line:
+                # 分数格式，如 "1/1", "3/2"
+                numerator, denominator = line.split('/')
+                return float(numerator) / float(denominator)
+            else:
+                # 小数格式
+                return float(line)
+        
+        base_freq = None
+        for i, line in enumerate(lines[3:13]):  # 跳过描述、音数、注释行，显示前10个
+            if line.strip() == '' or line.strip().startswith('!'):
+                continue
+                
+            try:
+                ratio = parse_scala_ratio(line)
+                if base_freq is None:
+                    base_freq = ratio  # 第一个比值作为基准
+                
+                cents_val = 1200 * math.log2(ratio) if ratio > 0 else 0
+                print(f"  {i+1:2d}: {line.strip():<12} = {ratio:.6f} ({cents_val:+7.1f} cents)")
+            except (ValueError, ZeroDivisionError) as e:
+                print(f"  {i+1:2d}: {line.strip():<12} = 解析错误: {e}")
+        
+        # 额外统计信息
+        try:
+            total_entries = int(lines[1].strip())
+            actual_entries = len([l for l in lines[3:] if l.strip() and not l.strip().startswith('!')])
+            print(f"\n声明音数: {total_entries}")
+            print(f"实际音数: {actual_entries}")
+            if total_entries != actual_entries:
+                print(f"⚠️  音数不匹配！")
+            else:
+                print(f"✓ 音数匹配")
+        except:
+            print(f"无法验证音数")
+            """
+            验证生成的 .scl 文件格式是否正确
+            
+            Args:
+                scl_path: .scl 文件路径
+            """
+            with open(scl_path, 'r', encoding='utf-8') as f:
+                lines = f.readlines()
+            
+            print(f"=== Scala 文件验证: {scl_path} ===")
+            print(f"描述: {lines[0].strip()}")
+            print(f"音数: {lines[1].strip()}")
+            print(f"前5个比值:")
+            
+            for i, line in enumerate(lines[3:8]):  # 跳过描述、音数、注释行
+                ratio = float(line.strip())
+                cents_val = 1200 * math.log2(ratio) if ratio > 0 else 0
+                print(f"  {i+1}: {ratio:.6f} ({cents_val:+.1f} cents)")
 
 if __name__ == "__main__":
     """
@@ -697,6 +781,7 @@ if __name__ == "__main__":
     try:
         scale.to_scala_file("petersen_scale.scl")
         print("✓ Scala导出成功: petersen_scale.scl")
+        scale.verify_scala_file("petersen_scale.scl")
     except Exception as ex:
         print(f"✗ Scala导出失败: {ex}")
     
