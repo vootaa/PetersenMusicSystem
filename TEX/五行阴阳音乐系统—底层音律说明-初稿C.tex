@@ -39,7 +39,7 @@
   \item 五行角度基位： $\theta_e=72^\circ\cdot e,\ e\in\{0,\dots,4\}$（0:金,1:木,2:水,3:火,4:土）。
   \item 阴阳极性： $p\in\{-1,0,+1\}$；阴阳角度偏移： $\Delta\theta$（默认 $5^\circ$）。
   \item 折叠基准比（八度选择）： $R_{\mathrm{oct}}\in\{2,\varphi\}$。
-  \item 其他超参：和弦相容宽度 $\sigma$、音行跳跃惩罚 $\alpha_e$、BPM 基准 $B$、MPE pitch‑bend range 等。
+  \item 其他超参：和弦相容宽度 $\sigma$、音行跳跃惩罚 $\alpha_e$、BPM 基准 $B$、MPE pitch-bend range 等。
 \end{itemize}
 
 \section{标准参数表（默认值与可搜索范围）}
@@ -50,7 +50,7 @@
   \item $R_{\mathrm{oct}}$ = 2（可选 $\varphi$）
   \item $\sigma$ = 50 cents（可试 10–200 cents）
   \item $\alpha_e$ = 1.0（可试 0.1–5.0）
-  \item MPE pitch‑bend range 建议 ±200 cents（按需要调整）
+  \item MPE pitch-bend range 建议 ±200 cents（按需要调整）
 \end{itemize}
 
 \section{角度—频率映射（核心公式）}
@@ -141,11 +141,11 @@ F\in [F_{0},\ F_{0}\cdot R_{\mathrm{oct}}).
 \begin{enumerate}
   \item Scala (.scl)：用于静态音阶比较、格式通用。
   \item MIDI Tuning Standard (.tun) 或 SysEx：用于支持自定义微分音调律的合成器。
-  \item MPE + per‑voice pitch‑bend fallback：当合成器支持 MPE 时，每声部使用独立 pitch‑bend；否则用 base MIDI note + pitch‑bend。策略建议：
+  \item MPE + per-voice pitch-bend fallback：当合成器支持 MPE 时，每声部使用独立 pitch-bend；否则用 base MIDI note + pitch-bend。策略建议：
     \begin{itemize}
-      \item 计算目标频率与最邻近 MIDI note（12‑TET）差值（cents）。
-      \item 若绝对差值 $\le$ 100 cents，分配该 MIDI note 並通过 pitch‑bend 调整；否则选择不同基准 note/八度组合以压缩到 pitch‑bend 范围。
-      \item 默认 pitch‑bend range = ±200 cents；如需更大范围，动态调整或采用 MPE 每声部方案。
+      \item 计算目标频率与最邻近 MIDI note（12-TET）差值（cents）。
+      \item 若绝对差值 $\le$ 100 cents，分配该 MIDI note 並通过 pitch-bend 调整；否则选择不同基准 note/八度组合以压缩到 pitch-bend 范围。
+      \item 默认 pitch-bend range = ±200 cents；如需更大范围，动态调整或采用 MPE 每声部方案。
     \end{itemize}
 \end{enumerate}
 
@@ -187,13 +187,13 @@ S(C)=\sum_{i<j}\exp\!\Big(-\frac{\delta_{ij}^2}{2\sigma^2}\Big).
 实时实现注意点：
 \begin{itemize}
   \item 频率变化平滑（portamento/滑音）：对频率包络应用分段线性或低通滤波，避免瞬时大跳引起 aliasing。
-  \item 采样率与插值：使用至少 48 kHz；对 pitch‑bend 引起的频率变化使用带线性相位低通滤波器的 resampler。
-  \item 预计算 LUT：在实时环境中预生成 15/45 音频频率表与 pitch‑bend 值，降低运行时负载。
+  \item 采样率与插值：使用至少 48 kHz；对 pitch-bend 引起的频率变化使用带线性相位低通滤波器的 resampler。
+  \item 预计算 LUT：在实时环境中预生成 15/45 音频频率表与 pitch-bend 值，降低运行时负载。
   \item 合成器 patch 建议（映射五行到音色）：
     \begin{itemize}
-      \item 金：bell FM / high‑q resonant filter, bright harmonic boost。
+      \item 金：bell FM / high-q resonant filter, bright harmonic boost。
       \item 木：plucked sample / physical model, transient + body noise。
-      \item 水：pad + portamento, low‑pass with subtle chorus。
+      \item 水：pad + portamento, low-bend with subtle chorus。
       \item 火：brass/lead with saturation, shorter release。
       \item 土：low oscillator, heavy LP filter, long decay。
     \end{itemize}
@@ -212,12 +212,12 @@ S(C)=\sum_{i<j}\exp\!\Big(-\frac{\delta_{ij}^2}{2\sigma^2}\Big).
 建议的自动化策略：
 \begin{itemize}
   \item 使用网格或贝叶斯优化搜索 $\Delta\theta,\ \sigma,\ \alpha_e,\ R_{\mathrm{oct}}$。
-  \item 每组参数自动生成一组 MIDI/Audio，记录客观指标并进行批量 A/B（或对照 12‑TET）听测。
+  \item 每组参数自动生成一组 MIDI/Audio，记录客观指标并进行批量 A/B（或对照 12-TET）听测。
   \item 保存所有结果与元数据（参数 JSON + timestamp + render 文件名），便于复现与分析。
 \end{itemize}
 
 \section{元数据、引用与许可证}
-请在项目中添加术语表与参考文献（例如 Bohlen–Pierce, Sevish, microtonal tuning 文献），并声明代码与数据许可证（建议 MIT + CC‑BY 组合以兼容科研与艺术共享）。
+请在项目中添加术语表与参考文献（例如 Bohlen–Pierce, Sevish, microtonal tuning 文献），并声明代码与数据许可证（建议 MIT + CC-BY 组合以兼容科研与艺术共享）。
 
 \section{附录 A：实现注意的细节与实践清单}
 实现时的快速清单：
@@ -337,7 +337,7 @@ print("Generated tools/15_positions.csv and tools/petersen_15.scl")
   \item 五行角度基位： $\theta_e=72^\circ\cdot e,\ e\in\{0,\dots,4\}$（0:金,1:木,2:水,3:火,4:土）。
   \item 阴阳极性： $p\in\{-1,0,+1\}$；阴阳角度偏移： $\Delta\theta$（默认 $5^\circ$）。
   \item 折叠基准比（八度选择）： $R_{\mathrm{oct}}\in\{2,\varphi\}$。
-  \item 其他超参：和弦相容宽度 $\sigma$、音行跳跃惩罚 $\alpha_e$、BPM 基准 $B$、MPE pitch‑bend range 等。
+  \item 其他超参：和弦相容宽度 $\sigma$、音行跳跃惩罚 $\alpha_e$、BPM 基准 $B$、MPE pitch-bend range 等。
 \end{itemize}
 
 \section{标准参数表（默认值与可搜索范围）}
@@ -348,7 +348,7 @@ print("Generated tools/15_positions.csv and tools/petersen_15.scl")
   \item $R_{\mathrm{oct}}$ = 2（可选 $\varphi$）
   \item $\sigma$ = 50 cents（可试 10–200 cents）
   \item $\alpha_e$ = 1.0（可试 0.1–5.0）
-  \item MPE pitch‑bend range 建议 ±200 cents（按需要调整）
+  \item MPE pitch-bend range 建议 ±200 cents（按需要调整）
 \end{itemize}
 
 \section{角度—频率映射（核心公式）}
@@ -439,11 +439,11 @@ F\in [F_{0},\ F_{0}\cdot R_{\mathrm{oct}}).
 \begin{enumerate}
   \item Scala (.scl)：用于静态音阶比较、格式通用。
   \item MIDI Tuning Standard (.tun) 或 SysEx：用于支持自定义微分音调律的合成器。
-  \item MPE + per‑voice pitch‑bend fallback：当合成器支持 MPE 时，每声部使用独立 pitch‑bend；否则用 base MIDI note + pitch‑bend。策略建议：
+  \item MPE + per-voice pitch-bend fallback：当合成器支持 MPE 时，每声部使用独立 pitch-bend；否则用 base MIDI note + pitch-bend。策略建议：
     \begin{itemize}
-      \item 计算目标频率与最邻近 MIDI note（12‑TET）差值（cents）。
-      \item 若绝对差值 $\le$ 100 cents，分配该 MIDI note 並通过 pitch‑bend 调整；否则选择不同基准 note/八度组合以压缩到 pitch‑bend 范围。
-      \item 默认 pitch‑bend range = ±200 cents；如需更大范围，动态调整或采用 MPE 每声部方案。
+      \item 计算目标频率与最邻近 MIDI note（12-TET）差值（cents）。
+      \item 若绝对差值 $\le$ 100 cents，分配该 MIDI note 並通过 pitch-bend 调整；否则选择不同基准 note/八度组合以压缩到 pitch-bend 范围。
+      \item 默认 pitch-bend range = ±200 cents；如需更大范围，动态调整或采用 MPE 每声部方案。
     \end{itemize}
 \end{enumerate}
 
@@ -485,13 +485,13 @@ S(C)=\sum_{i<j}\exp\!\Big(-\frac{\delta_{ij}^2}{2\sigma^2}\Big).
 实时实现注意点：
 \begin{itemize}
   \item 频率变化平滑（portamento/滑音）：对频率包络应用分段线性或低通滤波，避免瞬时大跳引起 aliasing。
-  \item 采样率与插值：使用至少 48 kHz；对 pitch‑bend 引起的频率变化使用带线性相位低通滤波器的 resampler。
-  \item 预计算 LUT：在实时环境中预生成 15/45 音频频率表与 pitch‑bend 值，降低运行时负载。
+  \item 采样率与插值：使用至少 48 kHz；对 pitch-bend 引起的频率变化使用带线性相位低通滤波器的 resampler。
+  \item 预计算 LUT：在实时环境中预生成 15/45 音频频率表与 pitch-bend 值，降低运行时负载。
   \item 合成器 patch 建议（映射五行到音色）：
     \begin{itemize}
-      \item 金：bell FM / high‑q resonant filter, bright harmonic boost。
+      \item 金：bell FM / high-q resonant filter, bright harmonic boost。
       \item 木：plucked sample / physical model, transient + body noise。
-      \item 水：pad + portamento, low‑pass with subtle chorus。
+      \item 水：pad + portamento, low-pass with subtle chorus。
       \item 火：brass/lead with saturation, shorter release。
       \item 土：low oscillator, heavy LP filter, long decay。
     \end{itemize}
@@ -510,12 +510,12 @@ S(C)=\sum_{i<j}\exp\!\Big(-\frac{\delta_{ij}^2}{2\sigma^2}\Big).
 建议的自动化策略：
 \begin{itemize}
   \item 使用网格或贝叶斯优化搜索 $\Delta\theta,\ \sigma,\ \alpha_e,\ R_{\mathrm{oct}}$。
-  \item 每组参数自动生成一组 MIDI/Audio，记录客观指标并进行批量 A/B（或对照 12‑TET）听测。
+  \item 每组参数自动生成一组 MIDI/Audio，记录客观指标并进行批量 A/B（或对照 12-TET）听测。
   \item 保存所有结果与元数据（参数 JSON + timestamp + render 文件名），便于复现与分析。
 \end{itemize}
 
 \section{元数据、引用与许可证}
-请在项目中添加术语表与参考文献（例如 Bohlen–Pierce, Sevish, microtonal tuning 文献），并声明代码与数据许可证（建议 MIT + CC‑BY 组合以兼容科研与艺术共享）。
+请在项目中添加术语表与参考文献（例如 Bohlen–Pierce, Sevish, microtonal tuning 文献），并声明代码与数据许可证（建议 MIT + CC-BY 组合以兼容科研与艺术共享）。
 
 \section{附录 A：实现注意的细节与实践清单}
 实现时的快速清单：
