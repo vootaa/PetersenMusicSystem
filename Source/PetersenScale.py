@@ -9,12 +9,16 @@ API 要点：
 长名：中文元素 + 极性（例如 "金 阴"）
 """
 from __future__ import annotations
+
 import math
 import csv
 import logging
 from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Dict, Optional, Tuple, Union
+
+# 采用缓存以提高性能（如果频繁调用）
+from functools import lru_cache
 
 PHI = (1 + 5 ** 0.5) / 2.0
 ELEMENTS_CN = ["金", "木", "水", "火", "土"]
@@ -154,6 +158,68 @@ class PetersenScale:
     def frequencies_only(self) -> List[float]:
         """Return sorted list of frequencies (raw floats)."""
         return [e.freq for e in self.generate_raw()]
+
+    @lru_cache(maxsize=128)
+    def _cached_phi_power(self, exponent: float) -> float:
+        """Cache phi powers for better performance with repeated calls."""
+        return PHI ** exponent
+    
+    # 便利方法
+    def get_frequency_for_key(self, key_short: str) -> Optional[float]:
+        """Get frequency by key name (e.g., 'J-', 'M0', 'T+')."""
+        for entry in self.generate_raw():
+            if entry.key_short == key_short:
+                return entry.freq
+        return None
+    
+    def get_entries_in_zone(self, n: int) -> List[ScaleEntry]:
+        """Get all entries in a specific zone n."""
+        return [e for e in self.generate_raw() if e.n == n]
+    
+    def get_frequency_range(self) -> Tuple[float, float]:
+        """Get actual min/max frequencies generated."""
+        entries = self.generate_raw()
+        if not entries:
+            return (0.0, 0.0)
+        freqs = [e.freq for e in entries]
+        return (min(freqs), max(freqs))
+    
+    # 验证方法
+    def validate_implementation(self) -> bool:
+        """Verify the implementation matches document formulas."""
+        # Test a few known cases
+        test_cases = [
+            (0, -1),  # 金阴: θ=0°, u=0
+            (1, 0),   # 木中: θ=76.8°
+            (4, 1),   # 土阳: θ=297.6°
+        ]
+        
+        for e, p in test_cases:
+            theta = self._theta_for(e, p)
+            u = self._u_from_theta(theta)
+            expected_theta = 72.0 * e + (p + 1) * self.delta_theta
+            expected_u = (expected_theta % 360.0) / 360.0
+            
+            if abs(theta - expected_theta) > 1e-10:
+                return False
+            if abs(u - expected_u) > 1e-10:
+                return False
+        return True
+
+    # 支持不同的输出格式
+    def to_scala_file(self, path: Union[str, Path], description: str = "Petersen Golden Ratio Scale") -> None:
+        """Export to Scala (.scl) format for music software."""
+        entries = self.generate_raw()
+        p = Path(path)
+        
+        with p.open("w", encoding="utf-8") as f:
+            f.write(f"! {description}\n")
+            f.write(f"{len(entries)}\n")
+            f.write("!\n")
+            
+            for entry in sorted(entries, key=lambda x: x.freq):
+                ratio = entry.freq / self.reference
+                f.write(f"{ratio:.10f}\n")
 
     def export_csv(self, path: Union[str, Path], entries: Optional[List[Union[ScaleEntry, Dict]]] = None) -> None:
         if entries is None:
