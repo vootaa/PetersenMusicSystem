@@ -34,13 +34,14 @@
 \[
 \varphi=\frac{1+\sqrt5}{2}\approx1.61803398875,\qquad F_{\mathrm{base}}\ (\text{default}=20\ \mathrm{Hz}).
 \]
-五行角度基位与极性定义为
+五行角度基位与极性定义为：
 \[
-\theta_e = 72^\circ\cdot e,\quad e\in\{0,1,2,3,4\},\qquad p\in\{-1,0,+1\},\qquad \Delta\theta\ (\text{default}=5^\circ).
+\theta_e = 72^\circ\cdot e,\quad e\in\{0,1,2,3,4\},\qquad p\in\{-1,0,+1\},\qquad \Delta\theta\ (\text{default}=72^\circ/15=4.8^\circ).
 \]
-单个位置角度定义为
+
+令 p=-1 对应基准角（即 \(\theta_e\) 本身），向上按步进 \(\Delta\theta\) 配置三极性位置：
 \[
-\theta=\theta_e + p\cdot\Delta\theta.
+\theta=\theta_e + (p+1)\cdot\Delta\theta,\qquad p\in\{-1,0,+1\}.
 \]
 
 \section*{方案 A — 折叠（folding）方式}
