@@ -1,0 +1,186 @@
+% !TEX TS-program = xelatex
+\documentclass{article}
+
+\usepackage{fontspec}
+\usepackage{amsmath,amssymb}
+\usepackage{xeCJK}
+\usepackage[normalem]{ulem}
+\usepackage{geometry}
+\geometry{a4paper, margin=25mm}
+
+\setmainfont{Kode Mono}
+\setCJKmainfont{Songti SC}[ItalicFont={Songti SC}]
+\setCJKmonofont{Songti SC}[ItalicFont={Songti SC}]
+
+\newcommand{\emphzh}[1]{\uline{#1}}
+
+\title{Petersen 五行阴阳音乐系统 — 底层音律说明}
+\author{Abe.Chua (初稿D — 修订，匹配黄金率试验)}
+\date{2025-08-25}
+
+\begin{document}
+\maketitle
+
+本修正版将文档中的映射与常量修正为与“黄金率试验 — 初稿D”一致：
+360° 对应一个黄金率音区，五行间隔为 72°，金（e=0）阴（p=-1）对应 0° 基位，阴阳极性在格内的偏移默认 $\Delta\theta=4.8^\circ$，并采用按 $\varphi$ 的区间归一化（方案 B）为首选实现方式。
+
+\section{概览与设计目标（保持不变）}
+系统以黄金比例为音高生成基准，并以 Petersen 图与五行/阴阳结构作为语法。目标包括参数化、可复现的音律生成（15 方位，扩展至多音区）、便于导出 Scala/.scl 与 MIDI Tuning、以及支持和弦评分与实时合成。
+
+\section{符号与默认常量（修正）}
+主要符号与默认值：
+\[
+\varphi=\frac{1+\sqrt5}{2}\approx1.61803398875,\qquad F_{\mathrm{base}}=20\ \mathrm{Hz}\ (\text{默认}).
+\]
+五行角度基位与极性：
+\[
+\theta_e = 72^\circ\cdot e,\quad e\in\{0,1,2,3,4\}\quad(0=\text{金}),
+\]
+\[
+p\in\{-1,0,+1\},\qquad \Delta\theta = 4.8^\circ\ (\text{默认}).
+\]
+阴阳在格内的角度映射（使 p=-1 对应基位角 \(\theta_e\)）：
+\[
+\theta = \theta_e + (p+1)\cdot\Delta\theta,\qquad p\in\{-1,0,+1\}.
+\]
+
+备注：上述定义保证金阴（e=0,p=-1）角度为 \(0^\circ\)。
+
+\section{核心映射（与黄金率试验一致）}
+将角度按 360° 周期映射到黄金率比例因子。原始比例因子：
+\[
+r_{\mathrm{raw}}(\theta)=\varphi^{\theta/360}.
+\]
+原始频率（未归一化）：
+\[
+f_{\mathrm{raw}} = F_{\mathrm{base}}\cdot r_{\mathrm{raw}}(\theta)=F_{\mathrm{base}}\cdot\varphi^{\theta/360}.
+\]
+
+推荐优先使用“方案 B（区内归一化）”——把每 360° 映射为单一音区的相对位置：
+\[
+u=\frac{(\theta \bmod 360^\circ)}{360^\circ}\in[0,1).
+\]
+第 \(n\) 音区定义为：
+\[
+\text{区}_n=[\,F_{\mathrm{base}}\varphi^{n},\ F_{\mathrm{base}}\varphi^{n+1}\,).
+\]
+在区内按 \(u\) 放置音位：
+\[
+f_{e,p,n} = F_{\mathrm{base}}\cdot \varphi^{\,n+u}.
+\]
+
+方案 A（折叠）仍可保留作兼容用途：先计算 \(f_{\mathrm{raw}}=F_{\mathrm{base}}\varphi^{\theta/360}\)，再乘以 \(\varphi^{k}\) 或 \(R_{\mathrm{oct}}^{k}\) 折叠到目标区间；但推荐以方案 B 作为默认实现以避免折叠二义性。
+
+\section{每度 cents 增量（修正）}
+当 360° 对应一个完整的 \(\varphi\) 倍程时，每 1° 对应的 cents 增量为：
+\[
+\Delta_{1^\circ} = \frac{1200}{360}\log_2\varphi
+= \frac{10}{3}\log_2\varphi \approx 2.3147\ \text{cents/deg}.
+\]
+
+\section{如何枚举有效的 \(n\)}
+为了使频率落在工程带宽 \([F_{\min},F_{\max}]\)，对给定 \(u\)：
+\[
+F_{\min}\le F_{\mathrm{base}}\varphi^{n+u}<F_{\max}
+\]
+等价于
+\[
+\log_{\varphi}\frac{F_{\min}}{F_{\mathrm{base}}}-u \le n < \log_{\varphi}\frac{F_{\max}}{F_{\mathrm{base}}}-u,
+\]
+因此可取
+\[
+n_{\min}=\left\lceil \log_{\varphi}\frac{F_{\min}}{F_{\mathrm{base}}}-u \right\rceil,\quad
+n_{\max}=\left\lfloor \log_{\varphi}\frac{F_{\max}}{F_{\mathrm{base}}}-u \right\rfloor.
+\]
+
+对所有 15 个 \((e,p)\) 计算对应 \(u\)，再合并不同 \(n\) 的结果可得到完整候选集合。
+
+\section{15 方位、45 音区与默认参数（修正）}
+15 方位仍为 五行（5）× 三极性（3）。默认参数更新以匹配黄金率试验文档：
+\begin{itemize}
+  \item \(F_{\mathrm{base}} = 20\ \mathrm{Hz}\)（默认，可按需要调整为 220 Hz 等）
+  \item \(\Delta\theta = 4.8^\circ\)
+  \item 映射周期：360° → 一完整 \(\varphi\) 区间（使用方案 B）
+\end{itemize}
+
+可通过对每个 15 方位并对若干 \(n\)（由带宽约束）生成最终频率表；若需要 45 音区，可在每个基本 \(u\) 上枚举多值 \(n\)（低/中/高区）。
+
+\section{导出与 DAW/合成器 集成（简要提醒）}
+建议输出 CSV、Scala (.scl) 与 MIDI Tuning (.tun) 三种格式。注意：
+\begin{itemize}
+  \item 若选择 \(F_{\mathrm{base}}=20\ \mathrm{Hz}\)，导出时可同时给出相对 cents（以本次选定基准如 220Hz 或区下界为准）。
+  \item MPE/pitch-bend 分配策略与先前建议一致，但 cents 计算需基于本修正后的频率值。
+\end{itemize}
+
+\section{和弦评分、搜索、实时与实现注意（保持）}
+和弦评分、搜索与实时合成的实现注意点保持不变；在所有频率/cent 计算处使用本修正后的频率公式与每度 cents 增量。
+
+\section{附录：更新的最小 Python 脚本（工程化示例，匹配修正公式）}
+下面脚本与原附录脚本等效，但已修正为：360° 对应完整 \(\varphi\) 倍程，阴阳极性按 \(\theta=\theta_e+(p+1)\Delta\theta\)，默认 \(F_{\mathrm{base}}=20\ \mathrm{Hz}\)，\(\Delta\theta=4.8^\circ\)，并采用方案 B（区内归一化枚举）。将脚本保存在 \texttt{tools/generate\_tuning.py} 并在 macOS 终端运行 \texttt{python3}。
+
+\begin{verbatim}
+# filepath: tools/generate_tuning.py
+# 运行: python3 tools/generate_tuning.py
+import math, csv
+
+phi = (1 + 5**0.5) / 2
+F_base = 20.0          # 默认基点频率（与黄金率试验一致）
+delta_theta = 4.8      # 默认角度偏移（deg）
+F_min = 30.0
+F_max = 6000.0
+
+elements = ['金','木','水','火','土']
+rows = []
+
+def theta_for(e_idx, p):
+    theta_e = 72.0 * e_idx
+    return theta_e + (p + 1) * delta_theta  # p=-1 -> theta_e
+
+def u_from_theta(theta):
+    return (theta % 360.0) / 360.0
+
+def freq_in_zone(n, u):
+    return F_base * (phi ** (n + u))
+
+for e_idx, name in enumerate(elements):
+    for p in (-1, 0, 1):
+        theta = theta_for(e_idx, p)
+        u = u_from_theta(theta)
+        # 枚举满足带宽的 n
+        n_min = math.ceil(math.log(F_min / F_base, phi) - u)
+        n_max = math.floor(math.log(F_max / F_base, phi) - u)
+        for n in range(n_min, n_max + 1):
+            f = freq_in_zone(n, u)
+            cents = 1200 * math.log2(f / F_base)
+            rows.append({
+                'element': name,
+                'e': e_idx,
+                'p': p,
+                'theta': round(theta,6),
+                'n': n,
+                'u': round(u,6),
+                'freq': round(f,6),
+                'cents': round(cents,3)
+            })
+
+# CSV
+with open('tools/15_positions_expanded.csv','w', newline='') as f:
+    w = csv.DictWriter(f, fieldnames=['element','e','p','theta','n','u','freq','cents'])
+    w.writeheader()
+    w.writerows(rows)
+
+# 简单 Scala .scl 以 F_base 为参考（写入相对于 F_base 的 cents）
+with open('tools/petersen_15_phi.scl','w') as f:
+    f.write("! petersen_15_phi.scl\n")
+    f.write("Petersen 五行阴阳 15-tone scale (F_base=20Hz, delta_theta=4.8deg)\n")
+    f.write(str(len(rows)) + "\n")
+    for r in rows:
+        f.write(f"{r['cents']}\n")
+
+print("Generated tools/15_positions_expanded.csv and tools/petersen_15_phi.scl")
+\end{verbatim}
+
+\section{结语}
+本修订消除了原底层说明中将 360° 映射为 72° 分母（以及不同默认基频/偏移）造成的不一致。现在文档在角度—频率映射、默认常量与导出脚本上与“黄金率试验 — 初稿D”保持一致。
+
+\end{document}
