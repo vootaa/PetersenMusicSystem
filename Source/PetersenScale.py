@@ -1,18 +1,57 @@
 """
 Petersen 黄金率音区模块（库形式）
-提供：基点 -> 按 phi 划分音区 -> 在每区内按五行-阴阳角度放置 15 个音位
-API 要点：
-  - PetersenScale(F_base=20, delta_theta=4.8, F_min=30, F_max=6000)
-  - scale.generate() -> list of entries (dict): {e,p,theta,u,n,interval,freq,cents,key_short,key_long}
-  - scale.export_csv(path)
-短名建议：元素拼音首字母 + 极性符号（-, 0, +），例如 J- / J0 / J+
-长名：中文元素 + 极性（例如 "金 阴"）
+
+基于黄金比例φ和五行阴阳理论的音阶生成系统，实现文档中的"方案B（归一化方式）"。
+
+主要功能：
+- 以可参数化的基点频率F_base为起点，按黄金比例φ向上生成音区
+- 在每个360°音区内，按五行(72°/方位)和阴阳极性(3个)分布15个音位
+- 支持频率范围限制、多种导出格式、音程分析等功能
+
+核心API：
+  - PetersenScale(F_base=20, delta_theta=4.8, F_min=30, F_max=6000, reference=440)
+  - scale.generate() -> List[Dict]: 生成音阶条目字典列表
+  - scale.generate_raw() -> List[ScaleEntry]: 生成原始精度的音阶条目
+  - scale.frequencies_only() -> List[float]: 仅返回频率列表
+  - scale.export_csv(path): 导出CSV格式
+  - scale.to_scala_file(path): 导出Scala(.scl)格式
+  - scale.to_midi_tuning(path): 导出MIDI调音(.tun)格式
+  - scale.get_statistics(): 获取音阶统计信息
+  - scale.analyze_intervals(): 分析音程关系
+
+使用示例：
+  ```python
+  # 创建音阶对象
+  scale = PetersenScale(F_base=20.0, delta_theta=4.8, F_min=30.0, F_max=6000.0)
+  
+  # 生成音阶
+  entries = scale.generate()  # 舍入版本
+  raw_entries = scale.generate_raw()  # 原始精度版本
+  freqs = scale.frequencies_only()  # 仅频率
+  
+  # 分析功能
+  stats = scale.get_statistics()
+  intervals = scale.analyze_intervals()
+  
+  # 导出功能
+  scale.export_csv("scale.csv")
+  scale.to_scala_file("scale.scl")
+  scale.to_midi_tuning("scale.tun")
+  
+  # 查询功能
+  freq = scale.get_frequency_for_key("J-")  # 获取"金阴"的频率
+  zone_entries = scale.get_entries_in_zone(5)  # 获取第5音区的所有条目
+  ```
+
+短名命名规则：元素拼音首字母 + 极性符号（-, 0, +），例如 J-/J0/J+
+长名命名规则：中文元素 + 极性，例如 "金 阴"/"金 中"/"金 阳"
 """
 from __future__ import annotations
 
 import math
 import csv
 import logging
+import struct
 from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Dict, Optional, Tuple, Union
@@ -20,16 +59,42 @@ from typing import List, Dict, Optional, Tuple, Union
 # 采用缓存以提高性能（如果频繁调用）
 from functools import lru_cache
 
-PHI = (1 + 5 ** 0.5) / 2.0
-ELEMENTS_CN = ["金", "木", "水", "火", "土"]
-ELEMENTS_PY = ["J", "M", "S", "H", "T"]  # short initials
+# 常量定义
+PHI = (1 + 5 ** 0.5) / 2.0  # 黄金比例 ≈ 1.618033988749
+ELEMENTS_CN = ["金", "木", "水", "火", "土"]  # 五行中文名
+ELEMENTS_PY = ["J", "M", "S", "H", "T"]  # 五行拼音首字母
 
 def cents(f: float, ref: float) -> float:
-    # use log2 for cents (clearer / faster)
+    """
+    计算两个频率之间的音分差值
+    
+    Args:
+        f: 目标频率 (Hz)
+        ref: 参考频率 (Hz)
+    
+    Returns:
+        音分差值，正值表示f高于ref
+    """
     return 1200.0 * math.log2(f / ref)
 
 @dataclass
 class ScaleEntry:
+    """
+    音阶条目数据结构
+    
+    Attributes:
+        e: 五行索引 (0-4: 金木水火土)
+        p: 极性 (-1:阴, 0:中, 1:阳)
+        theta_deg: 角度值 (度)
+        u: 归一化区内位置 [0,1)
+        n: 音区编号
+        interval_a: 音区下界频率 (Hz)
+        interval_b: 音区上界频率 (Hz)
+        freq: 实际频率 (Hz)
+        cents_ref: 相对于参考频率的音分值
+        key_short: 短名 (如 "J-")
+        key_long: 长名 (如 "金 阴")
+    """
     e: int
     p: int
     theta_deg: float
@@ -43,17 +108,39 @@ class ScaleEntry:
     key_long: str
 
 class PetersenScale:
+    """
+    Petersen黄金率音阶生成器
+    
+    实现基于黄金比例和五行阴阳理论的音阶系统，按照文档中的"方案B"生成频率。
+    """
+    
     def __init__(self,
                  F_base: float = 20.0,
                  delta_theta: float = 4.8,   # degrees
                  F_min: float = 30.0,
                  F_max: float = 6000.0,
                  reference: float = 440.0):
-        # basic validation
+        """
+        初始化音阶生成器
+        
+        Args:
+            F_base: 基准频率 (Hz)，默认20Hz
+            delta_theta: 极性角度步进 (度)，默认4.8°
+            F_min: 最小频率限制 (Hz)，默认30Hz
+            F_max: 最大频率限制 (Hz)，默认6000Hz
+            reference: 参考频率 (Hz)，用于计算音分，默认440Hz
+        
+        Raises:
+            ValueError: 当参数不合法时抛出异常
+        """
+        # 基本参数验证
         if F_base <= 0 or F_min <= 0 or F_max <= 0:
             raise ValueError("F_base, F_min, F_max must be positive")
         if F_min >= F_max:
             raise ValueError("F_min must be less than F_max")
+        if reference <= 0:
+            raise ValueError("reference frequency must be positive")
+            
         self.F_base = float(F_base)
         self.delta_theta = float(delta_theta)
         self.F_min = float(F_min)
@@ -62,17 +149,48 @@ class PetersenScale:
         self.logger = logging.getLogger(__name__)
 
     def _theta_for(self, e: int, p: int) -> float:
-        # p in {-1,0,1}, p=-1 corresponds to baseline theta_e
-        theta_e = 72.0 * e
+        """
+        计算五行元素e和极性p对应的角度
+        
+        Args:
+            e: 五行索引 (0-4)
+            p: 极性 (-1, 0, 1)
+        
+        Returns:
+            角度值 (度)
+        
+        公式: θ = θₑ + (p+1)·Δθ，其中θₑ = 72°·e
+        """
+        theta_e = 72.0 * e  # 五行基准角度
         return theta_e + (p + 1) * self.delta_theta
 
     def _u_from_theta(self, theta: float) -> float:
-         # map theta modulo 360 deg into [0,1)
+        """
+        将角度归一化到区内位置参数u
+        
+        Args:
+            theta: 角度值 (度)
+        
+        Returns:
+            归一化位置 u ∈ [0,1)
+        
+        公式: u = (θ mod 360°) / 360°
+        """
         mod = theta % 360.0
         return mod / 360.0
 
     def _n_range_for_u(self, u: float) -> Tuple[int, int]:
-        # compute integer n range so that F_base * phi^(n+u) in [F_min, F_max]
+        """
+        计算给定u值下的有效音区范围
+        
+        Args:
+            u: 归一化区内位置
+        
+        Returns:
+            (n_min, n_max): 音区编号范围
+        
+        基于约束: F_min ≤ F_base * φ^(n+u) ≤ F_max
+        """
         lo = math.log(self.F_min / self.F_base, PHI) - u
         hi = math.log(self.F_max / self.F_base, PHI) - u
         n_min = math.ceil(lo)
@@ -80,38 +198,98 @@ class PetersenScale:
         return n_min, n_max
 
     def _zone_interval(self, n: int) -> Tuple[float, float]:
-        a = self.F_base * (PHI ** n)
-        b = self.F_base * (PHI ** (n + 1))
-        # clip to global bounds if desired downstream; here return raw
+        """
+        计算第n音区的频率区间
+        
+        Args:
+            n: 音区编号
+        
+        Returns:
+            (下界, 上界): 频率区间 (Hz)
+        
+        公式: [F_base * φⁿ, F_base * φⁿ⁺¹)
+        """
+        a = self.F_base * self._cached_phi_power(n)
+        b = self.F_base * self._cached_phi_power(n + 1)
         return a, b
 
+    @lru_cache(maxsize=128)
+    def _cached_phi_power(self, exponent: float) -> float:
+        """
+        缓存φ的幂运算以提高性能
+        
+        Args:
+            exponent: 指数
+        
+        Returns:
+            φ^exponent
+        """
+        return PHI ** exponent
+
     def key_name_short(self, e: int, p: int) -> str:
-        # short: initial + polarity symbol
+        """
+        生成短名格式的音名
+        
+        Args:
+            e: 五行索引
+            p: 极性
+        
+        Returns:
+            短名，如 "J-", "M0", "T+"
+        """
         py = ELEMENTS_PY[e]
         sym = { -1: "-", 0: "0", 1: "+" }[p]
         return f"{py}{sym}"
 
     def key_name_long(self, e: int, p: int) -> str:
+        """
+        生成长名格式的音名
+        
+        Args:
+            e: 五行索引
+            p: 极性
+        
+        Returns:
+            长名，如 "金 阴", "木 中", "土 阳"
+        """
         el = ELEMENTS_CN[e]
         pol = { -1: "阴", 0: "中", 1: "阳" }[p]
         return f"{el} {pol}"
 
     def generate_raw(self) -> List[ScaleEntry]:
-        """Generate raw ScaleEntry list with full precision (no rounding)."""
+        """
+        生成原始精度的音阶条目列表
+        
+        Returns:
+            按频率排序的ScaleEntry列表，保持完整浮点精度
+        
+        实现方案B的核心算法：
+        1. 遍历所有15个(e,p)组合
+        2. 计算角度θ和归一化位置u
+        3. 枚举有效音区n
+        4. 计算频率 f = F_base * φ^(n+u)
+        5. 过滤频率范围并排序
+        """
         out: List[ScaleEntry] = []
-        for e in range(5):
-            for p in (-1, 0, 1):
+        for e in range(5):  # 五行: 金木水火土
+            for p in (-1, 0, 1):  # 三极性: 阴中阳
                 theta = self._theta_for(e, p)
                 u = self._u_from_theta(theta)
                 n_min, n_max = self._n_range_for_u(u)
+                
                 for n in range(n_min, n_max + 1):
-                    f = self.F_base * (PHI ** (n + u))
-                    # clip by global bounds with tiny tolerance for floating errors
+                    # 使用缓存的φ幂运算
+                    f = self.F_base * self._cached_phi_power(n + u)
+                    
+                    # 频率范围检查，包含小量容差以处理浮点误差
                     if f < self.F_min - 1e-12 or f > self.F_max + 1e-12:
                         continue
+                    
+                    # 计算音区边界并裁剪到全局范围
                     a, b = self._zone_interval(n)
                     Ia = max(a, self.F_min)
                     Ib = min(b, self.F_max)
+                    
                     entry = ScaleEntry(
                         e=e,
                         p=p,
@@ -126,18 +304,25 @@ class PetersenScale:
                         key_long=self.key_name_long(e, p)
                     )
                     out.append(entry)
+        
+        # 按频率排序
         out.sort(key=lambda x: x.freq)
         return out
 
     def generate(self, round_digits: Optional[int] = 6) -> List[Dict]:
         """
-        Backward-compatible generator.
-        By default rounds numeric fields to 6 decimals (freq) / 4 decimals (cents).
-        If round_digits is None, raw floats are returned (as dicts converted from ScaleEntry).
+        生成音阶条目的字典列表（向后兼容版本）
+        
+        Args:
+            round_digits: 数值舍入位数，None表示保持原始精度
+        
+        Returns:
+            字典列表，每个字典包含音阶条目的所有字段
         """
         raw = self.generate_raw()
         if round_digits is None:
             return [r.__dict__ for r in raw]
+        
         rounded: List[Dict] = []
         for r in raw:
             rounded.append({
@@ -156,38 +341,141 @@ class PetersenScale:
         return rounded
 
     def frequencies_only(self) -> List[float]:
-        """Return sorted list of frequencies (raw floats)."""
+        """
+        仅返回按频率排序的频率列表
+        
+        Returns:
+            频率列表 (Hz)，适用于需要纯数值数组的场合
+        """
         return [e.freq for e in self.generate_raw()]
 
-    @lru_cache(maxsize=128)
-    def _cached_phi_power(self, exponent: float) -> float:
-        """Cache phi powers for better performance with repeated calls."""
-        return PHI ** exponent
-    
-    # 便利方法
+    # 便利查询方法
     def get_frequency_for_key(self, key_short: str) -> Optional[float]:
-        """Get frequency by key name (e.g., 'J-', 'M0', 'T+')."""
+        """
+        根据短名查找对应的频率
+        
+        Args:
+            key_short: 短名，如 'J-', 'M0', 'T+'
+        
+        Returns:
+            对应的频率值，未找到时返回None
+        """
         for entry in self.generate_raw():
             if entry.key_short == key_short:
                 return entry.freq
         return None
     
     def get_entries_in_zone(self, n: int) -> List[ScaleEntry]:
-        """Get all entries in a specific zone n."""
+        """
+        获取指定音区的所有条目
+        
+        Args:
+            n: 音区编号
+        
+        Returns:
+            该音区内的所有ScaleEntry
+        """
         return [e for e in self.generate_raw() if e.n == n]
     
     def get_frequency_range(self) -> Tuple[float, float]:
-        """Get actual min/max frequencies generated."""
+        """
+        获取实际生成的频率范围
+        
+        Returns:
+            (最小频率, 最大频率) (Hz)
+        """
         entries = self.generate_raw()
         if not entries:
             return (0.0, 0.0)
         freqs = [e.freq for e in entries]
         return (min(freqs), max(freqs))
     
+    # 统计分析方法
+    def get_statistics(self) -> Dict[str, Union[int, float, List, Dict]]:
+        """
+        获取音阶的统计信息
+        
+        Returns:
+            包含各种统计数据的字典:
+            - total_entries: 总条目数
+            - frequency_range: 频率范围
+            - zones_used: 使用的音区列表
+            - zone_count: 音区数量
+            - entries_per_zone: 每个音区的条目数
+            - elements_distribution: 五行分布
+            - polarity_distribution: 极性分布
+        """
+        entries = self.generate_raw()
+        if not entries:
+            return {}
+        
+        freqs = [e.freq for e in entries]
+        zones = list(set(e.n for e in entries))
+        
+        # 五行分布统计
+        elements_dist = {ELEMENTS_CN[i]: 0 for i in range(5)}
+        for e in entries:
+            elements_dist[ELEMENTS_CN[e.e]] += 1
+        
+        # 极性分布统计
+        polarity_dist = {"阴": 0, "中": 0, "阳": 0}
+        polarity_map = {-1: "阴", 0: "中", 1: "阳"}
+        for e in entries:
+            polarity_dist[polarity_map[e.p]] += 1
+        
+        return {
+            "total_entries": len(entries),
+            "frequency_range": (min(freqs), max(freqs)),
+            "zones_used": sorted(zones),
+            "zone_count": len(zones),
+            "entries_per_zone": {n: len(self.get_entries_in_zone(n)) for n in zones},
+            "elements_distribution": elements_dist,
+            "polarity_distribution": polarity_dist
+        }
+
+    def analyze_intervals(self) -> List[Dict]:
+        """
+        分析相邻频率之间的音程关系
+        
+        Returns:
+            音程分析列表，每个字典包含:
+            - from_key/to_key: 起止音名
+            - ratio: 频率比
+            - cents: 音分差
+            - from_freq/to_freq: 起止频率
+        """
+        entries = sorted(self.generate_raw(), key=lambda x: x.freq)
+        intervals = []
+        
+        for i in range(len(entries) - 1):
+            curr = entries[i]
+            next_entry = entries[i + 1]
+            ratio = next_entry.freq / curr.freq
+            cents_interval = cents(next_entry.freq, curr.freq)
+            
+            intervals.append({
+                "from_key": curr.key_short,
+                "to_key": next_entry.key_short,
+                "from_long": curr.key_long,
+                "to_long": next_entry.key_long,
+                "ratio": ratio,
+                "cents": cents_interval,
+                "from_freq": curr.freq,
+                "to_freq": next_entry.freq
+            })
+        
+        return intervals
+    
     # 验证方法
     def validate_implementation(self) -> bool:
-        """Verify the implementation matches document formulas."""
-        # Test a few known cases
+        """
+        验证实现是否符合文档中的数学公式
+        
+        Returns:
+            True表示实现正确，False表示有问题
+        
+        测试几个已知案例来验证角度计算和归一化的正确性
+        """
         test_cases = [
             (0, -1),  # 金阴: θ=0°, u=0
             (1, 0),   # 木中: θ=76.8°
@@ -201,33 +489,31 @@ class PetersenScale:
             expected_u = (expected_theta % 360.0) / 360.0
             
             if abs(theta - expected_theta) > 1e-10:
+                self.logger.error(f"Theta mismatch for e={e}, p={p}: got {theta}, expected {expected_theta}")
                 return False
             if abs(u - expected_u) > 1e-10:
+                self.logger.error(f"U mismatch for e={e}, p={p}: got {u}, expected {expected_u}")
                 return False
+        
         return True
 
-    # 支持不同的输出格式
-    def to_scala_file(self, path: Union[str, Path], description: str = "Petersen Golden Ratio Scale") -> None:
-        """Export to Scala (.scl) format for music software."""
-        entries = self.generate_raw()
-        p = Path(path)
-        
-        with p.open("w", encoding="utf-8") as f:
-            f.write(f"! {description}\n")
-            f.write(f"{len(entries)}\n")
-            f.write("!\n")
-            
-            for entry in sorted(entries, key=lambda x: x.freq):
-                ratio = entry.freq / self.reference
-                f.write(f"{ratio:.10f}\n")
-
+    # 导出方法
     def export_csv(self, path: Union[str, Path], entries: Optional[List[Union[ScaleEntry, Dict]]] = None) -> None:
+        """
+        导出为CSV格式
+        
+        Args:
+            path: 输出文件路径
+            entries: 要导出的条目，None表示使用默认生成的条目
+        """
         if entries is None:
             entries = self.generate()
+        
         p = Path(path)
         fieldnames = ["key_short", "key_long", "e", "p", "n",
                       "theta_deg", "u", "interval_a", "interval_b",
                       "freq", "cents_ref"]
+        
         with p.open("w", newline="", encoding="utf-8") as f:
             w = csv.DictWriter(f, fieldnames=fieldnames)
             w.writeheader()
@@ -238,15 +524,186 @@ class PetersenScale:
                     row = r
                 w.writerow({k: row.get(k, "") for k in fieldnames})
 
+    def to_scala_file(self, path: Union[str, Path], description: str = "Petersen Golden Ratio Scale") -> None:
+        """
+        导出为Scala (.scl) 格式
+        推荐软件：
+        1. Scala (http://www.huygens-fokker.org/scala/) - 官方软件，免费
+        2. Pianoteq - 直接支持导入
+        3. VCV Rack + 微音模块
+        4. Surge XT 合成器
+        
+        使用方法：
+        1. 用 Scala 软件打开 .scl 文件进行分析
+        2. 在 Pianoteq 中：Tuning -> Load Scale File
+        3. 在 VCV Rack 中：使用支持 .scl 的振荡器模块
+        
+        Args:
+            path: 输出文件路径
+            description: 音阶描述
+        
+        Scala格式说明：
+        - 第一行：描述
+        - 第二行：音数
+        - 第三行：注释行
+        - 后续行：频率比值（相对于最低频率）
+        """
+        entries = self.generate_raw()
+        if not entries:
+            raise ValueError("No entries to export")
+        
+        p = Path(path)
+        
+        # 找到基准频率（最低频率作为1/1）
+        entries_sorted = sorted(entries, key=lambda x: x.freq)
+        base_freq = entries_sorted[0].freq
+        
+        with p.open("w", encoding="utf-8") as f:
+            f.write(f"! {description}\n")
+            f.write(f"{len(entries)}\n")
+            f.write("!\n")
+            
+            for entry in entries_sorted:
+                if abs(entry.freq - base_freq) < 1e-10:
+                    f.write("1/1\n")  # 基准音
+                else:
+                    ratio = entry.freq / base_freq
+                    f.write(f"{ratio:.10f}\n")
+
+    def to_midi_tuning(self, path: Union[str, Path], name: str = "Petersen Scale") -> None:
+        """
+        导出为MIDI调音表(.tun)格式
+        
+        Args:
+            path: 输出文件路径
+            name: 调音表名称
+        
+        .tun格式是Scala软件使用的二进制格式，包含128个MIDI音符的频率调音信息
+        """
+        entries = self.generate_raw()
+        if not entries:
+            raise ValueError("No entries to export")
+        
+        p = Path(path)
+        
+        # 准备128个MIDI音符的频率（默认使用12平均律作为基础）
+        frequencies = []
+        base_freq = 8.1757989156  # MIDI 0 (C-1) 的频率
+        
+        # 计算基础的12平均律频率表
+        for midi_note in range(128):
+            freq_12tet = base_freq * (2 ** (midi_note / 12.0))
+            frequencies.append(freq_12tet)
+        
+        # 尝试将我们的音阶映射到最接近的MIDI音符
+        entries_sorted = sorted(entries, key=lambda x: x.freq)
+        
+        # 简单映射策略：找到每个生成频率最接近的MIDI音符并替换
+        for entry in entries_sorted:
+            # 找到最接近的MIDI音符
+            best_midi = 0
+            best_diff = abs(frequencies[0] - entry.freq)
+            
+            for midi_note in range(128):
+                diff = abs(frequencies[midi_note] - entry.freq)
+                if diff < best_diff:
+                    best_diff = diff
+                    best_midi = midi_note
+            
+            # 替换该MIDI音符的频率
+            frequencies[best_midi] = entry.freq
+        
+        # 写入.tun文件（简化的二进制格式）
+        with p.open("wb") as f:
+            # 写入文件头（简化版本）
+            f.write(b"TUN ")  # 格式标识
+            f.write(struct.pack("<I", 1))  # 版本号
+            
+            # 写入名称（32字节，补零）
+            name_bytes = name.encode('ascii', errors='ignore')[:31]
+            name_padded = name_bytes + b'\x00' * (32 - len(name_bytes))
+            f.write(name_padded)
+            
+            # 写入128个频率值（双精度浮点数）
+            for freq in frequencies:
+                f.write(struct.pack("<d", freq))
+
 if __name__ == "__main__":
-    # quick smoke test
+    """
+    测试和演示代码
+    
+    运行方式：python PetersenScale.py
+    """
+    print("=== Petersen 黄金率音阶系统测试 ===\n")
+    
+    # 创建音阶对象
     scale = PetersenScale(F_base=20.0, delta_theta=4.8, F_min=30.0, F_max=6000.0, reference=220.0)
+    
+    # 验证实现正确性
+    if scale.validate_implementation():
+        print("✓ 实现验证通过")
+    else:
+        print("✗ 实现验证失败")
+    
+    # 生成音阶
     entries = scale.generate()
+    raw_entries = scale.generate_raw()
+    
+    print(f"\n=== 音阶条目预览 (前6个) ===")
     for e in entries[:6]:
-        print(f"{e['key_short']:4} {e['key_long']:<6} n={e['n']:>2} freq={e['freq']:8.3f} Hz  interval=[{e['interval_a']:.3f},{e['interval_b']:.3f}] cents={e['cents_ref']}")
-    print(f"... total entries: {len(entries)}")
+        print(f"{e['key_short']:4} {e['key_long']:<6} n={e['n']:>2} "
+              f"freq={e['freq']:8.3f} Hz  "
+              f"interval=[{e['interval_a']:.3f},{e['interval_b']:.3f}] "
+              f"cents={e['cents_ref']:>6.1f}")
+    
+    print(f"... 共生成 {len(entries)} 个音阶条目")
+    
+    # 统计信息
+    print(f"\n=== 统计信息 ===")
+    stats = scale.get_statistics()
+    print(f"总条目数: {stats['total_entries']}")
+    print(f"频率范围: {stats['frequency_range'][0]:.2f} - {stats['frequency_range'][1]:.2f} Hz")
+    print(f"使用音区: {stats['zones_used']}")
+    print(f"五行分布: {stats['elements_distribution']}")
+    print(f"极性分布: {stats['polarity_distribution']}")
+    
+    # 音程分析（显示前几个）
+    print(f"\n=== 音程分析 (前5个音程) ===")
+    intervals = scale.analyze_intervals()
+    for i, interval in enumerate(intervals[:5]):
+        print(f"{interval['from_key']} -> {interval['to_key']}: "
+              f"{interval['ratio']:.4f} ({interval['cents']:>6.1f} cents)")
+    
+    # 查询功能演示
+    print(f"\n=== 查询功能演示 ===")
+    test_key = "J-"
+    freq = scale.get_frequency_for_key(test_key)
+    print(f"音名 '{test_key}' 的频率: {freq:.3f} Hz" if freq else f"未找到音名 '{test_key}'")
+    
+    zone_5_entries = scale.get_entries_in_zone(5)
+    print(f"第5音区包含 {len(zone_5_entries)} 个条目")
+    
+    freq_range = scale.get_frequency_range()
+    print(f"实际频率范围: {freq_range[0]:.2f} - {freq_range[1]:.2f} Hz")
+    
+    # 导出功能测试
+    print(f"\n=== 导出功能测试 ===")
     try:
-        scale.export_csv("petersen_phi_scale.csv", entries)
-        print("exported petersen_phi_scale.csv")
+        scale.export_csv("petersen_scale.csv")
+        print("✓ CSV导出成功: petersen_scale.csv")
     except Exception as ex:
-        print("CSV export failed:", ex)
+        print(f"✗ CSV导出失败: {ex}")
+    
+    try:
+        scale.to_scala_file("petersen_scale.scl")
+        print("✓ Scala导出成功: petersen_scale.scl")
+    except Exception as ex:
+        print(f"✗ Scala导出失败: {ex}")
+    
+    try:
+        scale.to_midi_tuning("petersen_scale.tun")
+        print("✓ MIDI调音表导出成功: petersen_scale.tun")
+    except Exception as ex:
+        print(f"✗ MIDI调音表导出失败: {ex}")
+    
+    print(f"\n=== 测试完成 ===")
