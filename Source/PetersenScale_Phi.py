@@ -691,15 +691,70 @@ class PetersenScale_Phi:
             })
         return rounded
 
-    def frequencies_only(self) -> List[float]:
+    def frequencies_only(self, deduplicate: bool = True) -> List[float]:
         """
         仅返回按频率排序的频率列表
+        
+        Args:
+            deduplicate: 是否去重，默认True
         
         Returns:
             频率列表 (Hz)，适用于需要纯数值数组的场合
         """
-        return [e.freq for e in self.generate_raw()]
+        freqs = [e.freq for e in self.generate_raw()]
+        if deduplicate:
+            # 去重但保持排序
+            return sorted(list(set(freqs)))
+        else:
+            # 仅排序，保留重复频率
+            return sorted(freqs)
 
+    def get_frequency_mapping(self) -> Dict[float, List[ScaleEntry]]:
+        """
+        获取频率到条目的完整映射关系
+        
+        Returns:
+            字典，键为频率，值为映射到该频率的所有ScaleEntry列表
+            这样可以看到多对一的映射关系
+        """
+        entries = self.generate_raw()
+        mapping: Dict[float, List[ScaleEntry]] = {}
+        
+        for entry in entries:
+            freq = entry.freq
+            if freq not in mapping:
+                mapping[freq] = []
+            mapping[freq].append(entry)
+        
+        return mapping
+
+    def get_overlapping_frequencies(self, tolerance: float = 1e-6) -> List[Dict]:
+        """
+        找出所有重叠的频率及其对应的条目
+        
+        Args:
+            tolerance: 频率相等的容差
+        
+        Returns:
+            重叠信息列表，每项包含频率和对应的所有条目
+        """
+        mapping = self.get_frequency_mapping()
+        overlaps = []
+        
+        for freq, entries in mapping.items():
+            if len(entries) > 1:
+                overlaps.append({
+                    'frequency': freq,
+                    'count': len(entries),
+                    'entries': entries,
+                    'keys': [e.key_short for e in entries],
+                    'long_names': [e.key_long for e in entries]
+                })
+        
+        # 按频率排序
+        overlaps.sort(key=lambda x: x['frequency'])
+        return overlaps
+    
     # 便利查询方法
     def get_frequency_for_key(self, key_short: str) -> Optional[float]:
         """
@@ -767,12 +822,14 @@ class PetersenScale_Phi:
         Returns:
             包含各种统计数据的字典，现在包含φ和δθ信息
         """
-        entries = self.generate_raw()
+         entries = self.generate_raw()
         if not entries:
             return {}
         
         freqs = [e.freq for e in entries]
+        unique_freqs = list(set(freqs))
         zones = list(set(e.n for e in entries))
+        overlaps = self.get_overlapping_frequencies()
         
         # 五行分布统计
         elements_dist = {ELEMENTS_CN[i]: 0 for i in range(5)}
@@ -794,7 +851,8 @@ class PetersenScale_Phi:
             "zone_count": len(zones),
             "entries_per_zone": {n: len(self.get_entries_in_zone(n)) for n in zones},
             "elements_distribution": elements_dist,
-            "polarity_distribution": polarity_dist
+            "polarity_distribution": polarity_dist，
+            "overlap_details": overlaps[:10] if overlaps else []  # 前10个重叠详情
         }
         
         return stats
@@ -902,57 +960,84 @@ class PetersenScale_Phi:
                     row = r
                 w.writerow({k: row.get(k, "") for k in fieldnames})
 
-    def to_scala_file(self, path: Union[str, Path] = None, description: str = None) -> None:
+   def to_scala_file(self, path: Union[str, Path] = None, description: str = None, 
+                  deduplicate: bool = True) -> None:
         """
         导出为Scala (.scl) 格式
         
         Args:
             path: 输出文件路径，None表示自动生成文件名
             description: 音阶描述，None表示自动生成描述
+            deduplicate: 是否去重频率，默认True
         """
         entries = self.generate_raw()
         if not entries:
             raise ValueError("No entries to export")
         
         if path is None:
-            path = f"{self._generate_filename_base()}.scl"
+            suffix = "_dedup" if deduplicate else "_full"
+            path = f"{self._generate_filename_base()}{suffix}.scl"
         
         if description is None:
             phi_info = self.get_phi_info()
             dth_info = self.get_delta_theta_info()
-            description = f"Petersen Scale φ={self.phi:.6f} ({phi_info['phi_name']}) δθ={self.delta_theta}° ({dth_info['name']})"
+            dedup_note = " (去重)" if deduplicate else " (完整)"
+            description = f"Petersen Scale φ={self.phi:.6f} ({phi_info['phi_name']}) δθ={self.delta_theta}° ({dth_info['name']}){dedup_note}"
         
         p = Path(path)
         
+        if deduplicate:
+            # 去重：每个频率只保留一个代表条目
+            freq_to_entry = {}
+            for entry in entries:
+                if entry.freq not in freq_to_entry:
+                    freq_to_entry[entry.freq] = entry
+            entries_to_export = sorted(freq_to_entry.values(), key=lambda x: x.freq)
+        else:
+            # 不去重：保留所有条目
+            entries_to_export = sorted(entries, key=lambda x: x.freq)
+        
         # 找到基准频率（最低频率作为1/1）
-        entries_sorted = sorted(entries, key=lambda x: x.freq)
-        base_freq = entries_sorted[0].freq
+        base_freq = entries_to_export[0].freq
         
         with p.open("w", encoding="utf-8") as f:
             f.write(f"! {description}\n")
+            
+            if not deduplicate:
+                # 完整版本：添加重叠信息注释
+                overlaps = self.get_overlapping_frequencies()
+                if overlaps:
+                    f.write(f"! 包含 {len(overlaps)} 个重叠频率:\n")
+                    for overlap in overlaps[:5]:  # 只显示前5个
+                        keys_str = ', '.join(overlap['keys'])
+                        f.write(f"! {overlap['frequency']:.3f} Hz: {keys_str}\n")
+                    if len(overlaps) > 5:
+                        f.write(f"! ... 还有 {len(overlaps)-5} 个重叠频率\n")
+            
             # Scala 格式：音数不包括基准音 1/1
-            f.write(f"{len(entries) - 1}\n")
+            f.write(f"{len(entries_to_export) - 1}\n")
             f.write("!\n")
             
-            for i, entry in enumerate(entries_sorted):
+            for i, entry in enumerate(entries_to_export):
                 if i == 0:  # 第一个音作为基准音
-                    f.write("1/1\n")
+                    comment = f" ! {entry.key_short} ({entry.key_long})"
+                    f.write(f"1/1{comment}\n")
                 else:
                     ratio = entry.freq / base_freq
+                    comment = f" ! {entry.key_short} ({entry.key_long})"
+                    
                     # 尝试表示为简单分数，否则用小数
                     if abs(ratio - round(ratio)) < 1e-6:
-                        # 接近整数
-                        f.write(f"{int(round(ratio))}/1\n")
+                        f.write(f"{int(round(ratio))}/1{comment}\n")
                     else:
                         # 检查是否为简单分数
                         for denom in [2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15, 16]:
                             num = ratio * denom
                             if abs(num - round(num)) < 1e-6:
-                                f.write(f"{int(round(num))}/{denom}\n")
+                                f.write(f"{int(round(num))}/{denom}{comment}\n")
                                 break
                         else:
-                            # 用小数表示
-                            f.write(f"{ratio:.10f}\n")
+                            f.write(f"{ratio:.10f}{comment}\n")
 
     def to_midi_tuning(self, path: Union[str, Path] = None, name: str = None,
                        entries: Optional[List[ScaleEntry]] = None) -> None:
@@ -1321,7 +1406,17 @@ if __name__ == "__main__":
         print(f"\n=== 统计信息 ===")
         stats = scale.get_statistics()
         print(f"总条目数: {stats['total_entries']}")
+        print(f"唯一频率数: {stats['unique_frequencies']}")
+        print(f"重叠频率数: {stats['frequency_overlaps']}")
         print(f"频率范围: {stats['frequency_range'][0]:.2f} - {stats['frequency_range'][1]:.2f} Hz")
+
+        # 显示重叠详情
+        if stats['frequency_overlaps'] > 0:
+            print(f"\n=== 频率重叠详情 ===")
+            for overlap in stats['overlap_details']:
+                keys_str = ', '.join(overlap['keys'])
+                print(f"{overlap['frequency']:8.3f} Hz: {overlap['count']}个条目 ({keys_str})")
+
         print(f"使用音区: {stats['zones_used']}")
         print(f"音区数量: {stats['zone_count']}")
         print(f"每音区条目数: {stats['entries_per_zone']}")
