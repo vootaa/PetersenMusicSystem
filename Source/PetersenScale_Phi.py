@@ -1,6 +1,14 @@
 """
 Petersen 可变比例音区模块（库形式）
 
+版本特性：
+- 完整的φ值预设系统（16个预设值，从微分音到大音程）
+- 完整的δθ值预设系统（21个预设值，覆盖所有特殊几何结构）
+- 增强的命令行界面，支持多种比较和分析模式
+- 完善的导出功能，支持CSV、Scala(.scl)、MIDI调音(.tun)格式
+- 详细的几何美学和音乐学描述系统
+- 完整的验证和错误处理机制
+
 基于可变比例φ和五行阴阳理论的音阶生成系统，实现文档中的"方案B（归一化方式）"。
 
 主要功能：
@@ -62,6 +70,7 @@ Petersen 可变比例音区模块（库形式）
 - δθ = 72.0° : 完美五角星（最简洁）→ 5平均律（φ=2.0时）
 - δθ = 180.0°: 对称双五角星（平衡）→ 10平均律（φ=2.0时）
 """
+
 from __future__ import annotations
 
 import math
@@ -69,6 +78,7 @@ import csv
 import logging
 import struct
 import argparse
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Dict, Optional, Tuple, Union
@@ -1110,6 +1120,7 @@ def compare_phi_values(phi_values: List[float], F_base: float = 55.0, delta_thet
         except Exception as e:
             print(f"φ = {phi:.6f}: 错误 - {e}\n")
 
+
 def compare_delta_theta_values(dth_values: List[float], phi: float = 2.0, F_base: float = 55.0) -> None:
     """
     比较不同delta_theta值的效果（固定φ值）
@@ -1157,27 +1168,253 @@ def list_all_presets():
         print(f"  {name:<20}: {value:5.1f}° ({eq_div:3d}等分) - {beauty_desc}")
 
 def parse_args():
-    p = argparse.ArgumentParser(description="Petersen可变比例音阶生成器")
-    p.add_argument('--F_base', type=float, default=20.0, help='基础频率 (默认: 20.0)')
-    p.add_argument('--delta_theta', type=float, default=4.8, help='极性偏移角度 (默认: 4.8°)')
-    p.add_argument('--dth_preset', choices=list(DELTA_THETA_PRESETS.keys()), 
-                   help='使用δθ预设值: 72_div_2(36°), 72_div_3(24°), 72_original(72°)等')
-    p.add_argument('--phi', type=float, default=PHI, help=f'比例系数 (默认: {PHI:.6f} 黄金比例)')
+    """解析命令行参数（增强版）"""
+    p = argparse.ArgumentParser(
+        description="Petersen可变比例音阶生成器 - 增强版",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+示例用法:
+  %(prog)s                                    # 使用默认黄金比例
+  %(prog)s --preset octave                    # 使用八度关系
+  %(prog)s --preset fifth                     # 使用完全五度
+  %(prog)s --phi 1.25                         # 使用自定义φ值
+  %(prog)s --compare-phi                      # 比较所有预设φ值
+  %(prog)s --compare-dth                      # 比较所有预设δθ值
+  %(prog)s --list-presets                     # 列出所有预设值
+  %(prog)s --F_base 55 --preset octave        # A1为基础频率的八度系统
+  %(prog)s --dth-preset 72_div_3              # 使用24°(15等分)
+        """)
+    
+    p.add_argument('--F_base', type=float, default=20.0, 
+                   help='基础频率 (Hz，默认: 20.0)')
+    p.add_argument('--delta_theta', type=float, default=4.8, 
+                   help='极性偏移角度 (度，默认: 4.8)')
+    p.add_argument('--phi', type=float, default=PHI, 
+                   help=f'比例系数 (默认: {PHI:.6f} 黄金比例)')
     p.add_argument('--preset', choices=list(PHI_PRESETS.keys()), 
-                   help='使用φ预设值: golden(1.618), octave(2.0), fifth(1.5), tritone(√2)等')
-    p.add_argument('--compare', action='store_true', help='比较所有预设φ值')
-    p.add_argument('--compare_dth', action='store_true', help='比较常见δθ值（φ=2.0）')
-    p.add_argument('--list_presets', action='store_true', help='列出所有预设值')
+                   help='使用预设φ值')
+    p.add_argument('--dth-preset', choices=list(DELTA_THETA_PRESETS.keys()),
+                   help='使用预设δθ值')
+    p.add_argument('--compare-phi', action='store_true', 
+                   help='比较所有预设φ值的特性')
+    p.add_argument('--compare-dth', action='store_true',
+                   help='比较所有预设δθ值的特性')
+    p.add_argument('--list-presets', action='store_true',
+                   help='列出所有预设值并退出')
+    p.add_argument('--F_min', type=float, default=30.0,
+                   help='最小频率限制 (Hz，默认: 30.0)')
+    p.add_argument('--F_max', type=float, default=6000.0,
+                   help='最大频率限制 (Hz，默认: 6000.0)')
+    p.add_argument('--reference', type=float, default=220.0,
+                   help='参考频率 (Hz，用于音分计算，默认: 220.0)')
+    p.add_argument('--export-only', action='store_true',
+                   help='仅导出文件，不显示详细信息')
+    p.add_argument('--verify-scala', action='store_true',
+                   help='验证生成的Scala文件格式')
+    p.add_argument('--no-export', action='store_true',
+                   help='不导出文件，仅显示分析信息')
+    
     return p.parse_args()
 
 if __name__ == "__main__":
     """
-    测试和演示代码
+    测试和演示代码 - 最终增强版
     
-    运行方式：
-    python PetersenScale_Phi.py                                         # 使用默认黄金比例
-    python PetersenScale_Phi.py --preset octave                         # 使用八度关系
-    python PetersenScale_Phi.py --preset sqrt3 --dth_preset 72_div_2    # φ=√3, δθ=36°
-    python PetersenScale_Phi.py --phi 1.25 --delta_theta 60             # 使用自定义值
-    python PetersenScale_Phi.py --compare                               # 比较所有φ预设值
-    python PetersenScale_Phi.py --compare_dth                           # 比较所有dth预设值
+    支持完整的命令行选项和功能验证
+    """
+    
+    args = parse_args()
+    
+    # 列出预设值并退出
+    if args.list_presets:
+        list_all_presets()
+        sys.exit(0)
+    
+    # 处理预设值
+    if args.preset:
+        phi_value = PHI_PRESETS[args.preset]
+        if not args.export_only:
+            print(f"使用φ预设 '{args.preset}': φ = {phi_value:.6f}")
+    else:
+        phi_value = args.phi
+    
+    if args.dth_preset:
+        delta_theta_value = DELTA_THETA_PRESETS[args.dth_preset]
+        if not args.export_only:
+            print(f"使用δθ预设 '{args.dth_preset}': δθ = {delta_theta_value}°")
+    else:
+        delta_theta_value = args.delta_theta
+    
+    # 比较模式
+    if args.compare_phi:
+        compare_phi_values(list(PHI_PRESETS.values()), args.F_base, delta_theta_value)
+        sys.exit(0)
+    
+    if args.compare_dth:
+        compare_delta_theta_values(list(DELTA_THETA_PRESETS.values()), phi_value, args.F_base)
+        sys.exit(0)
+
+    # 创建音阶对象
+    try:
+        scale = PetersenScale_Phi(
+            F_base=args.F_base, 
+            delta_theta=delta_theta_value, 
+            phi=phi_value,
+            F_min=args.F_min, 
+            F_max=args.F_max, 
+            reference=args.reference
+        )
+    except Exception as e:
+        print(f"❌ 创建音阶对象失败: {e}")
+        sys.exit(1)
+
+    if not args.export_only:
+        print("=== Petersen 可变比例音阶系统测试 - 最终版 ===\n")
+        
+        # 显示φ和δθ信息
+        phi_info = scale.get_phi_info()
+        dth_info = scale.get_delta_theta_info()
+        
+        print(f"φ值信息:")
+        print(f"   数值: {phi_info['phi_value']:.6f}")
+        print(f"   名称: {phi_info['phi_name']}")
+        print(f"   描述: {phi_info['musical_description']}")
+        print(f"   每音区音分: {phi_info['cents_per_zone']:.1f}")
+        print()
+        
+        print(f"δθ值信息:")
+        print(f"   数值: {dth_info['delta_theta']}°")
+        print(f"   名称: {dth_info['name']}")
+        print(f"   描述: {dth_info['description']}")
+        print(f"   几何美学: {dth_info['geometric_beauty']}")
+        if dth_info['is_special_pattern']:
+            print(f"   特殊模式: {dth_info['pattern_mechanism']}")
+        print()
+        
+        # 验证实现正确性
+        if scale.validate_implementation():
+            print("✓ 实现验证通过")
+        else:
+            print("✗ 实现验证失败")
+            if not args.no_export:
+                sys.exit(1)
+    
+    # 生成音阶
+    try:
+        entries = scale.generate()
+        raw_entries = scale.generate_raw()
+    except Exception as e:
+        print(f"❌ 生成音阶失败: {e}")
+        sys.exit(1)
+    
+    if not args.export_only:
+        print(f"\n=== 音阶条目预览 (前6个) ===")
+        for e in entries[:6]:
+            print(f"{e['key_short']:4} {e['key_long']:<6} n={e['n']:>2} "
+                  f"freq={e['freq']:8.3f} Hz  "
+                  f"interval=[{e['interval_a']:.3f},{e['interval_b']:.3f}] "
+                  f"cents={e['cents_ref']:>6.1f}")
+        
+        print(f"... 共生成 {len(entries)} 个音阶条目")
+        
+        # 统计信息
+        print(f"\n=== 统计信息 ===")
+        stats = scale.get_statistics()
+        print(f"总条目数: {stats['total_entries']}")
+        print(f"频率范围: {stats['frequency_range'][0]:.2f} - {stats['frequency_range'][1]:.2f} Hz")
+        print(f"使用音区: {stats['zones_used']}")
+        print(f"音区数量: {stats['zone_count']}")
+        print(f"每音区条目数: {stats['entries_per_zone']}")
+        print(f"五行分布: {stats['elements_distribution']}")
+        print(f"极性分布: {stats['polarity_distribution']}")
+        
+        # 音程分析（显示前几个）
+        print(f"\n=== 音程分析 (前5个音程) ===")
+        intervals = scale.analyze_intervals()
+        for i, interval in enumerate(intervals[:5]):
+            print(f"{interval['from_key']} -> {interval['to_key']}: "
+                  f"{interval['ratio']:.4f} ({interval['cents']:>6.1f} cents)")
+        
+        # 查询功能演示
+        print(f"\n=== 查询功能演示 ===")
+        test_keys = ["J-", "M0", "T+"]
+        for test_key in test_keys:
+            freq = scale.get_frequency_for_key(test_key)
+            if freq:
+                print(f"音名 '{test_key}' 的频率: {freq:.3f} Hz")
+            else:
+                print(f"未找到音名 '{test_key}'")
+        
+        # 随机选择一个音区进行展示
+        if stats['zones_used']:
+            sample_zone = stats['zones_used'][len(stats['zones_used'])//2]
+            zone_entries = scale.get_entries_in_zone(sample_zone)
+            print(f"第{sample_zone}音区包含 {len(zone_entries)} 个条目")
+        
+        freq_range = scale.get_frequency_range()
+        print(f"实际频率范围: {freq_range[0]:.2f} - {freq_range[1]:.2f} Hz")
+    
+    # 导出功能测试（可选）
+    if not args.no_export:
+        print(f"\n=== 导出功能测试 ===")
+        export_success = []
+        
+        # CSV导出
+        try:
+            csv_file = f"{scale._generate_filename_base()}.csv"
+            scale.export_csv(csv_file)
+            print(f"✓ CSV导出成功: {csv_file}")
+            export_success.append(csv_file)
+        except Exception as ex:
+            print(f"✗ CSV导出失败: {ex}")
+        
+        # Scala导出
+        try:
+            scl_file = f"{scale._generate_filename_base()}.scl"
+            scale.to_scala_file(scl_file)
+            print(f"✓ Scala导出成功: {scl_file}")
+            export_success.append(scl_file)
+            
+            # 可选的Scala文件验证
+            if args.verify_scala and not args.export_only:
+                print()
+                scale.verify_scala_file(scl_file)
+                
+        except Exception as ex:
+            print(f"✗ Scala导出失败: {ex}")
+        
+        # MIDI调音表导出
+        try:
+            tun_file = f"{scale._generate_filename_base()}.tun"
+            scale.to_midi_tuning(tun_file)
+            print(f"✓ MIDI调音表导出成功: {tun_file}")
+            export_success.append(tun_file)
+        except Exception as ex:
+            print(f"✗ MIDI调音表导出失败: {ex}")
+
+        # 裁剪版MIDI调音表导出
+        try:
+            pruned = scale.prune_keep_neutral_zones(raw_entries, zones=[1, 2])
+            prune_filename = f"{scale._generate_filename_base()}_prune.tun"
+            scale.to_midi_tuning(prune_filename, entries=pruned)
+            print(f"✓ 裁剪版MIDI调音表导出成功: {prune_filename}")
+            export_success.append(prune_filename)
+        except Exception as ex:
+            print(f"✗ 裁剪版MIDI调音表导出失败: {ex}")
+        
+        # 总结
+        print(f"\n=== 测试完成 ===")
+        print(f"📁 生成的文件前缀: {scale._generate_filename_base()}")
+        print(f"📄 成功导出 {len(export_success)} 个文件:")
+        for file in export_success:
+            print(f"   - {file}")
+    else:
+        print(f"\n=== 分析完成（未导出文件）===")
+    
+    if args.export_only:
+        print(f"💡 使用 --verify-scala 选项可验证Scala文件格式")
+        print(f"💡 移除 --export-only 选项可查看详细分析信息")
+    elif not args.export_only:
+        print(f"💡 使用 --no-export 选项可跳过文件导出")
+        print(f"💡 使用 --list-presets 可查看所有预设值")
+        print(f"💡 使用 --compare-phi 或 --compare-dth 可比较不同参数效果")
