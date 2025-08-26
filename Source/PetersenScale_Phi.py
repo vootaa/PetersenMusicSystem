@@ -131,23 +131,20 @@ DELTA_THETA_PRESETS = {
     # Petersen系统原始值
     "petersen_quarter": 2.4,       # 1/4原始值
     "petersen_original": 4.8,      # 原始Petersen系统
-    "petersen_triple": 8.0,        # 72/9 = 8°
-    "petersen_ninth": 9.0,         # 72/8 = 9°
     "petersen_double": 9.6,        # 2倍原始值
     
-    # 72°的整数分割
-    "72_div_4": 18.0,              # 72°/4 = 18°
-    "72_div_3": 24.0,              # 72°/3 = 24° (15等分角度)
-    "72_div_2": 36.0,              # 72°/2 = 36° (10等分重叠)
-    "72_original": 72.0,           # 72° (完美五角星)
+    # 特殊几何分布（按实际效果命名）
+    "uniform_15": 24.0,            # 24° (完美15等分分布)
+    "overlap_10": 36.0,            # 36° (10等分重叠模式)  
+    "pentagon_5": 72.0,            # 72° (完美五角星，5重叠)
     
     # 特殊几何角度
     "right_angle": 90.0,           # 直角 (不等分15角星)
-    "complement_108": 108.0,       # 五角星补角
     "special_96": 96.0,            # 特殊角度 (24°×4)
+    "complement_108": 108.0,       # 五角星补角
     "triple_symmetry": 120.0,      # 三重对称 (120°)
     "golden_twist": 144.0,         # 黄金扭曲 (144°=360°×(φ-1)²)
-    "straight_angle": 180.0,       # 平角 (对称双五角星)
+    "symmetric_dual": 180.0,       # 180° (对称双五角星)
     "special_192": 192.0,          # 特殊角度 (24°×8)
     "super_pentagon": 216.0,       # 超级五角星 (72°×3)
     "dual_spiral": 240.0,          # 双重螺旋 (2/3圆周)
@@ -158,6 +155,15 @@ DELTA_THETA_PRESETS = {
     "dense_1": 1.0,                # 极密集分布
     "dense_2": 2.0,                # 密集分布
     "dense_3": 3.0,                # 密集分布
+    "dense_4": 4.0,                # 密集分布
+    "dense_5": 5.0,                # 密集分布
+    "dense_6": 6.0,                # 密集分布
+    "dense_8": 8.0,                # 密集分布
+    "dense_9": 9.0,                # 密集分布
+    "dense_10": 10.0,              # 密集分布
+    "dense_12": 12.0,              # 密集分布
+    "dense_15": 15.0,              # 密集分布
+    "dense_18": 18.0,              # 密集分布
 }
 
 def cents(f: float, ref: float) -> float:
@@ -458,7 +464,7 @@ class PetersenScale_Phi:
         Args:
             F_base: 基准频率 (Hz)，默认20Hz
             delta_theta: 极性角度步进 (度)，默认4.8°
-                        预设值：72_div_3(24°), 72_div_2(36°), 72_original(72°)等
+                        uniform_15(24°), overlap_10(36°), pentagon_5(72°)等
             phi: 音区间比例系数，默认黄金比例1.618
                  预设值：golden(1.618), octave(2.0), fifth(1.5), tritone(√2)等
             F_min: 最小频率限制 (Hz)，默认30Hz
