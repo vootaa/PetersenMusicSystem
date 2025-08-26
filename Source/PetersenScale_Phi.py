@@ -143,12 +143,12 @@ DELTA_THETA_PRESETS = {
     "special_96": 96.0,            # 特殊角度 (24°×4)
     "complement_108": 108.0,       # 五角星补角
     "triple_symmetry": 120.0,      # 三重对称 (120°)
-    "golden_twist": 144.0,         # 黄金扭曲 (144°=360°×(φ-1)²)
+    "golden_twist": 144.0,         # 黄金扭曲 (144°=2×72°，双五角星)
     "symmetric_dual": 180.0,       # 180° (对称双五角星)
     "special_192": 192.0,          # 特殊角度 (24°×8)
-    "super_pentagon": 216.0,       # 超级五角星 (72°×3)
+    "super_pentagon": 216.0,       # 超级五角星 (72°×3，三重五角星)
     "dual_spiral": 240.0,          # 双重螺旋 (2/3圆周)
-    "special_288": 288.0,          # 特殊角度 (72°×4)
+    "special_288": 288.0,          # 四重五角星 (72°×4)
     "convergent_spiral": 300.0,    # 收束螺旋
     
     # 微小角度值（密集分布）
@@ -332,20 +332,24 @@ def get_delta_theta_info(delta_theta: float, phi: float = 2.0) -> Dict[str, Unio
         pattern_mechanism = "三重旋转对称（120°间隔）"
     elif abs(delta_theta - 144.0) < 1e-6:
         is_special_pattern = True
-        pattern_positions = 15
-        pattern_mechanism = "黄金扭曲（与φ相关的几何）"
+        pattern_positions = 5
+        pattern_mechanism = "双重五角星（2×72°，五行双重重叠）"
     elif abs(delta_theta - 180.0) < 1e-6:
         is_special_pattern = True
         pattern_positions = 10
         pattern_mechanism = "对称双五角星（同元素阴阳重叠）"
     elif abs(delta_theta - 216.0) < 1e-6:
         is_special_pattern = True
-        pattern_positions = 15
-        pattern_mechanism = "超级五角星（3倍72°扩展）"
+        pattern_positions = 5
+        pattern_mechanism = "三重五角星（3×72°，五行三重重叠）"
     elif abs(delta_theta - 240.0) < 1e-6:
         is_special_pattern = True
         pattern_positions = 15
         pattern_mechanism = "双重螺旋交错（2/3圆周）"
+     elif abs(delta_theta - 288.0) < 1e-6:
+        is_special_pattern = True
+        pattern_positions = 5
+        pattern_mechanism = "四重五角星（4×72°，五行四重重叠）"
     elif abs(delta_theta - 300.0) < 1e-6:
         is_special_pattern = True
         pattern_positions = 15
@@ -368,10 +372,11 @@ def get_delta_theta_info(delta_theta: float, phi: float = 2.0) -> Dict[str, Unio
     # 描述信息
     if is_special_pattern:
         if abs(phi - 2.0) < 1e-6:
-            if pattern_positions in [5, 10]:
-                info["description"] = f"Petersen系统{pattern_positions}等分 = {pattern_positions}平均律（φ=2.0时）"
+            # 根据角度判断是否属于平均律（24°, 36°, 72° 被视为等分平均律）
+            if any(abs(delta_theta - v) < 1e-6 for v in (24.0, 36.0, 72.0)):
+                info["description"] = f"Petersen系统{pattern_positions}等分，对应{pattern_positions}平均律（φ=2.0时）"
             else:
-                info["description"] = f"Petersen系统{pattern_positions}位置特殊模式（φ=2.0时为非传统调律）"
+                info["description"] = f"Petersen系统{pattern_positions}位置模式，φ={phi:.3f}时为非传统调律"
         else:
             info["description"] = f"Petersen系统{pattern_positions}位置模式，φ={phi:.3f}基础（非传统调律）"
     else:
@@ -402,13 +407,15 @@ def get_geometric_beauty_description(delta_theta: float) -> str:
     elif abs(delta_theta - 120.0) < 1e-6:
         return "三重对称星：三重旋转对称，东方美学"
     elif abs(delta_theta - 144.0) < 1e-6:
-        return "黄金扭曲星：与φ共鸣，神秘几何"
+        return "双重五角星：2×72°叠加，和谐共振"
     elif abs(delta_theta - 180.0) < 1e-6:
         return "对称双五角星：两星相对，平衡之美"
     elif abs(delta_theta - 216.0) < 1e-6:
-        return "超级五角星：五角星的升华，宏伟磅礴"
+        return "三重五角星：3×72°扩展，复杂和谐"
     elif abs(delta_theta - 240.0) < 1e-6:
         return "双重螺旋：交错盘旋，动态之美"
+    elif abs(delta_theta - 288.0) < 1e-6:
+        return "四重五角星：4×72°叠加，宏伟磅礴"
     elif abs(delta_theta - 300.0) < 1e-6:
         return "收束螺旋：向心聚合，张力与释放"
     else:
