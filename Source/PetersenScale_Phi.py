@@ -822,7 +822,7 @@ class PetersenScale_Phi:
         Returns:
             包含各种统计数据的字典，现在包含φ和δθ信息
         """
-         entries = self.generate_raw()
+        entries = self.generate_raw()
         if not entries:
             return {}
         
@@ -846,12 +846,14 @@ class PetersenScale_Phi:
             "phi_info": self.get_phi_info(),
             "delta_theta_info": self.get_delta_theta_info(),
             "total_entries": len(entries),
+            "unique_frequencies": len(unique_freqs),
+            "frequency_overlaps": len(overlaps),
             "frequency_range": (min(freqs), max(freqs)),
             "zones_used": sorted(zones),
             "zone_count": len(zones),
             "entries_per_zone": {n: len(self.get_entries_in_zone(n)) for n in zones},
             "elements_distribution": elements_dist,
-            "polarity_distribution": polarity_dist，
+            "polarity_distribution": polarity_dist,
             "overlap_details": overlaps[:10] if overlaps else []  # 前10个重叠详情
         }
         
@@ -960,8 +962,8 @@ class PetersenScale_Phi:
                     row = r
                 w.writerow({k: row.get(k, "") for k in fieldnames})
 
-   def to_scala_file(self, path: Union[str, Path] = None, description: str = None, 
-                  deduplicate: bool = True) -> None:
+    def to_scala_file(self, path: Union[str, Path] = None, description: str = None, 
+                      deduplicate: bool = True) -> None:
         """
         导出为Scala (.scl) 格式
         
@@ -1252,6 +1254,25 @@ def list_all_presets():
         beauty_desc = get_geometric_beauty_description(value)
         print(f"  {name:<20}: {value:5.1f}° ({eq_div:3d}等分) - {beauty_desc}")
 
+def _get_recommended_use(self) -> str:
+    """根据参数组合推荐使用场景"""
+    phi_info = self.get_phi_info()
+    dth_info = self.get_delta_theta_info()
+    
+    if abs(self.phi - 2.0) < 1e-6:  # 八度关系
+        if abs(self.delta_theta - 24.0) < 1e-6:
+            return "15平均律：现代音乐创作，微分音实验"
+        elif abs(self.delta_theta - 72.0) < 1e-6:
+            return "5平均律：简约音乐，东方音乐"
+        else:
+            return "实验性调律：前卫音乐创作"
+    elif abs(self.phi - PHI) < 1e-6:  # 黄金比例
+        return "Petersen原创系统：冥想音乐，治疗音乐，神秘主义音乐"
+    elif abs(self.phi - 1.5) < 1e-6:  # 完全五度
+        return "五度循环系统：古典音乐，和声研究"
+    else:
+        return "实验性系统：音乐研究，声音艺术"
+
 def parse_args():
     """解析命令行参数（增强版）"""
     p = argparse.ArgumentParser(
@@ -1354,7 +1375,7 @@ if __name__ == "__main__":
         sys.exit(1)
 
     if not args.export_only:
-        print("=== Petersen 可变比例音阶系统测试 - 最终版 ===\n")
+        print("=== Petersen 可变比例音阶系统测试 ===\n")
         
         # 显示φ和δθ信息
         phi_info = scale.get_phi_info()
@@ -1416,6 +1437,12 @@ if __name__ == "__main__":
             for overlap in stats['overlap_details']:
                 keys_str = ', '.join(overlap['keys'])
                 print(f"{overlap['frequency']:8.3f} Hz: {overlap['count']}个条目 ({keys_str})")
+            
+            # 提供重叠频率的统计摘要
+            total_overlapping_entries = sum(overlap['count'] for overlap in stats['overlap_details'])
+            avg_overlap_per_freq = total_overlapping_entries / len(stats['overlap_details']) if stats['overlap_details'] else 0
+            print(f"重叠条目总数: {total_overlapping_entries}")
+            print(f"平均每个重叠频率的条目数: {avg_overlap_per_freq:.1f}")
 
         print(f"使用音区: {stats['zones_used']}")
         print(f"音区数量: {stats['zone_count']}")
