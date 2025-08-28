@@ -8,8 +8,15 @@ import ctypes
 from typing import List, Dict, Tuple, Optional, Union
 from dataclasses import dataclass
 
-from .utils.analysis import FrequencyAnalyzer
-from .utils.constants import (
+import sys
+from pathlib import Path
+
+current_dir = Path(__file__).parent
+if str(current_dir) not in sys.path:
+    sys.path.insert(0, str(current_dir))
+
+from utils.analysis import FrequencyAnalyzer
+from utils.constants import (
     FREQUENCY_TOLERANCE_CENTS, MAX_PITCH_BEND_CENTS, 
     PITCH_BEND_NEUTRAL, DEFAULT_PLAY_PARAMS
 )

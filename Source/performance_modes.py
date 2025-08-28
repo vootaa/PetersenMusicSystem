@@ -7,10 +7,17 @@ from typing import Dict, List, Optional, Tuple, Any
 from dataclasses import dataclass
 from enum import Enum
 
-from .frequency_accurate import FrequencyAccuratePlayback
-from .audio_effects import AdvancedAudioEffects
-from .expression_control import ExpressionController
-from .soundfont_manager import SoundFontManager
+import sys
+from pathlib import Path
+
+current_dir = Path(__file__).parent
+if str(current_dir) not in sys.path:
+    sys.path.insert(0, str(current_dir))
+
+from frequency_accurate import FrequencyAccuratePlayback
+from audio_effects import AdvancedAudioEffects
+from expression_control import ExpressionController
+from soundfont_manager import SoundFontManager
 
 class PerformanceMode(Enum):
     """演奏模式枚举"""

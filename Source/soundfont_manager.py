@@ -9,8 +9,16 @@ from typing import Dict, List, Optional, Tuple, Set
 from dataclasses import dataclass
 from enum import Enum
 
-from .utils.analysis import SoundFontAnalyzer
-from .utils.constants import DEFAULT_SOUNDFONTS, INSTRUMENT_CATEGORIES, QUALITY_THRESHOLDS
+import sys
+from pathlib import Path
+
+current_dir = Path(__file__).parent
+if str(current_dir) not in sys.path:
+    sys.path.insert(0, str(current_dir))
+
+from utils.analysis import SoundFontAnalyzer
+from utils.constants import DEFAULT_SOUNDFONTS, INSTRUMENT_CATEGORIES, QUALITY_THRESHOLDS
+
 
 class SoundFontType(Enum):
     """SoundFont类型枚举"""

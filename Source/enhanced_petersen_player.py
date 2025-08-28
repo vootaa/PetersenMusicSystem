@@ -2,13 +2,13 @@
 增强版Petersen音阶播放器
 整合所有功能模块，提供统一的高级API接口
 """
-import os
-import sys
 import time
 import ctypes
-from pathlib import Path
 from typing import Dict, List, Optional, Union, Any, Tuple
 from dataclasses import dataclass
+
+import sys
+from pathlib import Path
 
 # 添加当前目录到路径
 current_dir = Path(__file__).parent
@@ -16,14 +16,14 @@ if str(current_dir) not in sys.path:
     sys.path.insert(0, str(current_dir))
 
 # 导入所有功能模块
-from .frequency_accurate import FrequencyAccuratePlayback
-from .audio_effects import AdvancedAudioEffects, EffectSettings
-from .expression_control import ExpressionController, ExpressionParameters
-from .soundfont_manager import SoundFontManager
-from .performance_modes import PerformanceModes, PerformanceMode
-from .utils.analysis import FrequencyAnalyzer, analyze_petersen_scale_characteristics
-from .utils.constants import DEFAULT_SOUNDFONTS, DEFAULT_PLAY_PARAMS
-from .utils.presets import COMPLETE_PRESET_COMBINATIONS
+from frequency_accurate import FrequencyAccuratePlayback
+from audio_effects import AdvancedAudioEffects, EffectSettings
+from expression_control import ExpressionController, ExpressionParameters
+from soundfont_manager import SoundFontManager
+from performance_modes import PerformanceModes, PerformanceMode
+from utils.analysis import FrequencyAnalyzer, analyze_petersen_scale_characteristics
+from utils.constants import DEFAULT_SOUNDFONTS, DEFAULT_PLAY_PARAMS
+from utils.presets import COMPLETE_PRESET_COMBINATIONS
 
 @dataclass
 class PlayerConfiguration:

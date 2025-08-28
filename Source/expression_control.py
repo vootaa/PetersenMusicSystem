@@ -8,8 +8,15 @@ from typing import List, Dict, Optional, Callable, Tuple
 from dataclasses import dataclass
 from enum import Enum
 
-from .utils.analysis import PerformanceAnalyzer
-from .utils.constants import VELOCITY_CURVES, DYNAMIC_PATTERNS, CC_CONTROLLERS
+import sys
+from pathlib import Path
+
+current_dir = Path(__file__).parent
+if str(current_dir) not in sys.path:
+    sys.path.insert(0, str(current_dir))
+
+from utils.analysis import PerformanceAnalyzer
+from utils.constants import VELOCITY_CURVES, DYNAMIC_PATTERNS, CC_CONTROLLERS
 
 class DynamicPattern(Enum):
     """动态模式枚举"""

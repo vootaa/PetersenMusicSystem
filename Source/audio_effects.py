@@ -7,7 +7,14 @@ from typing import Dict, Optional, Tuple, List
 from dataclasses import dataclass
 from enum import Enum
 
-from .utils.constants import REVERB_PARAMS, CHORUS_PARAMS, CC_CONTROLLERS
+import sys
+from pathlib import Path
+
+current_dir = Path(__file__).parent
+if str(current_dir) not in sys.path:
+    sys.path.insert(0, str(current_dir))
+
+from utils.constants import REVERB_PARAMS, CHORUS_PARAMS, CC_CONTROLLERS
 
 class EffectType(Enum):
     """音效类型枚举"""

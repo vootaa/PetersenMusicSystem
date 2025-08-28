@@ -4,7 +4,15 @@
 import math
 import numpy as np
 from typing import Tuple, List, Dict, Optional
-from .constants import CENTS_PER_SEMITONE, CENTS_PER_OCTAVE
+
+import sys
+from pathlib import Path
+
+current_dir = Path(__file__).parent
+if str(current_dir) not in sys.path:
+    sys.path.insert(0, str(current_dir))
+
+from constants import CENTS_PER_SEMITONE, CENTS_PER_OCTAVE
 
 class FrequencyAnalyzer:
     """频率分析器"""
