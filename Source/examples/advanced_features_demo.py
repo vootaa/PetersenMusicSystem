@@ -4,7 +4,7 @@
 """
 import time
 import traceback
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 
 import sys
 from pathlib import Path
@@ -320,95 +320,78 @@ def comprehensive_demo():
         print("\n✨ 综合演示完成!")
 
 def soundfont_showcase_demo():
-    """SoundFont展示演示 - 让所有5个SoundFont都发挥作用"""
+    """SoundFont展示演示 - 使用静默模式减少警告"""
     print("\n🎼 === 所有SoundFont展示演示 ===")
     
     with create_player(soundfont_dir="../../Soundfonts") as player:
-        # 获取所有可用的SoundFont
         sf_summary = player.sf_manager.get_soundfont_summary()
         available_sfs = list(sf_summary['soundfont_details'].keys())
         
         print(f"📁 发现 {len(available_sfs)} 个SoundFont文件，将逐一演示：")
         
-        # 测试旋律 - 简单的C大调音阶
-        test_melody = [261.63, 293.66, 329.63, 349.23, 392.00]  # C-D-E-F-G
+        test_melody = [261.63, 293.66, 329.63, 349.23, 392.00]
         melody_names = ["C4", "D4", "E4", "F4", "G4"]
         
         for i, sf_name in enumerate(available_sfs):
             print(f"\n🎵 [{i+1}/{len(available_sfs)}] 演示 SoundFont: {sf_name}")
             
-            # 获取这个SoundFont的详细信息
             sf_details = sf_summary['soundfont_details'][sf_name]
             print(f"   📊 类型: {sf_details['type']}")
             print(f"   📏 大小: {sf_details['size_mb']:.1f}MB")
             print(f"   ⭐ 质量: {sf_details['quality_score']:.2f}")
-            print(f"   🎹 乐器数: {sf_details['instrument_count']}")
             
-            # 切换到这个SoundFont
-            switch_success = player.switch_soundfont(sf_name)
+            # 使用静默模式切换SoundFont
+            switch_success = player.switch_soundfont(sf_name, suppress_warnings=True)
             if not switch_success:
                 print(f"   ❌ SoundFont加载失败，跳过")
                 continue
             
-            # 等待加载完成
-            time.sleep(0.5)
+            time.sleep(0.3)  # 减少等待时间
             
-            # 根据SoundFont类型选择合适的乐器和设置
-            if sf_details['type'] == 'piano_specialized':
-                # 钢琴专用SoundFont
-                player.switch_instrument(0)  # Acoustic Grand Piano
-                player.apply_preset_combination("steinway_concert", "romantic")
-                print(f"   🎹 使用钢琴设置")
+            # 获取实际可用的乐器
+            available_instruments = player.sf_manager.get_available_instruments()
+            if available_instruments:
+                # 根据SoundFont类型智能选择乐器
+                best_instrument = _select_best_instrument_for_demo(
+                    sf_details['type'], available_instruments
+                )
                 
-            elif sf_details['type'] == 'orchestral':
-                # 管弦乐SoundFont
-                player.switch_instrument(40)  # Violin
-                player.apply_preset_combination("orchestral", "dramatic")
-                print(f"   🎻 使用小提琴设置")
+                if best_instrument:
+                    player.switch_instrument(best_instrument.program)
+                    print(f"   🎹 选择乐器: {best_instrument.name}")
                 
-            elif sf_details['type'] == 'general_midi':
-                # 通用MIDI SoundFont
-                player.switch_instrument(0)  # Acoustic Grand Piano
-                player.apply_preset_combination("hall", "classical")
-                print(f"   🎼 使用通用MIDI设置")
-            
+                # 播放测试旋律
+                print(f"   ▶️  播放测试旋律...")
+                play_success = player.play_frequencies(
+                    test_melody, melody_names, duration=0.6, gap=0.1
+                )
+                
+                status = "✅ 完成" if play_success else "⚠️  异常"
+                print(f"   {status} {sf_name} 演示")
             else:
-                # 其他类型
-                player.switch_instrument(0)
-                player.apply_preset_combination("chamber", "expressive")
-                print(f"   🎵 使用默认设置")
+                print(f"   ⚠️  无可用乐器")
             
-            # 播放测试旋律
-            print(f"   ▶️  播放测试旋律...")
-            play_success = player.play_frequencies(
-                test_melody, 
-                melody_names, 
-                duration=0.6, 
-                gap=0.1
-            )
-            
-            if play_success:
-                print(f"   ✅ {sf_name} 演示完成")
-            else:
-                print(f"   ⚠️  {sf_name} 播放异常")
-            
-            # 显示当前系统状态
-            status = player.get_system_status()
-            current_sf = status.get('current_soundfont', 'Unknown')
-            print(f"   📋 当前激活: {current_sf}")
-            
-            # 演示间隔
-            time.sleep(1.0)
-        
-        print(f"\n🎉 所有 {len(available_sfs)} 个SoundFont演示完成！")
-        
-        # 显示最终统计
-        final_status = player.get_system_status()
-        stats = final_status['session_stats']
-        print(f"\n📊 演示统计:")
-        print(f"   🎵 总播放音符: {stats['notes_played']}")
-        print(f"   🔄 SoundFont切换次数: {len(available_sfs)}")
-        print(f"   ⏱️  总演示时长: {stats['total_play_time']:.1f}秒")
+            time.sleep(0.5)  # 减少演示间隔
+
+def _select_best_instrument_for_demo(sf_type: str, instruments: List) -> Optional:
+    """根据SoundFont类型选择最佳演示乐器"""
+    # 根据类型定义优先级
+    priorities = {
+        'piano_specialized': [0, 1],  # 钢琴优先
+        'orchestral': [40, 41, 56, 73, 0],  # 弦乐、铜管、木管、钢琴
+        'general_midi': [0, 1, 40, 48],  # 钢琴、弦乐、铜管
+    }
+    
+    target_programs = priorities.get(sf_type, [0])
+    
+    # 按优先级查找可用乐器
+    for prog in target_programs:
+        for inst in instruments:
+            if inst.program == prog:
+                return inst
+    
+    # 如果没找到，返回第一个可用乐器
+    return instruments[0] if instruments else None
 
 def instrument_variety_demo():
     """乐器多样性演示 - 展示不同SoundFont的乐器特色"""

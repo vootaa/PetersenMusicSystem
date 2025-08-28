@@ -538,12 +538,13 @@ class EnhancedPetersenPlayer:
             demo_frequencies, demo_names, "soundfont_quality"
         )
 
-    def switch_soundfont(self, sf_name: str) -> bool:
+    def switch_soundfont(self, sf_name: str, quiet_mode: bool = True) -> bool:
         """
-        切换到指定的SoundFont
+        切换SoundFont，支持静默模式
         
         Args:
-            sf_name: SoundFont文件名
+            sf_name: SoundFont名称
+            quiet_mode: 静默模式，减少警告输出
             
         Returns:
             切换成功返回True
@@ -551,11 +552,60 @@ class EnhancedPetersenPlayer:
         if not self._check_ready():
             return False
         
-        if not self.sf_manager:
-            print("❌ SoundFont管理器未初始化")
+        try:
+            # 静默模式下抑制FluidSynth警告
+            if quiet_mode:
+                print(f"🔄 静默加载SoundFont: {sf_name}")
+            
+            success = self.sf_manager.switch_soundfont(sf_name, suppress_warnings=quiet_mode)
+            
+            if success:
+                # 获取实际可用的乐器列表
+                available_instruments = self.sf_manager.get_available_instruments()
+                
+                print(f"✓ SoundFont切换成功: {sf_name}")
+                if quiet_mode:
+                    print(f"  ✓ 实际可用乐器: {len(available_instruments)}个")
+                
+                # 自动选择最佳乐器
+                self._auto_select_instrument(available_instruments)
+                
+                return True
+            else:
+                print(f"❌ SoundFont切换失败: {sf_name}")
+                return False
+                
+        except Exception as e:
+            print(f"❌ SoundFont切换异常: {e}")
+            return False
+    
+    def _auto_select_instrument(self, available_instruments: List) -> bool:
+        """
+        根据可用乐器自动选择最佳乐器
+        
+        Args:
+            available_instruments: 可用乐器列表
+            
+        Returns:
+            选择成功返回True
+        """
+        if not available_instruments:
             return False
         
-        return self.sf_manager.switch_soundfont(sf_name)
+        # 优先选择钢琴类乐器
+        piano_programs = [0, 1, 2, 3]  # 各种钢琴音色
+        for prog in piano_programs:
+            for inst in available_instruments:
+                if inst.program == prog:
+                    self.switch_instrument(prog)
+                    print(f"  ✓ 自动选择乐器: {inst.name} (程序{prog})")
+                    return True
+        
+        # 如果没有钢琴，选择第一个可用乐器
+        first_inst = available_instruments[0]
+        self.switch_instrument(first_inst.program)
+        print(f"  ✓ 自动选择乐器: {first_inst.name} (程序{first_inst.program})")
+        return True
 
     def switch_instrument(self, program: int, channel: Optional[int] = None) -> bool:
         """

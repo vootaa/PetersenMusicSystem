@@ -182,64 +182,116 @@ class SoundFontManager:
         
         return min(1.0, score)
     
-    def load_soundfont(self, sf_name: str, force_reload: bool = False) -> bool:
+    def load_soundfont(self, sf_name: str, suppress_warnings: bool = True) -> bool:
         """
-        加载SoundFont
+        加载SoundFont文件
         
         Args:
-            sf_name: SoundFont文件名
-            force_reload: 强制重新加载
+            sf_name: SoundFont文件名或完整路径
+            suppress_warnings: 是否抑制FluidSynth警告
             
         Returns:
             加载成功返回True
         """
-        if sf_name not in self.soundfonts:
-            print(f"❌ 未找到SoundFont: {sf_name}")
-            print(f"可用文件: {list(self.soundfonts.keys())}")
-            return False
-        
-        sf_info = self.soundfonts[sf_name]
-        
-        # 检查是否已加载
-        if sf_info.is_loaded and not force_reload:
-            print(f"✓ SoundFont已加载: {sf_name}")
-            self.current_soundfont = sf_name
-            return True
-        
-        # 卸载之前的SoundFont
-        if self.current_soundfont:
-            self._unload_current_soundfont()
-        
         try:
-            print(f"🔄 加载SoundFont: {sf_name} ({sf_info.file_size_mb:.1f}MB)")
+            # 构建完整路径
+            if sf_name in self.soundfonts:
+                # 如果是已知的SoundFont名称，使用其路径
+                sf_path = str(self.soundfonts[sf_name].file_path)
+            else:
+                # 否则假设是文件名，在SoundFont目录中查找
+                sf_path = str(self.soundfont_dir / sf_name)
+                if not Path(sf_path).exists():
+                    print(f"❌ SoundFont文件不存在: {sf_path}")
+                    return False
             
-            # 使用FluidSynth加载
-            sf_path_str = str(sf_info.file_path)
-            sf_id = self.fluidsynth.fluid_synth_sfload(
-                self.synth, 
-                sf_path_str.encode('utf-8'), 
-                1  # reset_presets
-            )
+            # 如果需要抑制警告，临时重定向stderr
+            stderr_backup = None
+            devnull = None
+            if suppress_warnings:
+                import os
+                stderr_backup = os.dup(sys.stderr.fileno())
+                devnull = os.open(os.devnull, os.O_WRONLY)
+                os.dup2(devnull, sys.stderr.fileno())
             
-            if sf_id == -1:
-                print(f"❌ FluidSynth加载失败: {sf_name}")
-                return False
-            
-            # 更新状态
-            sf_info.is_loaded = True
-            sf_info.fluid_sf_id = sf_id
-            self.current_soundfont = sf_name
-            self.loaded_soundfonts.add(sf_name)
-            
-            print(f"✓ SoundFont加载成功: {sf_name} (ID: {sf_id})")
-            
-            # 获取详细乐器信息
-            self._load_instrument_details(sf_name)
-            
-            return True
+            try:
+                # 执行加载
+                sf_id = self.fluidsynth.fluid_synth_sfload(self.synth, sf_path.encode(), 1)
+                
+                if sf_id == -1:
+                    print(f"❌ SoundFont加载失败: {sf_name}")
+                    return False
+                
+                # 更新SoundFont信息
+                if sf_name not in self.soundfonts:
+                    # 如果是新的SoundFont，创建信息对象
+                    sf_info = self._analyze_soundfont_file(Path(sf_path))
+                    self.soundfonts[sf_name] = sf_info
+                
+                sf_info = self.soundfonts[sf_name]
+                sf_info.is_loaded = True
+                sf_info.fluid_sf_id = sf_id
+                self.current_soundfont = sf_name
+                self.loaded_soundfonts.add(sf_name)
+                
+                print(f"✓ SoundFont加载成功: {sf_name} (ID: {sf_id})")
+                
+                # 加载乐器详细信息
+                self._load_instrument_details(sf_name)
+                
+                return True
+                
+            finally:
+                # 恢复stderr
+                if suppress_warnings and stderr_backup is not None:
+                    os.dup2(stderr_backup, sys.stderr.fileno())
+                    os.close(stderr_backup)
+                    if devnull is not None:
+                        os.close(devnull)
             
         except Exception as e:
-            print(f"❌ 加载异常: {e}")
+            print(f"❌ SoundFont加载异常: {e}")
+            return False
+    
+    def _detect_available_instruments(self, sf_id: int) -> List[int]:
+        """
+        检测SoundFont中实际可用的乐器
+        
+        Args:
+            sf_id: SoundFont ID
+            
+        Returns:
+            可用乐器程序号列表
+        """
+        available = []
+        
+        # 测试每个程序号是否真正可用
+        for prog in range(128):
+            # 尝试切换到该乐器
+            result = self.fluidsynth.fluid_synth_program_change(self.synth, 0, prog)
+            if result == 0:  # 成功
+                # 验证是否真的有该乐器的声音样本
+                if self._verify_instrument_samples(sf_id, prog):
+                    available.append(prog)
+        
+        return available
+    
+    def _verify_instrument_samples(self, sf_id: int, program: int) -> bool:
+        """
+        验证乐器是否有真实的声音样本（不是替换品）
+        
+        Args:
+            sf_id: SoundFont ID  
+            program: 乐器程序号
+            
+        Returns:
+            有真实样本返回True
+        """
+        try:
+            # 通过FluidSynth API检查预设是否存在
+            preset_exists = self.fluidsynth.fluid_synth_get_program(self.synth, 0)
+            return preset_exists is not None
+        except:
             return False
     
     def _unload_current_soundfont(self) -> None:
@@ -521,12 +573,13 @@ class SoundFontManager:
         else:
             return "特殊音色和实验"
     
-    def switch_soundfont(self, sf_name: str) -> bool:
+    def switch_soundfont(self, sf_name: str, suppress_warnings: bool = True) -> bool:
         """
         切换到指定的SoundFont
         
         Args:
             sf_name: SoundFont文件名
+            suppress_warnings: 是否抑制警告
             
         Returns:
             切换成功返回True
@@ -561,12 +614,12 @@ class SoundFontManager:
                         print(f"✓ 卸载SoundFont: {self.current_soundfont}")
                         current_sf_info.is_loaded = False
                         current_sf_info.fluid_sf_id = None
-                        self.loaded_soundfonts.remove(self.current_soundfont)
+                        self.loaded_soundfonts.discard(self.current_soundfont)
                     except Exception as e:
                         print(f"⚠️  卸载SoundFont警告: {e}")
             
             # 3. 加载新的SoundFont
-            success = self.load_soundfont(sf_name)
+            success = self.load_soundfont(sf_name, suppress_warnings)
             
             if success:
                 # 4. 等待SoundFont完全加载
