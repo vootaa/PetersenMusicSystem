@@ -76,9 +76,7 @@ class SoundFontManager:
             print(f"⚠️  SoundFont目录不存在: {self.soundfont_dir}")
             return
         
-        sf2_files = list(self.soundfont_dir.glob("*.sf2"))
-        sf2_files.extend(list(self.soundfont_dir.glob("*.SF2")))
-        
+        sf2_files = list(self.soundfont_dir.glob("*.sf2")) + list(self.soundfont_dir.glob("*.SF2"))
         print(f"🔍 发现 {len(sf2_files)} 个SoundFont文件")
         
         for sf_path in sf2_files:

@@ -4,11 +4,12 @@
 """
 import time
 import json
+import csv
 from pathlib import Path
-from typing import List, Dict, Any
-from dataclasses import dataclass
-import sys
+from typing import List, Dict, Any, Optional
+from dataclasses import dataclass, asdict
 
+import sys
 # 添加源代码路径
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
@@ -17,20 +18,219 @@ from utils.presets import COMPLETE_PRESET_COMBINATIONS, recommend_preset_for_con
 from utils.analysis import analyze_petersen_scale_characteristics
 
 @dataclass
-class BatchTask:
-    """批处理任务定义"""
+class BatchJob:
+    """批处理任务"""
+    id: str
     name: str
     frequencies: List[float]
     key_names: List[str]
-    mode: str
-    style: str
-    description: str
-    expected_duration: float
+    mode: str = "solo_piano"
+    style: str = "romantic"
+    preset: Optional[str] = None
+    priority: int = 1
+    estimated_duration: float = 0.0
+
+@dataclass
+class ProcessingResult:
+    """处理结果"""
+    job_id: str
+    success: bool
+    duration: float
+    notes_played: int
+    accuracy_info: Optional[Dict] = None
+    error_message: Optional[str] = None
+
+class BatchProcessor:
+    """批处理器"""
+    
+    def __init__(self):
+        self.player = None
+        self.job_queue: List[BatchJob] = []
+        self.results: List[ProcessingResult] = []
+        self.stats = {
+            'total_jobs': 0,
+            'completed_jobs': 0,
+            'failed_jobs': 0,
+            'total_notes': 0,
+            'total_duration': 0.0
+        }
+    
+    def initialize(self):
+        """初始化批处理器"""
+        print("🔄 初始化批处理系统...")
+        
+        # 创建优化的批处理配置
+        config = PlayerConfiguration(
+            enable_accurate_frequency=True,
+            enable_effects=True,
+            enable_expression=True,
+            auto_optimize_settings=True,
+            sample_rate=44100,
+            buffer_size=1024
+        )
+        
+        self.player = create_player()
+        print("✅ 批处理系统初始化完成")
+    
+    def add_job(self, job: BatchJob):
+        """添加批处理任务"""
+        # 估算任务持续时间
+        job.estimated_duration = len(job.frequencies) * 0.8 + 2.0  # 粗略估算
+        
+        self.job_queue.append(job)
+        self.stats['total_jobs'] += 1
+        print(f"📝 添加任务: {job.name} ({len(job.frequencies)} 音符)")
+    
+    def process_all_jobs(self, max_workers: int = 1):
+        """处理所有任务"""
+        if not self.job_queue:
+            print("⚠️  没有待处理任务")
+            return
+        
+        print(f"\n🚀 开始批处理 ({len(self.job_queue)} 个任务)...")
+        
+        # 按优先级排序
+        self.job_queue.sort(key=lambda x: x.priority, reverse=True)
+        
+        start_time = time.time()
+        
+        # 由于FluidSynth通常不支持多线程，这里使用单线程处理
+        for i, job in enumerate(self.job_queue, 1):
+            print(f"\n[{i}/{len(self.job_queue)}] 处理任务: {job.name}")
+            result = self._process_single_job(job)
+            self.results.append(result)
+            
+            if result.success:
+                self.stats['completed_jobs'] += 1
+                self.stats['total_notes'] += result.notes_played
+            else:
+                self.stats['failed_jobs'] += 1
+            
+            self.stats['total_duration'] += result.duration
+        
+        total_time = time.time() - start_time
+        
+        print(f"\n✅ 批处理完成!")
+        print(f"   总时间: {total_time:.1f}秒")
+        print(f"   成功任务: {self.stats['completed_jobs']}/{self.stats['total_jobs']}")
+        print(f"   失败任务: {self.stats['failed_jobs']}")
+        print(f"   总音符数: {self.stats['total_notes']}")
+    
+    def _process_single_job(self, job: BatchJob) -> ProcessingResult:
+        """处理单个任务"""
+        start_time = time.time()
+        
+        try:
+            # 应用预设（如果指定）
+            if job.preset and job.preset in COMPLETE_PRESET_COMBINATIONS:
+                preset = COMPLETE_PRESET_COMBINATIONS[job.preset]
+                self.player.apply_preset_combination(
+                    preset.effect_preset, preset.expression_preset
+                )
+            
+            # 执行播放
+            if job.mode == "solo_piano":
+                success = self.player.performance_modes.execute_solo_piano_mode(
+                    job.frequencies, job.key_names, job.style
+                )
+            elif job.mode == "comparison":
+                success = self.player.performance_modes.execute_comparison_demo(
+                    job.frequencies, job.key_names, "12tet_vs_petersen"
+                )
+            elif job.mode == "educational":
+                success = self.player.performance_modes.execute_educational_mode(
+                    job.frequencies, job.key_names, "basic_theory"
+                )
+            else:
+                success = self.player.play_frequencies(job.frequencies, job.key_names)
+            
+            # 分析精确度
+            accuracy_info = self.player.freq_player.analyze_frequency_accuracy(job.frequencies)
+            
+            duration = time.time() - start_time
+            
+            return ProcessingResult(
+                job_id=job.id,
+                success=success,
+                duration=duration,
+                notes_played=len(job.frequencies),
+                accuracy_info=accuracy_info
+            )
+            
+        except Exception as e:
+            duration = time.time() - start_time
+            return ProcessingResult(
+                job_id=job.id,
+                success=False,
+                duration=duration,
+                notes_played=0,
+                error_message=str(e)
+            )
+    
+    def export_results(self, format: str = "json", filename: Optional[str] = None):
+        """导出处理结果"""
+        if not filename:
+            timestamp = int(time.time())
+            filename = f"batch_results_{timestamp}.{format}"
+        
+        output_path = Path("output") / filename
+        output_path.parent.mkdir(exist_ok=True)
+        
+        if format == "json":
+            self._export_json(output_path)
+        elif format == "csv":
+            self._export_csv(output_path)
+        else:
+            print(f"❌ 不支持的格式: {format}")
+            return
+        
+        print(f"📄 结果已导出: {output_path}")
+    
+    def _export_json(self, output_path: Path):
+        """导出JSON格式"""
+        export_data = {
+            'metadata': {
+                'export_time': time.time(),
+                'total_jobs': self.stats['total_jobs'],
+                'completed_jobs': self.stats['completed_jobs'],
+                'failed_jobs': self.stats['failed_jobs'],
+                'total_notes': self.stats['total_notes'],
+                'total_duration': self.stats['total_duration']
+            },
+            'results': [asdict(result) for result in self.results]
+        }
+        
+        with open(output_path, 'w', encoding='utf-8') as f:
+            json.dump(export_data, f, indent=2, ensure_ascii=False)
+    
+    def _export_csv(self, output_path: Path):
+        """导出CSV格式"""
+        with open(output_path, 'w', newline='', encoding='utf-8') as f:
+            writer = csv.writer(f)
+            
+            # 写入表头
+            headers = ['Job ID', 'Success', 'Duration', 'Notes Played', 
+                      'Compensation Needed', 'Max Deviation', 'Error']
+            writer.writerow(headers)
+            
+            # 写入数据
+            for result in self.results:
+                row = [
+                    result.job_id,
+                    result.success,
+                    f"{result.duration:.2f}",
+                    result.notes_played,
+                    result.accuracy_info.get('needs_compensation_count', 0) if result.accuracy_info else 0,
+                    result.accuracy_info.get('max_deviation', 0) if result.accuracy_info else 0,
+                    result.error_message or ""
+                ]
+                writer.writerow(row)
 
 class BatchAutomationDemo:
     """批处理自动化演示类"""
     
     def __init__(self):
+        self.processor = BatchProcessor()
         self.player = None
         self.results = []
         self.start_time = time.time()
@@ -51,6 +251,10 @@ class BatchAutomationDemo:
         if not self.player:
             raise Exception("播放器初始化失败")
         
+        # 初始化处理器
+        self.processor.initialize()
+        self.processor.player = self.player  # 共享播放器实例
+
         print("✅ 系统初始化完成\n")
     
     def run_complete_automation_suite(self):
@@ -127,67 +331,26 @@ class BatchAutomationDemo:
         
         print(f"🔄 准备处理 {len(test_scales)} 个音阶...")
         
-        batch_results = []
+        # 使用BatchProcessor添加任务
+        for scale_data in test_scales:
+            job = BatchJob(
+                id=f"scale_{scale_data['name']}",
+                name=scale_data['name'],
+                frequencies=scale_data['frequencies'],
+                key_names=scale_data['names'],
+                mode="solo_piano",
+                style="romantic"
+            )
+            self.processor.add_job(job)
         
-        for i, scale_data in enumerate(test_scales, 1):
-            print(f"\n[{i}/{len(test_scales)}] 处理: {scale_data['name']}")
-            
-            start_time = time.time()
-            
-            # 分析音阶特性
-            characteristics = self._analyze_scale_characteristics(
-                scale_data['frequencies'], scale_data['names']
-            )
-            
-            # 自动选择最适合的演奏模式
-            recommended_mode = self._auto_select_mode(characteristics)
-            
-            # 自动选择预设
-            recommended_preset = recommend_preset_for_context(
-                recommended_mode, 
-                characteristics,
-                list(self.player.sf_manager.soundfonts.keys())
-            )
-            
-            print(f"   📊 特征: {characteristics['note_count']}音符, 跨度{characteristics['frequency_span']:.1f}Hz")
-            print(f"   🎯 推荐模式: {recommended_mode}")
-            print(f"   🎨 推荐预设: {recommended_preset}")
-            
-            # 应用预设
-            if recommended_preset in COMPLETE_PRESET_COMBINATIONS:
-                preset = COMPLETE_PRESET_COMBINATIONS[recommended_preset]
-                self.player.apply_preset_combination(
-                    preset.effect_preset, 
-                    preset.expression_preset
-                )
-            
-            # 执行播放
-            success = self.player.play_frequencies(
-                scale_data['frequencies'], 
-                scale_data['names'],
-                duration=0.3,  # 快速播放
-                gap=0.05
-            )
-            
-            processing_time = time.time() - start_time
-            
-            result = {
-                'name': scale_data['name'],
-                'characteristics': characteristics,
-                'recommended_mode': recommended_mode,
-                'recommended_preset': recommended_preset,
-                'success': success,
-                'processing_time': processing_time
-            }
-            
-            batch_results.append(result)
-            
-            print(f"   ⏱️  处理时间: {processing_time:.2f}秒 {'✅' if success else '❌'}")
-        
+        # 批量处理
+        self.processor.process_all_jobs()
+
         # 批量结果统计
+        batch_results = self.processor.results
         total_processed = len(batch_results)
-        successful = sum(1 for r in batch_results if r['success'])
-        avg_time = sum(r['processing_time'] for r in batch_results) / total_processed
+        successful = sum(1 for r in batch_results if r.success)
+        avg_time = sum(r.duration for r in batch_results) / total_processed if total_processed > 0 else 0
         
         print(f"\n📈 批量处理结果:")
         print(f"   总数: {total_processed}")
@@ -538,6 +701,8 @@ class BatchAutomationDemo:
         """清理资源"""
         if self.player:
             self.player.cleanup()
+        if self.processor:
+            self.processor.export_results() # 可选：导出批处理结果
 
 def main():
     """主函数"""
