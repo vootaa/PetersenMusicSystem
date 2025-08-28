@@ -90,14 +90,17 @@ def soundfont_switching_demo():
             
             success = player.switch_soundfont(sf_name)
             if success:
+                # 等待SoundFont完全加载
+                time.sleep(0.3)
+                
                 # 播放测试和弦
-                player.play_frequencies(test_chord, chord_names, duration=1.5)
+                player.play_frequencies(test_chord, chord_names, duration=1.0, gap=0.2)
                 print(f"   ✅ SoundFont {i+1} 演示完成")
             else:
                 print(f"   ❌ SoundFont {i+1} 加载失败")
             
-            # 短暂暂停避免冲突
-            time.sleep(0.5)
+            # 更长的暂停避免冲突
+            time.sleep(0.8)
 
 def instrument_comparison_demo():
     """乐器对比演示"""

@@ -18,19 +18,24 @@ if str(current_dir) not in sys.path:
 from utils.analysis import FrequencyAnalyzer
 from utils.constants import (
     FREQUENCY_TOLERANCE_CENTS, MAX_PITCH_BEND_CENTS, 
-    PITCH_BEND_NEUTRAL, DEFAULT_PLAY_PARAMS
+    PITCH_BEND_NEUTRAL, PITCH_BEND_RANGE, DEFAULT_PLAY_PARAMS
 )
 
 @dataclass
 class AccurateNote:
-    """精确音符数据"""
+    """精确音符数据类"""
     target_frequency: float
     midi_note: int
-    standard_frequency: float
-    cents_deviation: float
+    frequency_error_cents: float
+    needs_pitch_bend: bool
     pitch_bend_value: int
-    needs_compensation: bool
+    actual_frequency: float
     key_name: str = ""
+
+    def __post_init__(self):
+        """初始化后处理"""
+        # 确保弯音轮值在有效范围内
+        self.pitch_bend_value = max(0, min(16383, self.pitch_bend_value))
     
 class FrequencyAccuratePlayback:
     """精确频率播放控制器"""
@@ -50,12 +55,15 @@ class FrequencyAccuratePlayback:
         self.a4_frequency = 440.0
         self.pitch_bend_range_cents = 200.0  # 默认弯音轮范围
         
+        # 初始化频率分析器
+        self.analyzer = FrequencyAnalyzer()
+        
         # 统计信息
-        self.accuracy_stats = {
-            'total_notes_played': 0,
-            'compensated_notes': 0,
-            'max_deviation_played': 0.0,
-            'avg_deviation': 0.0
+        self.stats = {
+            'notes_played': 0,
+            'compensations_used': 0,
+            'total_deviation': 0.0,
+            'max_deviation': 0.0
         }
         
         # 设置弯音轮范围
@@ -88,103 +96,107 @@ class FrequencyAccuratePlayback:
         Returns:
             AccurateNote对象
         """
-        # 找到最接近的MIDI音符
-        midi_note, standard_freq, cents_deviation = FrequencyAnalyzer.find_closest_midi_note(
-            target_frequency, self.a4_frequency
-        )
+        # 计算最接近的MIDI音符
+        midi_note = self.analyzer.frequency_to_midi_note(target_frequency)
+        
+        # 计算标准频率和误差
+        standard_freq = self.analyzer.midi_note_to_frequency(midi_note)
+        error_cents = self.analyzer.frequency_error_in_cents(target_frequency, standard_freq)
+        
+        # 判断是否需要弯音轮补偿
+        needs_pitch_bend = abs(error_cents) > FREQUENCY_TOLERANCE_CENTS
         
         # 计算弯音轮值
-        pitch_bend_value = FrequencyAnalyzer.calculate_pitch_bend(
-            target_frequency, midi_note, self.a4_frequency, self.pitch_bend_range_cents
-        )
-        
-        # 判断是否需要补偿
-        needs_compensation = abs(cents_deviation) > FREQUENCY_TOLERANCE_CENTS
+        if needs_pitch_bend and abs(error_cents) <= MAX_PITCH_BEND_CENTS:
+            # 弯音轮范围: 0-16383, 中性值: 8192
+            # error_cents为正表示目标频率高于标准频率
+            bend_ratio = error_cents / MAX_PITCH_BEND_CENTS
+            pitch_bend_offset = int(bend_ratio * PITCH_BEND_RANGE)
+            pitch_bend_value = PITCH_BEND_NEUTRAL + pitch_bend_offset
+            actual_frequency = target_frequency
+        else:
+            pitch_bend_value = PITCH_BEND_NEUTRAL
+            actual_frequency = standard_freq
+            if abs(error_cents) > MAX_PITCH_BEND_CENTS:
+                needs_pitch_bend = False  # 超出补偿范围，不使用弯音轮
         
         return AccurateNote(
             target_frequency=target_frequency,
             midi_note=midi_note,
-            standard_frequency=standard_freq,
-            cents_deviation=cents_deviation,
+            frequency_error_cents=error_cents,
+            needs_pitch_bend=needs_pitch_bend,
             pitch_bend_value=pitch_bend_value,
-            needs_compensation=needs_compensation,
+            actual_frequency=actual_frequency,
             key_name=key_name
         )
     
-    def play_accurate_note(self, 
-                          target_frequency: float,
-                          velocity: int = 80,
-                          duration: float = 0.5,
-                          key_name: Optional[str] = None,
-                          force_compensation: bool = False) -> bool:
+    def play_accurate_note(self, target_frequency: float, velocity: int = 80, 
+                          duration: float = 0.5, key_name: str = "") -> bool:
         """
-        播放精确频率音符
+        播放单个精确频率音符
         
         Args:
             target_frequency: 目标频率
-            velocity: 力度 (1-127)
-            duration: 持续时间(秒)
-            key_name: 音名(用于显示)
-            force_compensation: 强制使用频率补偿
+            velocity: 力度 (0-127)
+            duration: 持续时间（秒）
+            key_name: 音名（用于显示）
             
         Returns:
             播放成功返回True
         """
         try:
-            # 准备音符数据
+            # 准备音符
             note = self.prepare_accurate_note(target_frequency, key_name)
             
-            # 显示信息
-            compensation_info = ""
-            if note.needs_compensation or force_compensation:
-                compensation_info = f" [补偿: {note.cents_deviation:+.1f}¢]"
-            
-            print(f"播放: {note.key_name} {target_frequency:.3f}Hz → MIDI{note.midi_note}" + compensation_info)
-            
-            # 应用弯音轮补偿
-            if (note.needs_compensation or force_compensation) and abs(note.cents_deviation) <= MAX_PITCH_BEND_CENTS:
+            # 设置弯音轮（如果需要）
+            if note.needs_pitch_bend:
                 result = self.fluidsynth.fluid_synth_pitch_bend(
                     self.synth, self.current_channel, note.pitch_bend_value
                 )
                 if result != 0:
                     print(f"⚠️  弯音轮设置警告: 返回码 {result}")
-                
-                self.accuracy_stats['compensated_notes'] += 1
             
-            # 播放音符
-            try:
-                result_on = self.fluidsynth.fluid_synth_noteon(
-                    self.synth, self.current_channel, note.midi_note, velocity
-                )
-                if result_on != 0:
-                    print(f"⚠️  noteon警告: 返回码 {result_on}")
-            except Exception as e:
-                print(f"❌ FluidSynth调用异常: {e}")
+            # 发送note on
+            result = self.fluidsynth.fluid_synth_noteon(
+                self.synth, self.current_channel, note.midi_note, velocity
+            )
+            
+            if result != 0:
+                print(f"⚠️  noteon警告: 返回码 {result}")
                 return False
-                
-            # 持续时间
+            
+            # 显示播放信息
+            display_name = key_name if key_name else f"{target_frequency:.1f}Hz"
+            print(f"播放: {display_name} {target_frequency:.3f}Hz → MIDI{note.midi_note}")
+            
+            # 等待持续时间
             time.sleep(duration)
             
-            # 停止音符
-            result_off = self.fluidsynth.fluid_synth_noteoff(
+            # 发送note off
+            result = self.fluidsynth.fluid_synth_noteoff(
                 self.synth, self.current_channel, note.midi_note
             )
-            if result_off != 0:
-                print(f"⚠️  noteoff警告: 返回码 {result_off}")
+            
+            # note off 返回 -1 在某些情况下是正常的，不要显示警告
             
             # 重置弯音轮
-            if note.needs_compensation or force_compensation:
+            if note.needs_pitch_bend:
                 self.fluidsynth.fluid_synth_pitch_bend(
                     self.synth, self.current_channel, PITCH_BEND_NEUTRAL
                 )
             
             # 更新统计
-            self._update_accuracy_stats(note)
+            self.stats['notes_played'] += 1
+            if note.needs_pitch_bend:
+                self.stats['compensations_used'] += 1
+                self.stats['total_deviation'] += abs(note.frequency_error_cents)
+                if abs(note.frequency_error_cents) > self.stats['max_deviation']:
+                    self.stats['max_deviation'] = abs(note.frequency_error_cents)
             
             return True
             
         except Exception as e:
-            print(f"❌ 播放失败: {e}")
+            print(f"❌ 播放音符异常: {e}")
             return False
     
     def play_accurate_sequence(self,
@@ -334,17 +346,18 @@ class FrequencyAccuratePlayback:
     
     def _print_accuracy_summary(self):
         """打印精确度统计摘要"""
-        stats = self.accuracy_stats
-        if stats['total_notes_played'] == 0:
+        stats = self.stats
+        if stats['notes_played'] == 0:
             return
         
-        compensation_rate = stats['compensated_notes'] / stats['total_notes_played'] * 100
+        compensation_rate = stats['compensations_used'] / stats['notes_played'] * 100 if stats['notes_played'] > 0 else 0
+        avg_deviation = stats['total_deviation'] / stats['notes_played'] if stats['notes_played'] > 0 else 0
         
         print(f"\n--- 精确度统计 ---")
-        print(f"总播放音符: {stats['total_notes_played']}")
-        print(f"使用补偿: {stats['compensated_notes']} ({compensation_rate:.1f}%)")
-        print(f"最大偏差: {stats['max_deviation_played']:.1f}¢")
-        print(f"平均偏差: {stats['avg_deviation']:.1f}¢")
+        print(f"总播放音符: {stats['notes_played']}")
+        print(f"使用补偿: {stats['compensations_used']} ({compensation_rate:.1f}%)")
+        print(f"最大偏差: {stats['max_deviation']:.1f}¢")
+        print(f"平均偏差: {avg_deviation:.1f}¢")
     
     def reset_stats(self):
         """重置统计信息"""

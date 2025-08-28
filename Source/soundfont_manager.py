@@ -520,6 +520,74 @@ class SoundFontManager:
         else:
             return "特殊音色和实验"
     
+    def switch_soundfont(self, sf_name: str) -> bool:
+        """
+        切换到指定的SoundFont
+        
+        Args:
+            sf_name: SoundFont文件名
+            
+        Returns:
+            切换成功返回True
+        """
+        if sf_name not in self.soundfonts:
+            print(f"❌ SoundFont不存在: {sf_name}")
+            return False
+        
+        if sf_name == self.current_soundfont:
+            print(f"✓ SoundFont已加载: {sf_name}")
+            return True
+        
+        try:
+            # 1. 先停止所有音符，避免切换时的冲突
+            if self.synth and self.fluidsynth:
+                try:
+                    # 发送 All Notes Off 到当前通道
+                    self.fluidsynth.fluid_synth_cc(self.synth, 0, 123, 0)
+                    time.sleep(0.1)  # 等待音符停止
+                except:
+                    pass
+            
+            # 2. 卸载当前SoundFont（如果有）
+            if self.current_soundfont and self.current_soundfont in self.loaded_soundfonts:
+                current_sf_info = self.soundfonts[self.current_soundfont]
+                if current_sf_info.is_loaded and current_sf_info.fluid_sf_id is not None:
+                    try:
+                        # 静默卸载，不重置程序（避免警告）
+                        self.fluidsynth.fluid_synth_sfunload(
+                            self.synth, current_sf_info.fluid_sf_id, 0
+                        )
+                        print(f"✓ 卸载SoundFont: {self.current_soundfont}")
+                        current_sf_info.is_loaded = False
+                        current_sf_info.fluid_sf_id = None
+                        self.loaded_soundfonts.remove(self.current_soundfont)
+                    except Exception as e:
+                        print(f"⚠️  卸载SoundFont警告: {e}")
+            
+            # 3. 加载新的SoundFont
+            success = self.load_soundfont(sf_name)
+            
+            if success:
+                # 4. 等待SoundFont完全加载
+                time.sleep(0.2)
+                
+                # 5. 设置默认程序到当前通道
+                try:
+                    self.fluidsynth.fluid_synth_program_change(self.synth, 0, 0)
+                    time.sleep(0.1)
+                except:
+                    pass
+                
+                print(f"✓ SoundFont切换成功: {sf_name}")
+                return True
+            else:
+                print(f"❌ SoundFont切换失败: {sf_name}")
+                return False
+                
+        except Exception as e:
+            print(f"❌ SoundFont切换异常: {e}")
+            return False
+
     def optimize_for_petersen_scale(self, sf_name: Optional[str] = None) -> Dict:
         """
         为Petersen音阶优化SoundFont设置

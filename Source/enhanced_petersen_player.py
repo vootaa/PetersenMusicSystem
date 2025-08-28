@@ -537,14 +537,13 @@ class EnhancedPetersenPlayer:
         return self.performance_modes.execute_comparison_demo(
             demo_frequencies, demo_names, "soundfont_quality"
         )
-    
-    def switch_soundfont(self, sf_name: str, auto_optimize: bool = True) -> bool:
+
+    def switch_soundfont(self, sf_name: str) -> bool:
         """
-        切换SoundFont
+        切换到指定的SoundFont
         
         Args:
             sf_name: SoundFont文件名
-            auto_optimize: 是否自动优化设置
             
         Returns:
             切换成功返回True
@@ -552,16 +551,12 @@ class EnhancedPetersenPlayer:
         if not self._check_ready():
             return False
         
-        success = self.sf_manager.load_soundfont(sf_name)
-        if success:
-            self.session_stats['soundfonts_loaded'] += 1
-            
-            if auto_optimize:
-                self._auto_optimize_settings()
-                print("✓ 设置已自动优化")
+        if not self.sf_manager:
+            print("❌ SoundFont管理器未初始化")
+            return False
         
-        return success
-    
+        return self.sf_manager.switch_soundfont(sf_name)
+
     def switch_instrument(self, program: int, channel: Optional[int] = None) -> bool:
         """
         切换乐器
