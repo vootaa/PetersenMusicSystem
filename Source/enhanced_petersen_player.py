@@ -29,7 +29,7 @@ from utils.presets import COMPLETE_PRESET_COMBINATIONS
 @dataclass
 class PlayerConfiguration:
     """播放器配置"""
-    soundfont_directory: str = "../Soundfonts"
+    soundfont_directory: str = "../../Soundfonts"
     default_soundfont: str = ""
     default_channel: int = 0
     sample_rate: int = 44100
@@ -766,7 +766,7 @@ class EnhancedPetersenPlayer:
 
 # ========== 便利函数 ==========
 
-def create_player(soundfont_dir: str = "../Soundfonts", config: Optional[PlayerConfiguration] = None, **kwargs) -> EnhancedPetersenPlayer:
+def create_player(soundfont_dir: str = "../../Soundfonts", config: Optional[PlayerConfiguration] = None, **kwargs) -> EnhancedPetersenPlayer:
     """
     创建播放器的便利函数
     
