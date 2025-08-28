@@ -383,7 +383,7 @@ def get_preset_variations(base_preset_name: str) -> List[Dict]:
     return variations
 
 def analyze_preset_suitability(preset_name: str, 
-python3 -c "from enhanced_petersen_player import create_player; print('导入成功')"                              frequency_range: Tuple[float, float],
+                              frequency_range: Tuple[float, float],
                               note_count: int) -> Dict:
     """
     分析预设对特定音乐内容的适用性
