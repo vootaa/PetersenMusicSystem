@@ -59,7 +59,7 @@ class SoundFontManager:
         self.fluidsynth = fluidsynth_lib
         self.synth = synth
         self.soundfont_dir = Path(soundfont_directory)
-        
+   
         # SoundFont注册表
         self.soundfonts: Dict[str, SoundFontInfo] = {}
         self.current_soundfont: Optional[str] = None
@@ -74,6 +74,7 @@ class SoundFontManager:
         """扫描并分析SoundFont文件"""
         if not self.soundfont_dir.exists():
             print(f"⚠️  SoundFont目录不存在: {self.soundfont_dir}")
+            print("请确保SoundFont文件位于正确位置，或修改soundfont_directory参数")
             return
         
         sf2_files = list(self.soundfont_dir.glob("*.sf2")) + list(self.soundfont_dir.glob("*.SF2"))

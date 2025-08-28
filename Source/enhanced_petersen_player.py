@@ -16,13 +16,14 @@ if str(current_dir) not in sys.path:
     sys.path.insert(0, str(current_dir))
 
 # 导入所有功能模块
-from frequency_accurate import FrequencyAccuratePlayback
-from audio_effects import AdvancedAudioEffects, EffectSettings
-from expression_control import ExpressionController, ExpressionParameters
-from soundfont_manager import SoundFontManager
-from performance_modes import PerformanceModes, PerformanceMode
-from utils.analysis import FrequencyAnalyzer, analyze_petersen_scale_characteristics
-from utils.constants import DEFAULT_SOUNDFONTS, DEFAULT_PLAY_PARAMS
+from .frequency_accurate import FrequencyAccuratePlayback
+from .audio_effects import AdvancedAudioEffects, EffectSettings
+from .expression_control import ExpressionController, ExpressionParameters
+from .soundfont_manager import SoundFontManager
+from .performance_modes import PerformanceModes, PerformanceMode
+from .utils.analysis import FrequencyAnalyzer, analyze_petersen_scale_characteristics
+from .utils.constants import DEFAULT_SOUNDFONTS, DEFAULT_PLAY_PARAMS
+from .utils.presets import COMPLETE_PRESET_COMBINATIONS
 
 @dataclass
 class PlayerConfiguration:
@@ -139,6 +140,10 @@ class EnhancedPetersenPlayer:
             
             if not self.fluidsynth:
                 print("❌ 无法加载FluidSynth库")
+                print("请安装FluidSynth:")
+                print("  - macOS: brew install fluid-synth")
+                print("  - Ubuntu: sudo apt-get install libfluidsynth-dev")
+                print("  - Windows: 下载并安装FluidSynth DLL")
                 return False
             
             # 设置函数原型

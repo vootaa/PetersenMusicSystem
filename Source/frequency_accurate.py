@@ -108,7 +108,7 @@ class FrequencyAccuratePlayback:
                           target_frequency: float,
                           velocity: int = 80,
                           duration: float = 0.5,
-                          key_name: str = "",
+                          key_name: Optional[str] = None,
                           force_compensation: bool = False) -> bool:
         """
         播放精确频率音符
@@ -145,12 +145,16 @@ class FrequencyAccuratePlayback:
                 self.accuracy_stats['compensated_notes'] += 1
             
             # 播放音符
-            result_on = self.fluidsynth.fluid_synth_noteon(
-                self.synth, self.current_channel, note.midi_note, velocity
-            )
-            if result_on != 0:
-                print(f"⚠️  noteon警告: 返回码 {result_on}")
-            
+            try:
+                result_on = self.fluidsynth.fluid_synth_noteon(
+                    self.synth, self.current_channel, note.midi_note, velocity
+                )
+                if result_on != 0:
+                    print(f"⚠️  noteon警告: 返回码 {result_on}")
+            except Exception as e:
+                print(f"❌ FluidSynth调用异常: {e}")
+                return False
+                
             # 持续时间
             time.sleep(duration)
             
