@@ -3,9 +3,11 @@
 展示Enhanced Petersen Player的高级和专业功能
 """
 import time
+import traceback
+from typing import List, Dict, Any
+
 import sys
 from pathlib import Path
-from typing import List, Dict, Any
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
@@ -317,6 +319,149 @@ def comprehensive_demo():
         
         print("\n✨ 综合演示完成!")
 
+def soundfont_showcase_demo():
+    """SoundFont展示演示 - 让所有5个SoundFont都发挥作用"""
+    print("\n🎼 === 所有SoundFont展示演示 ===")
+    
+    with create_player(soundfont_dir="../../Soundfonts") as player:
+        # 获取所有可用的SoundFont
+        sf_summary = player.sf_manager.get_soundfont_summary()
+        available_sfs = list(sf_summary['soundfont_details'].keys())
+        
+        print(f"📁 发现 {len(available_sfs)} 个SoundFont文件，将逐一演示：")
+        
+        # 测试旋律 - 简单的C大调音阶
+        test_melody = [261.63, 293.66, 329.63, 349.23, 392.00]  # C-D-E-F-G
+        melody_names = ["C4", "D4", "E4", "F4", "G4"]
+        
+        for i, sf_name in enumerate(available_sfs):
+            print(f"\n🎵 [{i+1}/{len(available_sfs)}] 演示 SoundFont: {sf_name}")
+            
+            # 获取这个SoundFont的详细信息
+            sf_details = sf_summary['soundfont_details'][sf_name]
+            print(f"   📊 类型: {sf_details['type']}")
+            print(f"   📏 大小: {sf_details['size_mb']:.1f}MB")
+            print(f"   ⭐ 质量: {sf_details['quality_score']:.2f}")
+            print(f"   🎹 乐器数: {sf_details['instrument_count']}")
+            
+            # 切换到这个SoundFont
+            switch_success = player.switch_soundfont(sf_name)
+            if not switch_success:
+                print(f"   ❌ SoundFont加载失败，跳过")
+                continue
+            
+            # 等待加载完成
+            time.sleep(0.5)
+            
+            # 根据SoundFont类型选择合适的乐器和设置
+            if sf_details['type'] == 'piano_specialized':
+                # 钢琴专用SoundFont
+                player.switch_instrument(0)  # Acoustic Grand Piano
+                player.apply_preset_combination("steinway_concert", "romantic")
+                print(f"   🎹 使用钢琴设置")
+                
+            elif sf_details['type'] == 'orchestral':
+                # 管弦乐SoundFont
+                player.switch_instrument(40)  # Violin
+                player.apply_preset_combination("orchestral", "dramatic")
+                print(f"   🎻 使用小提琴设置")
+                
+            elif sf_details['type'] == 'general_midi':
+                # 通用MIDI SoundFont
+                player.switch_instrument(0)  # Acoustic Grand Piano
+                player.apply_preset_combination("hall", "classical")
+                print(f"   🎼 使用通用MIDI设置")
+            
+            else:
+                # 其他类型
+                player.switch_instrument(0)
+                player.apply_preset_combination("chamber", "expressive")
+                print(f"   🎵 使用默认设置")
+            
+            # 播放测试旋律
+            print(f"   ▶️  播放测试旋律...")
+            play_success = player.play_frequencies(
+                test_melody, 
+                melody_names, 
+                duration=0.6, 
+                gap=0.1
+            )
+            
+            if play_success:
+                print(f"   ✅ {sf_name} 演示完成")
+            else:
+                print(f"   ⚠️  {sf_name} 播放异常")
+            
+            # 显示当前系统状态
+            status = player.get_system_status()
+            current_sf = status.get('current_soundfont', 'Unknown')
+            print(f"   📋 当前激活: {current_sf}")
+            
+            # 演示间隔
+            time.sleep(1.0)
+        
+        print(f"\n🎉 所有 {len(available_sfs)} 个SoundFont演示完成！")
+        
+        # 显示最终统计
+        final_status = player.get_system_status()
+        stats = final_status['session_stats']
+        print(f"\n📊 演示统计:")
+        print(f"   🎵 总播放音符: {stats['notes_played']}")
+        print(f"   🔄 SoundFont切换次数: {len(available_sfs)}")
+        print(f"   ⏱️  总演示时长: {stats['total_play_time']:.1f}秒")
+
+def instrument_variety_demo():
+    """乐器多样性演示 - 展示不同SoundFont的乐器特色"""
+    print("\n🎪 === 乐器多样性演示 ===")
+    
+    with create_player(soundfont_dir="../../Soundfonts") as player:
+        sf_summary = player.sf_manager.get_soundfont_summary()
+        available_sfs = list(sf_summary['soundfont_details'].keys())
+        
+        # 测试和弦
+        test_chord = [261.63, 329.63, 392.00, 523.25]  # C-E-G-C
+        chord_names = ["C4", "E4", "G4", "C5"]
+        
+        print("🎼 将用不同SoundFont演奏相同和弦，展示音色差异：")
+        
+        for sf_name in available_sfs:
+            sf_details = sf_summary['soundfont_details'][sf_name]
+            
+            print(f"\n🎵 {sf_name} ({sf_details['type']}):")
+            
+            # 切换SoundFont
+            if not player.switch_soundfont(sf_name):
+                print(f"   ❌ 加载失败")
+                continue
+            
+            time.sleep(0.3)
+            
+            # 根据类型选择代表性乐器
+            if sf_details['type'] == 'piano_specialized':
+                instruments_to_try = [0]  # Piano only
+                instrument_names = ["钢琴"]
+            elif sf_details['type'] == 'orchestral':
+                instruments_to_try = [0, 40, 56, 73]  # Piano, Violin, Trumpet, Flute
+                instrument_names = ["钢琴", "小提琴", "小号", "长笛"]
+            else:
+                instruments_to_try = [0, 1, 4]  # Various pianos
+                instrument_names = ["声学钢琴", "明亮钢琴", "电钢琴"]
+            
+            for i, (inst_num, inst_name) in enumerate(zip(instruments_to_try, instrument_names)):
+                if i >= 2:  # 限制每个SoundFont最多展示2种乐器
+                    break
+                    
+                print(f"   🎹 {inst_name} (程序{inst_num}):")
+                
+                switch_result = player.switch_instrument(inst_num)
+                if switch_result:
+                    player.play_frequencies(test_chord, chord_names, duration=1.5)
+                    print(f"      ✅ 演奏完成")
+                else:
+                    print(f"      ⚠️  乐器不可用")
+                
+                time.sleep(0.5)
+
 if __name__ == "__main__":
     print("🎵 Enhanced Petersen Player - 高级功能演示")
     print("=" * 60)
@@ -327,6 +472,10 @@ if __name__ == "__main__":
         intelligent_recommendation_demo()
         real_time_effects_demo()
         soundfont_analysis_demo()
+        
+        soundfont_showcase_demo()
+        instrument_variety_demo()
+        
         performance_optimization_demo()
         error_handling_demo()
         comprehensive_demo()
