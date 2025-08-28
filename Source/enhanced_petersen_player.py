@@ -383,7 +383,7 @@ class EnhancedPetersenPlayer:
         print(f"🎯 可用演奏模式: {len(available_modes)} 种")
         
         print("="*60)
-        print("准备就绪! 开始您的Petersen音阶之旅...")
+        print("准备就绪! 开始音阶之旅...")
         print("="*60 + "\n")
     
     # ========== 高级API接口 ==========
