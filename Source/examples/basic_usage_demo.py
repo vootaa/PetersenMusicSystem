@@ -2,6 +2,8 @@
 基础使用演示
 展示Enhanced Petersen Player的基本功能
 """
+import time
+
 import sys
 from pathlib import Path
 
@@ -63,6 +65,11 @@ def soundfont_switching_demo():
     print("\n🎛️  === SoundFont切换演示 ===")
     
     with create_player(soundfont_dir="../../Soundfonts") as player:
+        # 检查系统状态
+        if not player.is_initialized:
+            print("❌ 播放器初始化失败，跳过演示")
+            return
+            
         # 获取可用的SoundFont列表
         sf_summary = player.sf_manager.get_soundfont_summary() if player.sf_manager else {'soundfont_details': {}}
         available_sfs = list(sf_summary['soundfont_details'].keys())
@@ -88,6 +95,9 @@ def soundfont_switching_demo():
                 print(f"   ✅ SoundFont {i+1} 演示完成")
             else:
                 print(f"   ❌ SoundFont {i+1} 加载失败")
+            
+            # 短暂暂停避免冲突
+            time.sleep(0.5)
 
 def instrument_comparison_demo():
     """乐器对比演示"""

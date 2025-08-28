@@ -161,23 +161,23 @@ class EnhancedPetersenPlayer:
             # 设置函数原型
             self._setup_fluidsynth_prototypes()
             
-            # 创建设置对象
-            settings = self.fluidsynth.new_fluid_settings()
-            if not settings:
+            # 创建设置对象并保存引用
+            self.settings = self.fluidsynth.new_fluid_settings()
+            if not self.settings:
                 print("❌ 无法创建FluidSynth设置")
                 return False
             
             # 配置音频设置
-            self._configure_audio_settings(settings)
+            self._configure_audio_settings(self.settings)
             
             # 创建合成器
-            self.synth = self.fluidsynth.new_fluid_synth(settings)
+            self.synth = self.fluidsynth.new_fluid_synth(self.settings)
             if not self.synth:
                 print("❌ 无法创建FluidSynth合成器")
                 return False
             
             # 创建音频驱动
-            self.adriver = self.fluidsynth.new_fluid_audio_driver(settings, self.synth)
+            self.adriver = self.fluidsynth.new_fluid_audio_driver(self.settings, self.synth)
             if not self.adriver:
                 print("⚠️  音频驱动创建失败，将使用文件输出")
             
@@ -196,6 +196,14 @@ class EnhancedPetersenPlayer:
         self.fluidsynth.new_fluid_synth.restype = ctypes.c_void_p
         self.fluidsynth.new_fluid_audio_driver.argtypes = [ctypes.c_void_p, ctypes.c_void_p]
         self.fluidsynth.new_fluid_audio_driver.restype = ctypes.c_void_p
+        
+        # 清理函数
+        self.fluidsynth.delete_fluid_audio_driver.argtypes = [ctypes.c_void_p]
+        self.fluidsynth.delete_fluid_audio_driver.restype = None
+        self.fluidsynth.delete_fluid_synth.argtypes = [ctypes.c_void_p]
+        self.fluidsynth.delete_fluid_synth.restype = None
+        self.fluidsynth.delete_fluid_settings.argtypes = [ctypes.c_void_p]
+        self.fluidsynth.delete_fluid_settings.restype = None
         
         # 音符控制
         self.fluidsynth.fluid_synth_noteon.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_int, ctypes.c_int]
@@ -677,70 +685,73 @@ class EnhancedPetersenPlayer:
         try:
             print("🔄 正在清理资源...")
             
-            # 1. 首先停止所有音符（在任何东西被销毁之前）
-            if self.synth and self.fluidsynth:
+            # 1. 停止所有音符（在清理任何对象之前）
+            if hasattr(self, 'synth') and self.synth and hasattr(self, 'fluidsynth') and self.fluidsynth:
                 try:
-                    # 发送 All Notes Off 到当前通道
+                    # 发送 All Notes Off
                     self.fluidsynth.fluid_synth_cc(self.synth, self.current_channel, 123, 0)
-                    
-                    # 等待音符停止
-                    time.sleep(0.1)
+                    time.sleep(0.05)  # 短暂等待
                 except:
                     pass
             
-            # 2. 重置踏板状态
-            if self.expression:
+            # 2. 重置踏板
+            if hasattr(self, 'expression') and self.expression:
                 try:
                     self.expression.reset_pedals()
                 except:
                     pass
             
-            # 3. 清理功能模块（不删除对象引用）
-            if self.sf_manager:
+            # 3. 清理SoundFont管理器
+            if hasattr(self, 'sf_manager') and self.sf_manager:
                 try:
                     self.sf_manager.cleanup()
                 except:
                     pass
             
-            # 4. 最后清理FluidSynth核心对象
-            try:
-                # 删除音频驱动
-                if hasattr(self, 'adriver') and self.adriver and self.fluidsynth:
+            # 4. 清理FluidSynth对象（按正确顺序：driver -> synth -> settings）
+            if hasattr(self, 'fluidsynth') and self.fluidsynth:
+                # 清理音频驱动
+                if hasattr(self, 'adriver') and self.adriver:
                     try:
                         self.fluidsynth.delete_fluid_audio_driver(self.adriver)
+                        print("✓ 音频驱动已清理")
                     except:
                         pass
                     finally:
                         self.adriver = None
                 
-                # 删除合成器
-                if hasattr(self, 'synth') and self.synth and self.fluidsynth:
+                # 清理合成器
+                if hasattr(self, 'synth') and self.synth:
                     try:
                         self.fluidsynth.delete_fluid_synth(self.synth)
+                        print("✓ 合成器已清理")
                     except:
                         pass
                     finally:
                         self.synth = None
                 
-                # 删除设置
-                if hasattr(self, 'settings') and self.settings and self.fluidsynth:
+                # 清理设置
+                if hasattr(self, 'settings') and self.settings:
                     try:
                         self.fluidsynth.delete_fluid_settings(self.settings)
+                        print("✓ 设置已清理")
                     except:
                         pass
                     finally:
                         self.settings = None
-                        
-            except Exception as e:
-                print(f"⚠️  FluidSynth清理警告: {e}")
             
-            # 5. 设置状态标记
+            # 5. 重置状态
             self.is_initialized = False
             
             print("✓ 资源清理完成")
             
         except Exception as e:
             print(f"⚠️  清理过程异常: {e}")
+            # 强制重置关键变量
+            self.synth = None
+            self.adriver = None
+            self.settings = None
+            self.is_initialized = False
     
     def __enter__(self):
         """进入上下文管理器"""
