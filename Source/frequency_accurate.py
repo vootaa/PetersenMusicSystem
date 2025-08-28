@@ -188,12 +188,12 @@ class FrequencyAccuratePlayback:
             return False
     
     def play_accurate_sequence(self,
-                             frequencies: List[float],
-                             velocities: Optional[List[int]] = None,
-                             durations: Optional[List[float]] = None,
-                             gaps: Optional[List[float]] = None,
-                             key_names: Optional[List[str]] = None,
-                             show_progress: bool = True) -> int:
+                            frequencies: List[float],
+                            velocities: Optional[List[int]] = None,
+                            durations: Optional[List[float]] = None,
+                            gaps: Optional[List[float]] = None,
+                            key_names: Optional[List[str]] = None,
+                            show_progress: bool = True) -> int:
         """
         播放精确频率序列
         

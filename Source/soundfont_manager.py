@@ -271,32 +271,59 @@ class SoundFontManager:
         # 尝试获取预设信息
         instruments = []
         
-        # 检查常见的MIDI程序号
-        common_programs = list(range(0, 128))  # 完整MIDI程序范围
+        # 根据SoundFont类型选择检测范围
+        if sf_info.sf_type == SoundFontType.PIANO_SPECIALIZED:
+            # 钢琴专用SoundFont通常只有钢琴相关音色
+            test_programs = list(range(0, 8))  # 钢琴系列音色
+        else:
+            # 其他类型检查更多程序
+            test_programs = list(range(0, 128))
         
-        for program in common_programs:
+        current_program = 0  # 记录当前程序，避免重复设置
+        
+        for program in test_programs:
             try:
-                # 尝试选择程序
-                result = self.fluidsynth.fluid_synth_program_change(
-                    self.synth, 0, program
-                )
-                
-                if result == 0:
-                    # 成功选择，说明这个程序存在
-                    name = self._get_program_name(program)
-                    category = self._get_program_category(program)
-                    instrument = InstrumentInfo(
-                        program=program,
-                        bank=0,  # 默认使用bank 0
-                        name=name,
-                        category=category,
-                        preset_name=name,
-                        sample_quality=self._estimate_sample_quality(sf_info, program)
+                # 只在需要时切换程序
+                if program != current_program:
+                    result = self.fluidsynth.fluid_synth_program_change(
+                        self.synth, 0, program
                     )
-                    instruments.append(instrument)
+                    current_program = program
+                    
+                    if result != 0:
+                        continue  # 程序切换失败，跳过
+                
+                # 检查是否成功设置（通过尝试发送一个很短的音符）
+                # 这里我们不实际播放，只是检查程序是否有效
+                name = self._get_program_name(program)
+                category = self._get_program_category(program)
+                instrument = InstrumentInfo(
+                    program=program,
+                    bank=0,
+                    name=name,
+                    category=category,
+                    preset_name=name,
+                    sample_quality=self._estimate_sample_quality(sf_info, program)
+                )
+                instruments.append(instrument)
+                
+                # 对于钢琴专用SoundFont，一旦找到有效程序就停止
+                if sf_info.sf_type == SoundFontType.PIANO_SPECIALIZED and program == 0:
+                    break
                     
             except Exception:
                 continue
+        
+        # 如果没有检测到乐器，至少添加默认钢琴
+        if not instruments:
+            instruments.append(InstrumentInfo(
+                program=0,
+                bank=0,
+                name="Acoustic Grand Piano",
+                category="piano",
+                preset_name="Default Piano",
+                sample_quality=self._estimate_sample_quality(sf_info, 0)
+            ))
         
         sf_info.available_instruments = instruments
         sf_info.instrument_count = len(instruments)

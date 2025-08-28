@@ -368,7 +368,7 @@ class EnhancedPetersenPlayer:
         print("="*60 + "\n")
     
     # ========== 高级API接口 ==========
-    
+
     def play_frequencies(self, 
                         frequencies: List[float],
                         key_names: Optional[List[str]] = None,
@@ -396,15 +396,23 @@ class EnhancedPetersenPlayer:
         try:
             # 根据配置选择播放方式
             if params.get('use_accurate_frequency', True) and self.config.enable_accurate_frequency:
+                # 提取播放参数
+                velocities = [params.get('velocity', 80)] * len(frequencies)
+                durations = [params.get('duration', 0.5)] * len(frequencies)
+                gaps = [params.get('gap', 0.1)] * len(frequencies)
+                
                 success_count = self.freq_player.play_accurate_sequence(
-                    frequencies, 
+                    frequencies,
+                    velocities=velocities,
+                    durations=durations,
+                    gaps=gaps,
                     key_names=key_names,
-                    **{k: v for k, v in params.items() if k not in ['use_accurate_frequency']}
+                    show_progress=params.get('show_progress', True)
                 )
                 success = success_count == len(frequencies)
             else:
-                # 使用简单播放（待实现）
-               success = self._play_simple_sequence(frequencies, key_names, params)
+                # 使用简单播放
+                success = self._play_simple_sequence(frequencies, key_names, params)
             
             # 更新统计
             play_time = time.time() - start_time
@@ -655,17 +663,39 @@ class EnhancedPetersenPlayer:
     def cleanup(self):
         """清理资源"""
         try:
+            print("🔄 正在清理资源...")
+            
+            # 1. 停止所有音符
+            if self.synth and self.fluidsynth:
+                try:
+                    # 发送所有音符停止
+                    for channel in range(16):
+                        for note in range(128):
+                            self.fluidsynth.fluid_synth_noteoff(self.synth, channel, note)
+                except:
+                    pass
+            
+            # 2. 清理功能模块
             if self.sf_manager:
                 self.sf_manager.cleanup()
             
             if self.expression:
                 self.expression.reset_pedals()
             
-            if self.adriver:
-                self.fluidsynth.delete_fluid_audio_driver(self.adriver)
+            # 3. 清理FluidSynth对象（按正确顺序）
+            if self.adriver and self.fluidsynth:
+                try:
+                    self.fluidsynth.delete_fluid_audio_driver(self.adriver)
+                    self.adriver = None
+                except:
+                    pass
             
-            if self.synth:
-                self.fluidsynth.delete_fluid_synth(self.synth)
+            if self.synth and self.fluidsynth:
+                try:
+                    self.fluidsynth.delete_fluid_synth(self.synth)
+                    self.synth = None
+                except:
+                    pass
             
             print("✓ 资源清理完成")
             
