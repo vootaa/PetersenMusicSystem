@@ -2,7 +2,7 @@
 预设配置文件
 包含各种预定义的音效、表现力和演奏设置组合
 """
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Tuple
 from dataclasses import dataclass
 
 import sys
@@ -383,7 +383,7 @@ def get_preset_variations(base_preset_name: str) -> List[Dict]:
     return variations
 
 def analyze_preset_suitability(preset_name: str, 
-                              frequency_range: Tuple[float, float],
+python3 -c "from enhanced_petersen_player import create_player; print('导入成功')"                              frequency_range: Tuple[float, float],
                               note_count: int) -> Dict:
     """
     分析预设对特定音乐内容的适用性
