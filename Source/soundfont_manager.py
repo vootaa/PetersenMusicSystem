@@ -83,6 +83,8 @@ class SoundFontManager:
         if not self.soundfont_dir.exists():
             print(f"⚠️  SoundFont目录不存在: {self.soundfont_dir}")
             print("请确保SoundFont文件位于正确位置，或修改soundfont_directory参数")
+            print("将使用空SoundFont列表 - 播放器仍可初始化，但需要SoundFont文件才能播放")
+            self.soundfonts = {}
             return
         
         sf2_files = list(self.soundfont_dir.glob("*.sf2")) + list(self.soundfont_dir.glob("*.SF2"))

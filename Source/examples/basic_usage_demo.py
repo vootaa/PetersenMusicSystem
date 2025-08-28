@@ -14,11 +14,16 @@ def basic_playback_demo():
     print("🎵 === 基础播放演示 ===")
     
     # 创建播放器
-    with create_player() as player:
+    with create_player(soundfont_dir="../../Soundfonts") as player:
         # 检查系统状态
         status = player.get_system_status()
         print(f"系统状态: {status['status']}")
         print(f"可用SoundFont: {status['soundfont_summary']['total_soundfonts']}")
+
+        # 如果没有SoundFont，跳过演示
+        if not player.sf_manager or not player.sf_manager.soundfonts:
+            print("⚠️  无SoundFont文件，跳过播放演示")
+            return
         
         # 简单的音阶演示
         demo_frequencies = [
@@ -57,13 +62,13 @@ def soundfont_switching_demo():
     """SoundFont切换演示"""
     print("\n🎛️  === SoundFont切换演示 ===")
     
-    with create_player() as player:
+    with create_player(soundfont_dir="../../Soundfonts") as player:
         # 获取可用的SoundFont列表
-        sf_summary = player.sf_manager.get_soundfont_summary()
+        sf_summary = player.sf_manager.get_soundfont_summary() if player.sf_manager else {'soundfont_details': {}}
         available_sfs = list(sf_summary['soundfont_details'].keys())
         
         if len(available_sfs) < 2:
-            print("⚠️  需要至少2个SoundFont文件进行演示")
+            print("⚠️  需要至少2个SoundFont文件进行演示，跳过")
             return
         
         # 测试音符
@@ -88,9 +93,9 @@ def instrument_comparison_demo():
     """乐器对比演示"""
     print("\n🎺 === 乐器对比演示 ===")
     
-    with create_player() as player:
+    with create_player(soundfont_dir="../../Soundfonts") as player:
         # 确保有SoundFont加载
-        if not player.sf_manager.current_soundfont:
+        if not player.sf_manager or not player.sf_manager.current_soundfont:
             print("❌ 未加载SoundFont")
             return
         

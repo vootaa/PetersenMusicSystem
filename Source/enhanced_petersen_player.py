@@ -609,14 +609,14 @@ class EnhancedPetersenPlayer:
             print("❌ 系统未初始化")
             return False
         
-        if not self.sf_manager.current_soundfont:
+        if not self.sf_manager or not self.sf_manager.current_soundfont:
             print("⚠️  未加载SoundFont，尝试自动加载...")
-            best_sf = self.sf_manager.get_best_soundfont_for_task("demo")
+            best_sf = self.sf_manager.get_best_soundfont_for_task("demo") if self.sf_manager else None
             if best_sf and self.sf_manager.load_soundfont(best_sf):
                 print(f"✓ 自动加载: {best_sf}")
                 return True
             else:
-                print("❌ 无可用的SoundFont")
+                print("❌ 无可用的SoundFont，请添加.sf2文件到SoundFont目录")
                 return False
         
         return True
