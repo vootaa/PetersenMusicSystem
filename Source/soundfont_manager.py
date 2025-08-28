@@ -283,14 +283,14 @@ class SoundFontManager:
                 
                 if result == 0:
                     # 成功选择，说明这个程序存在
-                    category = self._get_program_category(program)
                     name = self._get_program_name(program)
-                    
+                    category = self._get_program_category(program)
                     instrument = InstrumentInfo(
                         program=program,
                         bank=0,  # 默认使用bank 0
                         name=name,
                         category=category,
+                        preset_name=name,
                         sample_quality=self._estimate_sample_quality(sf_info, program)
                     )
                     instruments.append(instrument)

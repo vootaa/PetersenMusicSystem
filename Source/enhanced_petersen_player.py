@@ -3,6 +3,7 @@
 整合所有功能模块，提供统一的高级API接口
 """
 import time
+import math
 import ctypes
 from typing import Dict, List, Optional, Union, Any, Tuple
 from dataclasses import dataclass
@@ -403,7 +404,7 @@ class EnhancedPetersenPlayer:
                 success = success_count == len(frequencies)
             else:
                 # 使用简单播放（待实现）
-                success = self._play_simple_sequence(frequencies, key_names, params)
+               success = self._play_simple_sequence(frequencies, key_names, params)
             
             # 更新统计
             play_time = time.time() - start_time
@@ -625,22 +626,29 @@ class EnhancedPetersenPlayer:
                             key_names: Optional[List[str]], 
                             params: Dict) -> bool:
         """简单序列播放（不使用精确频率补偿）"""
-        # 这是一个简化版本的实现
         velocity = params.get('velocity', 80)
         duration = params.get('duration', 0.5)
         gap = params.get('gap', 0.1)
         
         for i, freq in enumerate(frequencies):
-            # 找到最接近的MIDI音符（不使用补偿）
-            midi_note, _, _ = FrequencyAnalyzer.find_closest_midi_note(freq)
+            # 计算 MIDI 音符号
+            midi_note = int(round(69 + 12 * math.log2(freq / 440.0)))
+            midi_note = max(0, min(127, midi_note))
             
-            # 播放音符
-            self.fluidsynth.fluid_synth_noteon(self.synth, self.current_channel, midi_note, velocity)
+            # 发送 noteon
+            self.fluidsynth.fluid_synth_noteon(self.synth, 0, midi_note, velocity)
+            
+            # 等待 duration
             time.sleep(duration)
-            self.fluidsynth.fluid_synth_noteoff(self.synth, self.current_channel, midi_note)
             
+            # 发送 noteoff
+            self.fluidsynth.fluid_synth_noteoff(self.synth, 0, midi_note)
+            
+            # 等待 gap
             if i < len(frequencies) - 1:
                 time.sleep(gap)
+            
+            self.session_stats['notes_played'] += 1
         
         return True
     
