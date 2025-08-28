@@ -190,7 +190,7 @@ class PetersenWuXingSystem:
         
         for note in self.wuxing_scale:
             freq_diff = note.petersen_frequency - note.frequency
-            cents = FrequencyAnalyzer.frequency_to_cents(note.petersen_frequency / note.frequency)
+            cents = FrequencyAnalyzer.frequency_error_in_cents(note.petersen_frequency, note.frequency)
             
             print(f"   {note.element.value} ({note.traditional_name}): {note.frequency:.2f}Hz → {note.petersen_frequency:.2f}Hz")
             print(f"      Petersen调整: {cents:.1f}音分, 能量级: {note.energy_level}, 极性: {note.polarity.value}")
@@ -490,7 +490,7 @@ class PetersenWuXingSystem:
                     closest_note = note
             
             if closest_note:
-                cents_diff = FrequencyAnalyzer.frequency_to_cents(freq / closest_note.petersen_frequency)
+                cents_diff = FrequencyAnalyzer.frequency_error_in_cents(freq, closest_note.petersen_frequency)
                 mappings.append({
                     'frequency': freq,
                     'closest_element': closest_note.element,
