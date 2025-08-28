@@ -33,7 +33,7 @@ class PlayerConfiguration:
     default_channel: int = 0
     sample_rate: int = 44100
     buffer_size: int = 1024
-    audio_driver: str = "alsa"  # alsa, pulse, jack, coreaudio
+    audio_driver: str = "coreaudio"  # alsa, pulse, jack, coreaudio (macOS)
     enable_accurate_frequency: bool = True
     enable_effects: bool = True
     enable_expression: bool = True
