@@ -583,21 +583,23 @@ class SoundFontManager:
     def cleanup(self) -> None:
         """清理SoundFont管理器"""
         try:
-            # 卸载当前加载的SoundFont
-            if self.current_soundfont and self.current_soundfont in self.soundfonts:
-                sf_info = self.soundfonts[self.current_soundfont]
-                if sf_info.is_loaded and sf_info.fluid_sf_id is not None:
-                    try:
-                        # 静默卸载，不重置程序
-                        self.fluidsynth.fluid_synth_sfunload(
-                            self.synth, sf_info.fluid_sf_id, 0  # 0 = 不重置程序
-                        )
-                        print(f"✓ 卸载SoundFont: {self.current_soundfont}")
-                    except:
-                        pass
-                    
-                    sf_info.is_loaded = False
-                    sf_info.fluid_sf_id = None
+            # 卸载所有已加载的SoundFont
+            for sf_name in list(self.loaded_soundfonts):  # 创建副本避免修改迭代中的集合
+                if sf_name in self.soundfonts:
+                    sf_info = self.soundfonts[sf_name]
+                    if sf_info.is_loaded and sf_info.fluid_sf_id is not None:
+                        try:
+                            # 静默卸载
+                            result = self.fluidsynth.fluid_synth_sfunload(
+                                self.synth, sf_info.fluid_sf_id, 0
+                            )
+                            if result == 0:
+                                print(f"✓ 卸载SoundFont: {sf_name}")
+                        except:
+                            pass
+                        
+                        sf_info.is_loaded = False
+                        sf_info.fluid_sf_id = None
             
             # 清理状态
             self.current_soundfont = None

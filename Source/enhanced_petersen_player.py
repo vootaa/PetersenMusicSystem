@@ -90,24 +90,35 @@ class EnhancedPetersenPlayer:
         try:
             # 初始化FluidSynth核心
             if not self._init_fluidsynth():
+                print("❌ FluidSynth初始化失败")
                 return False
             
             # 初始化功能模块
             if not self._init_modules():
+                print("❌ 功能模块初始化失败")
+                self.cleanup()  # 清理已初始化的部分
                 return False
             
             # 应用初始配置
             if not self._apply_initial_config():
+                print("❌ 初始配置失败")
+                self.cleanup()
                 return False
             
             self.is_initialized = True
+            
+            # 自动优化和欢迎信息
+            if self.config.auto_optimize_settings:
+                self._auto_optimize_settings()
+            
             print("✅ Enhanced Petersen Player 初始化完成")
             self._print_welcome_info()
             
             return True
             
         except Exception as e:
-            print(f"❌ 初始化失败: {e}")
+            print(f"❌ 初始化异常: {e}")
+            self.cleanup()
             return False
     
     def _init_fluidsynth(self) -> bool:
@@ -613,20 +624,18 @@ class EnhancedPetersenPlayer:
         }
     
     def _check_ready(self) -> bool:
-        """检查系统是否就绪"""
+        """检查播放器是否准备就绪"""
         if not self.is_initialized:
-            print("❌ 系统未初始化")
+            print("❌ 播放器未初始化")
+            return False
+        
+        if not self.synth or not self.fluidsynth:
+            print("❌ FluidSynth核心未就绪")
             return False
         
         if not self.sf_manager or not self.sf_manager.current_soundfont:
-            print("⚠️  未加载SoundFont，尝试自动加载...")
-            best_sf = self.sf_manager.get_best_soundfont_for_task("demo") if self.sf_manager else None
-            if best_sf and self.sf_manager.load_soundfont(best_sf):
-                print(f"✓ 自动加载: {best_sf}")
-                return True
-            else:
-                print("❌ 无可用的SoundFont，请添加.sf2文件到SoundFont目录")
-                return False
+            print("❌ 未加载SoundFont")
+            return False
         
         return True
     
@@ -662,82 +671,92 @@ class EnhancedPetersenPlayer:
     
     def cleanup(self):
         """清理资源"""
+        if not self.is_initialized:
+            return
+            
         try:
             print("🔄 正在清理资源...")
             
-            # 1. 停止所有音符（在SoundFont卸载之前）
+            # 1. 首先停止所有音符（在任何东西被销毁之前）
             if self.synth and self.fluidsynth:
                 try:
-                    # 只停止当前活跃通道的音符
-                    for note in range(128):
-                        self.fluidsynth.fluid_synth_noteoff(self.synth, self.current_channel, note)
+                    # 发送 All Notes Off 到当前通道
+                    self.fluidsynth.fluid_synth_cc(self.synth, self.current_channel, 123, 0)
                     
-                    # 等待一小段时间让音符停止
+                    # 等待音符停止
                     time.sleep(0.1)
                 except:
                     pass
             
-            # 2. 清理功能模块（按正确顺序）
-            # 先清理表现力控制器（重置踏板等）
+            # 2. 重置踏板状态
             if self.expression:
                 try:
                     self.expression.reset_pedals()
                 except:
                     pass
-                self.expression = None
             
-            # 再清理音效控制器
-            if self.effects:
-                self.effects = None
-            
-            # 清理频率播放器
-            if self.freq_player:
-                self.freq_player = None
-            
-            # 清理演奏模式控制器
-            if self.performance_modes:
-                self.performance_modes = None
-            
-            # 最后清理SoundFont管理器（这会卸载SoundFont）
+            # 3. 清理功能模块（不删除对象引用）
             if self.sf_manager:
                 try:
                     self.sf_manager.cleanup()
                 except:
                     pass
-                self.sf_manager = None
             
-            # 3. 清理FluidSynth核心对象（按正确顺序）
-            # 先清理音频驱动
-            if self.adriver and self.fluidsynth:
-                try:
-                    self.fluidsynth.delete_fluid_audio_driver(self.adriver)
-                    self.adriver = None
-                except:
-                    pass
+            # 4. 最后清理FluidSynth核心对象
+            try:
+                # 删除音频驱动
+                if hasattr(self, 'adriver') and self.adriver and self.fluidsynth:
+                    try:
+                        self.fluidsynth.delete_fluid_audio_driver(self.adriver)
+                    except:
+                        pass
+                    finally:
+                        self.adriver = None
+                
+                # 删除合成器
+                if hasattr(self, 'synth') and self.synth and self.fluidsynth:
+                    try:
+                        self.fluidsynth.delete_fluid_synth(self.synth)
+                    except:
+                        pass
+                    finally:
+                        self.synth = None
+                
+                # 删除设置
+                if hasattr(self, 'settings') and self.settings and self.fluidsynth:
+                    try:
+                        self.fluidsynth.delete_fluid_settings(self.settings)
+                    except:
+                        pass
+                    finally:
+                        self.settings = None
+                        
+            except Exception as e:
+                print(f"⚠️  FluidSynth清理警告: {e}")
             
-            # 最后清理合成器
-            if self.synth and self.fluidsynth:
-                try:
-                    self.fluidsynth.delete_fluid_synth(self.synth)
-                    self.synth = None
-                except:
-                    pass
-            
-            # 重置状态
+            # 5. 设置状态标记
             self.is_initialized = False
             
             print("✓ 资源清理完成")
             
         except Exception as e:
-            print(f"⚠️  清理异常: {e}")
+            print(f"⚠️  清理过程异常: {e}")
     
     def __enter__(self):
-        """上下文管理器入口"""
+        """进入上下文管理器"""
+        if not self.is_initialized:
+            self._initialize()
         return self
     
     def __exit__(self, exc_type, exc_val, exc_tb):
-        """上下文管理器出口"""
-        self.cleanup()
+        """退出上下文管理器"""
+        try:
+            self.cleanup()
+        except:
+            pass  # 确保退出时不会抛出异常
+        
+        # 如果有异常，让它正常传播
+        return False
 
 # ========== 便利函数 ==========
 
