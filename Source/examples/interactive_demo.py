@@ -12,6 +12,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from enhanced_petersen_player import create_player, PlayerConfiguration
 from utils.presets import COMPLETE_PRESET_COMBINATIONS
+from PetersenScale_Phi import PetersenScale_Phi, PHI
 
 class PetersenPlayerCLI(cmd.Cmd):
     """Enhanced Petersen Player 交互式命令行界面"""
@@ -213,32 +214,27 @@ class PetersenPlayerCLI(cmd.Cmd):
             print(f"❌ 预设应用失败: {preset.name}")
     
     def do_play_scale(self, arg):
-        """播放音阶: play_scale [c|d|e|f|g|a|b] [major|minor]"""
+        """播放Petersen音阶: play_scale [类型]"""
         if not self.player:
             print("❌ 播放器未初始化")
             return
         
-        # 解析参数
-        parts = arg.split() if arg else ['c', 'major']
-        root = parts[0].lower() if len(parts) > 0 else 'c'
-        scale_type = parts[1].lower() if len(parts) > 1 else 'major'
-        
-        # 生成音阶
-        frequencies, names = self._generate_scale(root, scale_type)
-        
-        if not frequencies:
-            print(f"❌ 无法生成音阶: {root} {scale_type}")
-            return
-        
-        print(f"🎵 播放 {root.upper()} {scale_type} 音阶:")
-        for freq, name in zip(frequencies, names):
-            print(f"   {name}: {freq:.2f}Hz")
-        
-        success = self.player.play_frequencies(frequencies, names)
-        if success:
-            print("✅ 音阶播放完成")
-        else:
-            print("❌ 音阶播放失败")
+        scale_type = arg.strip() if arg else "petersen"
+    
+        try:
+            frequencies, key_names = self._generate_scale(scale_type=scale_type)
+            
+            print(f"🎵 播放{scale_type}音阶:")
+            for name, freq in zip(key_names, frequencies):
+                print(f"   {name}: {freq:.2f}Hz")
+            
+            success = self.player.play_frequencies(frequencies, key_names)
+            if success:
+                print("✅ 音阶播放完成")
+            else:
+                print("❌ 音阶播放失败")
+        except Exception as e:
+            print(f"❌ 音阶生成失败: {e}")
     
     def do_play_chord(self, arg):
         """播放和弦: play_chord [c|d|e|f|g|a|b] [major|minor|7|maj7]"""
@@ -294,38 +290,49 @@ class PetersenPlayerCLI(cmd.Cmd):
             self.player.cleanup()
         return True
     
-    def _generate_scale(self, root, scale_type):
-        """生成音阶"""
-        # 根音频率表
-        root_frequencies = {
-            'c': 261.63, 'd': 293.66, 'e': 329.63, 'f': 349.23,
-            'g': 392.00, 'a': 440.00, 'b': 493.88
-        }
+    def _generate_scale(self, root_note: str = "C4", scale_type: str = "petersen"):
+        if scale_type == "petersen":
+            # 使用PetersenScale_Phi生成实际数据
+            scale = PetersenScale_Phi(F_base=261.63, delta_theta=4.8, phi=PHI, F_min=30, F_max=6000)
+            entries = scale.generate()
         
-        if root not in root_frequencies:
-            return [], []
+            # 转换为频率和音名列表
+            frequencies = [entry['freq'] for entry in entries[:12]]  # 限制为12个音符
+            key_names = [entry['key_short'] for entry in entries[:12]]
         
-        base_freq = root_frequencies[root]
-        
-        # 音阶模式 (半音步数)
-        if scale_type == 'major':
-            intervals = [0, 2, 4, 5, 7, 9, 11, 12]
-            note_names = ['1', '2', '3', '4', '5', '6', '7', '8']
-        elif scale_type == 'minor':
-            intervals = [0, 2, 3, 5, 7, 8, 10, 12]
-            note_names = ['1', '2', 'b3', '4', '5', 'b6', 'b7', '8']
+            return frequencies, key_names
         else:
-            return [], []
-        
-        frequencies = []
-        names = []
-        
-        for i, interval in enumerate(intervals):
-            freq = base_freq * (2 ** (interval / 12))
-            frequencies.append(freq)
-            names.append(f"{root.upper()}{note_names[i]}")
-        
-        return frequencies, names
+            """生成音阶"""
+            # 根音频率表
+            root_frequencies = {
+                'c': 261.63, 'd': 293.66, 'e': 329.63, 'f': 349.23,
+                'g': 392.00, 'a': 440.00, 'b': 493.88
+            }
+            
+            if root not in root_frequencies:
+                return [], []
+            
+            base_freq = root_frequencies[root]
+            
+            # 音阶模式 (半音步数)
+            if scale_type == 'major':
+                intervals = [0, 2, 4, 5, 7, 9, 11, 12]
+                note_names = ['1', '2', '3', '4', '5', '6', '7', '8']
+            elif scale_type == 'minor':
+                intervals = [0, 2, 3, 5, 7, 8, 10, 12]
+                note_names = ['1', '2', 'b3', '4', '5', 'b6', 'b7', '8']
+            else:
+                return [], []
+            
+            frequencies = []
+            names = []
+            
+            for i, interval in enumerate(intervals):
+                freq = base_freq * (2 ** (interval / 12))
+                frequencies.append(freq)
+                names.append(f"{root.upper()}{note_names[i]}")
+            
+            return frequencies, names
     
     def _generate_chord(self, root, chord_type):
         """生成和弦"""
