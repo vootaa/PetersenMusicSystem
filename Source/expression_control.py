@@ -531,9 +531,14 @@ class ExpressionController:
         return params
     
     def reset_pedals(self) -> None:
-        """重置所有踏板"""
-        self._set_sustain_pedal(False)
-        self._set_soft_pedal(False)
-        self.sustain_pressed = False
-        self.soft_pressed = False
-        print("✓ 踏板已重置")
+        """重置所有踏板到默认状态"""
+        try:
+            if self.synth and self.fluidsynth:
+                # 只重置当前通道的踏板
+                self.fluidsynth.fluid_synth_cc(self.synth, self.current_channel, 64, 0)  # 延音踏板
+                self.fluidsynth.fluid_synth_cc(self.synth, self.current_channel, 66, 0)  # 软踏板  
+                self.fluidsynth.fluid_synth_cc(self.synth, self.current_channel, 67, 0)  # 弱音踏板
+                
+                print("✓ 踏板已重置")
+        except:
+            pass

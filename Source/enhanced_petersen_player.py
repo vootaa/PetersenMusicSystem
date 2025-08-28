@@ -665,24 +665,49 @@ class EnhancedPetersenPlayer:
         try:
             print("🔄 正在清理资源...")
             
-            # 1. 停止所有音符
+            # 1. 停止所有音符（在SoundFont卸载之前）
             if self.synth and self.fluidsynth:
                 try:
-                    # 发送所有音符停止
-                    for channel in range(16):
-                        for note in range(128):
-                            self.fluidsynth.fluid_synth_noteoff(self.synth, channel, note)
+                    # 只停止当前活跃通道的音符
+                    for note in range(128):
+                        self.fluidsynth.fluid_synth_noteoff(self.synth, self.current_channel, note)
+                    
+                    # 等待一小段时间让音符停止
+                    time.sleep(0.1)
                 except:
                     pass
             
-            # 2. 清理功能模块
-            if self.sf_manager:
-                self.sf_manager.cleanup()
-            
+            # 2. 清理功能模块（按正确顺序）
+            # 先清理表现力控制器（重置踏板等）
             if self.expression:
-                self.expression.reset_pedals()
+                try:
+                    self.expression.reset_pedals()
+                except:
+                    pass
+                self.expression = None
             
-            # 3. 清理FluidSynth对象（按正确顺序）
+            # 再清理音效控制器
+            if self.effects:
+                self.effects = None
+            
+            # 清理频率播放器
+            if self.freq_player:
+                self.freq_player = None
+            
+            # 清理演奏模式控制器
+            if self.performance_modes:
+                self.performance_modes = None
+            
+            # 最后清理SoundFont管理器（这会卸载SoundFont）
+            if self.sf_manager:
+                try:
+                    self.sf_manager.cleanup()
+                except:
+                    pass
+                self.sf_manager = None
+            
+            # 3. 清理FluidSynth核心对象（按正确顺序）
+            # 先清理音频驱动
             if self.adriver and self.fluidsynth:
                 try:
                     self.fluidsynth.delete_fluid_audio_driver(self.adriver)
@@ -690,12 +715,16 @@ class EnhancedPetersenPlayer:
                 except:
                     pass
             
+            # 最后清理合成器
             if self.synth and self.fluidsynth:
                 try:
                     self.fluidsynth.delete_fluid_synth(self.synth)
                     self.synth = None
                 except:
                     pass
+            
+            # 重置状态
+            self.is_initialized = False
             
             print("✓ 资源清理完成")
             
