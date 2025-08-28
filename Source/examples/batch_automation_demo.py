@@ -704,7 +704,7 @@ class BatchAutomationDemo:
         if self.processor:
             self.processor.export_results() # 可选：导出批处理结果
 
-def main():
+if __name__ == "__main__":
     """主函数"""
     demo = BatchAutomationDemo()
     
@@ -722,6 +722,3 @@ def main():
         traceback.print_exc()
     finally:
         demo.cleanup()
-
-if __name__ == "__main__":
-    main()

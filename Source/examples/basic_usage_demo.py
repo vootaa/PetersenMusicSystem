@@ -147,3 +147,6 @@ if __name__ == "__main__":
         print(f"\n❌ 演示过程中出现错误: {e}")
         import traceback
         traceback.print_exc()
+    finally:
+        # 清理资源
+        pass

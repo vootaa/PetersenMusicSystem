@@ -401,7 +401,7 @@ class PetersenPlayerCLI(cmd.Cmd):
         
         self.player.play_frequencies(harmonics, harmonic_names)
 
-def main():
+if __name__ == "__main__":
     """主函数"""
     try:
         cli = PetersenPlayerCLI()
@@ -412,6 +412,6 @@ def main():
         print(f"\n❌ 程序异常: {e}")
         import traceback
         traceback.print_exc()
-
-if __name__ == "__main__":
-    main()
+    finally:
+    # 清理资源
+    pass

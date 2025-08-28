@@ -543,7 +543,7 @@ class PetersenWuXingSystem:
         if self.player:
             self.player.cleanup()
 
-def main():
+if __name__ == "__main__":
     """主函数"""
     system = PetersenWuXingSystem()
     
@@ -570,6 +570,3 @@ def main():
         traceback.print_exc()
     finally:
         system.cleanup()
-
-if __name__ == "__main__":
-    main()

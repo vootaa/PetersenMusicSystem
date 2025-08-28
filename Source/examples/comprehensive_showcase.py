@@ -623,7 +623,7 @@ class ComprehensiveShowcase:
         if self.player:
             self.player.cleanup()
 
-def main():
+if __name__ == "__main__":
     """主函数"""
     showcase = ComprehensiveShowcase()
     
@@ -645,6 +645,3 @@ def main():
         traceback.print_exc()
     finally:
         showcase.cleanup()
-
-if __name__ == "__main__":
-    main()
