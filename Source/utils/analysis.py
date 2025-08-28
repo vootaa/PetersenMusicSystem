@@ -28,6 +28,37 @@ class FrequencyAnalyzer:
         return 69 + 12 * math.log2(frequency / a4_frequency)
     
     @staticmethod
+    def frequency_error_in_cents(target_freq: float, reference_freq: float) -> float:
+        """
+        计算频率误差（音分）
+        
+        Args:
+            target_freq: 目标频率
+            reference_freq: 参考频率
+            
+        Returns:
+            频率误差（音分），正值表示目标频率高于参考频率
+        """
+        if reference_freq <= 0 or target_freq <= 0:
+            return 0.0
+        return 1200 * math.log2(target_freq / reference_freq)
+    
+    @staticmethod
+    def frequency_to_midi_note_integer(frequency: float, a4_frequency: float = 440.0) -> int:
+        """
+        频率转最接近的整数MIDI音符号
+        
+        Args:
+            frequency: 频率
+            a4_frequency: A4参考频率
+            
+        Returns:
+            最接近的整数MIDI音符号
+        """
+        exact_midi = FrequencyAnalyzer.frequency_to_midi_note(frequency, a4_frequency)
+        return int(round(exact_midi))
+    
+    @staticmethod
     def find_closest_midi_note(target_frequency: float, 
                              a4_frequency: float = 440.0) -> Tuple[int, float, float]:
         """
@@ -43,7 +74,7 @@ class FrequencyAnalyzer:
         closest_midi = max(0, min(127, closest_midi))
         
         standard_freq = FrequencyAnalyzer.midi_note_to_frequency(closest_midi, a4_frequency)
-        cents_deviation = 1200 * math.log2(target_frequency / standard_freq)
+        cents_deviation = FrequencyAnalyzer.frequency_error_in_cents(target_frequency, standard_freq)
         
         return closest_midi, standard_freq, cents_deviation
     

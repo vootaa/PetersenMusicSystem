@@ -85,6 +85,18 @@ class FrequencyAccuratePlayback:
         except AttributeError:
             print("⚠️  FluidSynth版本不支持弯音轮范围设置，使用默认值")
     
+    def _frequency_to_midi_note(self, frequency: float) -> int:
+        """将频率转换为最接近的MIDI音符号"""
+        return self.analyzer.frequency_to_midi_note_integer(frequency, self.a4_frequency)
+    
+    def _midi_note_to_frequency(self, midi_note: int) -> float:
+        """将MIDI音符号转换为频率"""
+        return self.analyzer.midi_note_to_frequency(midi_note, self.a4_frequency)
+    
+    def _frequency_error_in_cents(self, target_freq: float, reference_freq: float) -> float:
+        """计算频率误差（音分）"""
+        return self.analyzer.frequency_error_in_cents(target_freq, reference_freq)
+    
     def prepare_accurate_note(self, target_frequency: float, key_name: str = "") -> AccurateNote:
         """
         准备精确音符数据
@@ -97,11 +109,11 @@ class FrequencyAccuratePlayback:
             AccurateNote对象
         """
         # 计算最接近的MIDI音符
-        midi_note = self.analyzer.frequency_to_midi_note(target_frequency)
+        midi_note = self._frequency_to_midi_note(target_frequency)
         
         # 计算标准频率和误差
-        standard_freq = self.analyzer.midi_note_to_frequency(midi_note)
-        error_cents = self.analyzer.frequency_error_in_cents(target_frequency, standard_freq)
+        standard_freq = self._midi_note_to_frequency(midi_note)
+        error_cents = self._frequency_error_in_cents(target_frequency, standard_freq)
         
         # 判断是否需要弯音轮补偿
         needs_pitch_bend = abs(error_cents) > FREQUENCY_TOLERANCE_CENTS
