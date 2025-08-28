@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import List, Optional
 
 # 添加源代码路径
-sys.path.insert(0, str(Path(__file__).parent.parent / "Source"))
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from enhanced_petersen_player import create_player, PlayerConfiguration
 from utils.presets import COMPLETE_PRESET_COMBINATIONS
@@ -74,8 +74,8 @@ class PetersenPlayerCLI(cmd.Cmd):
         
         print(f"\n📁 可用SoundFont ({len(soundfonts)} 个):")
         for i, (name, details) in enumerate(soundfonts.items(), 1):
-            current = " [当前]" if name == sf_summary.get('current_soundfont') else ""
-            print(f"   {i:2d}. {name}{current}")
+            current = "⭐" if name == sf_summary.get('current_soundfont') else "  "
+            print(f"{current}{i:2d}. {name}")
             print(f"       类型: {details['type']}, 大小: {details['size_mb']:.1f}MB")
             print(f"       质量: {details['quality_score']:.2f}, 乐器数: {details['instrument_count']}")
     
@@ -170,7 +170,7 @@ class PetersenPlayerCLI(cmd.Cmd):
         for i, (name, preset) in enumerate(COMPLETE_PRESET_COMBINATIONS.items(), 1):
             print(f"   {i:2d}. {preset.name}")
             print(f"       描述: {preset.description}")
-            print(f"       用途: {', '.join(preset.use_cases[:2])}")  # 显示前2个用途
+            print(f"       用途: {', '.join(preset.use_cases)}")
     
     def do_apply_preset(self, arg):
         """应用预设: apply_preset <预设名或编号>"""
