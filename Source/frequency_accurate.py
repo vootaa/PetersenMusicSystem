@@ -292,16 +292,17 @@ class FrequencyAccuratePlayback:
         for i, (freq, name) in enumerate(zip(frequencies, key_names)):
             note = self.prepare_accurate_note(freq, name)
             
-            print(f"\n[{i+1}] {name}: {freq:.3f} Hz (偏差: {note.cents_deviation:+.1f}¢)")
+            print(f"\n[{i+1}] {name}: {freq:.3f} Hz (偏差: {note.frequency_error_cents:+.1f}¢)")
             
             # 播放12平均律版本
             print("  → 12平均律近似:", end=" ")
-            self.play_accurate_note(note.standard_frequency, 80, comparison_duration, force_compensation=False)
+            standard_freq = self.analyzer.midi_note_to_frequency(note.midi_note)
+            self.play_accurate_note(standard_freq, 80, comparison_duration, f"{name}_12TET")
             time.sleep(pause_between)
             
             # 播放精确频率版本
             print("  → Petersen精确:", end=" ")
-            self.play_accurate_note(freq, 80, comparison_duration, force_compensation=True)
+            self.play_accurate_note(freq, 80, comparison_duration, f"{name}_Petersen")
             time.sleep(pause_between * 2)
     
     def analyze_frequency_accuracy(self, frequencies: List[float]) -> Dict:
@@ -316,33 +317,21 @@ class FrequencyAccuratePlayback:
         """
         analysis = FrequencyAnalyzer.analyze_frequency_deviation(frequencies, self.a4_frequency)
         
-        # 添加播放相关的分析
         notes = [self.prepare_accurate_note(f) for f in frequencies]
         
-        extreme_deviations = [n for n in notes if abs(n.cents_deviation) > MAX_PITCH_BEND_CENTS]
+        extreme_deviations = [n for n in notes if abs(n.frequency_error_cents) > MAX_PITCH_BEND_CENTS]
+        compensations_needed = [n for n in notes if n.needs_pitch_bend]
         
         analysis.update({
-            'pitch_bend_compensation_needed': sum(1 for n in notes if n.needs_compensation),
+            'pitch_bend_compensation_needed': len(compensations_needed),
             'extreme_deviations': len(extreme_deviations),
             'extreme_deviation_frequencies': [n.target_frequency for n in extreme_deviations],
             'playable_with_compensation': len(notes) - len(extreme_deviations),
-            'compensation_effectiveness': (len(notes) - len(extreme_deviations)) / len(notes) * 100 if notes else 0
+            'compensation_effectiveness': (len(notes) - len(extreme_deviations)) / len(notes) * 100 if notes else 0,
+            'compensation_percentage': len(compensations_needed) / len(notes) * 100 if notes else 0
         })
         
         return analysis
-    
-    def _update_accuracy_stats(self, note: AccurateNote):
-        """更新精确度统计"""
-        self.accuracy_stats['total_notes_played'] += 1
-        
-        deviation = abs(note.cents_deviation)
-        if deviation > self.accuracy_stats['max_deviation_played']:
-            self.accuracy_stats['max_deviation_played'] = deviation
-        
-        # 更新平均偏差
-        total = self.accuracy_stats['total_notes_played']
-        current_avg = self.accuracy_stats['avg_deviation']
-        self.accuracy_stats['avg_deviation'] = (current_avg * (total - 1) + deviation) / total
     
     def _print_accuracy_summary(self):
         """打印精确度统计摘要"""
@@ -359,19 +348,10 @@ class FrequencyAccuratePlayback:
         print(f"最大偏差: {stats['max_deviation']:.1f}¢")
         print(f"平均偏差: {avg_deviation:.1f}¢")
     
-    def reset_stats(self):
-        """重置统计信息"""
-        self.accuracy_stats = {
-            'total_notes_played': 0,
-            'compensated_notes': 0,
-            'max_deviation_played': 0.0,
-            'avg_deviation': 0.0
-        }
-    
     def get_accuracy_report(self) -> Dict:
         """获取完整的精确度报告"""
         return {
-            'stats': self.accuracy_stats.copy(),
+            'stats': self.stats.copy(),
             'settings': {
                 'a4_frequency': self.a4_frequency,
                 'pitch_bend_range_cents': self.pitch_bend_range_cents,
@@ -379,3 +359,23 @@ class FrequencyAccuratePlayback:
                 'current_channel': self.current_channel
             }
         }
+    
+    def reset_stats(self):
+        """重置统计信息"""
+        self.stats = {
+            'notes_played': 0,
+            'compensations_used': 0,
+            'total_deviation': 0.0,
+            'max_deviation': 0.0
+        }
+    
+    def _update_accuracy_stats(self, note: AccurateNote):
+        """更新精确度统计"""
+        self.stats['notes_played'] += 1
+        
+        if note.needs_pitch_bend:
+            self.stats['compensations_used'] += 1
+            deviation = abs(note.frequency_error_cents)
+            self.stats['total_deviation'] += deviation
+            if deviation > self.stats['max_deviation']:
+                self.stats['max_deviation'] = deviation
