@@ -4,13 +4,13 @@ Petersen音阶与中国五行阴阳理论结合演示
 """
 import time
 import math
-from pathlib import Path
 from typing import List, Dict, Tuple, Optional
 from dataclasses import dataclass
 from enum import Enum
-import sys
 
-# 添加源代码路径
+import sys
+from pathlib import Path
+
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from enhanced_petersen_player import create_player

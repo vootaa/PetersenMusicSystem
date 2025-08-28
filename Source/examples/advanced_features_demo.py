@@ -2,13 +2,12 @@
 高级功能演示
 展示Enhanced Petersen Player的高级和专业功能
 """
-import sys
 import time
+import sys
 from pathlib import Path
 from typing import List, Dict, Any
 
-# 添加源代码路径
-sys.path.insert(0, str(Path(__file__).parent.parent / "Source"))
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from enhanced_petersen_player import create_player, PlayerConfiguration
 from utils.presets import (

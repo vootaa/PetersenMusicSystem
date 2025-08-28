@@ -2,12 +2,12 @@
 交互式演示程序
 提供命令行交互界面，让用户自由探索所有功能
 """
-import sys
 import cmd
-from pathlib import Path
 from typing import List, Optional
 
-# 添加源代码路径
+import sys
+from pathlib import Path
+
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from enhanced_petersen_player import create_player, PlayerConfiguration

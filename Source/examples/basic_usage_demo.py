@@ -5,8 +5,7 @@
 import sys
 from pathlib import Path
 
-# 添加源代码路径
-sys.path.insert(0, str(Path(__file__).parent.parent / "Source"))
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from enhanced_petersen_player import create_player, quick_demo, compare_frequencies
 from utils.petersen_data import load_petersen_scale_data

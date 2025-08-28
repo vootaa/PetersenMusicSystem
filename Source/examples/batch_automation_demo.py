@@ -5,12 +5,12 @@
 import time
 import json
 import csv
-from pathlib import Path
 from typing import List, Dict, Any, Optional
 from dataclasses import dataclass, asdict
 
 import sys
-# 添加源代码路径
+from pathlib import Path
+
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from enhanced_petersen_player import create_player, PlayerConfiguration

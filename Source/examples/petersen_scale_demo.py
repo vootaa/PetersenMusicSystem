@@ -2,13 +2,13 @@
 Petersen音阶专用演示
 展示针对Petersen音阶的专业功能
 """
-import sys
-from pathlib import Path
 from dataclasses import dataclass
 from typing import List
 
-# 添加源代码路径
-sys.path.insert(0, str(Path(__file__).parent.parent / "Source"))
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from enhanced_petersen_player import create_player
 from utils.analysis import analyze_petersen_scale_characteristics
