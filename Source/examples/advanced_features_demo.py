@@ -204,6 +204,11 @@ def performance_optimization_demo():
     print("\n⚡ === 性能优化演示 ===")
     
     with create_player() as player:
+        if hasattr(player, '_auto_optimize_settings'):
+            player._auto_optimize_settings()
+        else:
+            print("   ⚠️  自动优化方法不可用")
+
         # 准备测试数据
         long_sequence = []
         for i in range(24):  # 两个八度的半音阶

@@ -30,7 +30,6 @@ class BatchJob:
     priority: int = 1
     estimated_duration: float = 0.0
 
-@dataclass
 class ProcessingResult:
     """处理结果"""
     job_id: str

@@ -8,7 +8,6 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from enhanced_petersen_player import create_player, quick_demo, compare_frequencies
-from utils.petersen_data import load_petersen_scale_data
 
 def basic_playback_demo():
     """基础播放演示"""
