@@ -4,7 +4,7 @@ Petersen音阶专用演示
 使用PetersenScale_Phi生成真实的Petersen音阶数据
 """
 from dataclasses import dataclass
-from typing import List
+from typing import List, Dict, Optional
 
 import sys
 from pathlib import Path
@@ -78,7 +78,7 @@ def petersen_analysis_demo(phi: float = PHI, delta_theta: float = 4.8):
     print("🔬 === Petersen音阶分析演示 ===")
     
     # 生成实际Petersen音阶数据
-    scale_data = generate_petersen_scale(phi=phi, delta_theta=delta_theta, max_entries=20)
+    scale_data = generate_petersen_scale(phi=phi, delta_theta=delta_theta, max_entries=120)
     
     # 转换为analyze_petersen_scale_characteristics所需的格式
     analysis_data = [
@@ -250,8 +250,14 @@ def educational_mode_demo(phi: float = PHI, delta_theta: float = 4.8):
         
         # 生成实际Petersen音阶数据
         demo_scale = generate_petersen_scale(phi=phi, delta_theta=delta_theta, max_entries=6)
+        
+        # 确保传递正确格式的数据
         scale_entries = [
-            {'freq': entry.freq, 'key_name': entry.key_name, 'cents_deviation': entry.cents_deviation}
+            {
+                'freq': entry.freq, 
+                'key_name': entry.key_name, 
+                'cents_deviation': entry.cents_deviation
+            }
             for entry in demo_scale
         ]
         
@@ -293,7 +299,7 @@ def complete_system_showcase(phi: float = PHI, delta_theta: float = 4.8):
             print(f"   混响: 房间大小={reverb.get('room_size', 0):.1f}, 级别={reverb.get('level', 0):.1f}")
         
         # 生成实际Petersen音阶数据
-        full_scale = generate_petersen_scale(phi=phi, delta_theta=delta_theta, max_entries=15)
+        full_scale = generate_petersen_scale(phi=phi, delta_theta=delta_theta, max_entries=120)
         scale_entries = [
             {'freq': entry.freq, 'key_name': entry.key_name, 'cents_deviation': entry.cents_deviation}
             for entry in full_scale

@@ -254,20 +254,45 @@ def analyze_petersen_scale_characteristics(scale_entries) -> Dict:
     if not scale_entries:
         return {}
     
-    frequencies = [entry.freq for entry in scale_entries]
-    zones = [entry.n for entry in scale_entries]
-    elements = [entry.e for entry in scale_entries]
-    polarities = [entry.p for entry in scale_entries]
+    # 检查数据格式并提取信息
+    if isinstance(scale_entries[0], dict):
+        # 字典格式
+        frequencies = [entry['freq'] for entry in scale_entries]
+        cent_deviations = [entry.get('cents_deviation', 0) for entry in scale_entries]
+        key_names = [entry.get('key_name', '') for entry in scale_entries]
+        
+        # 对于字典格式，我们没有zone, element, polarity信息
+        zones = []
+        elements = []
+        polarities = []
+    else:
+        # 对象格式（原始代码）
+        frequencies = [entry.freq for entry in scale_entries]
+        zones = [entry.n for entry in scale_entries]
+        elements = [entry.e for entry in scale_entries]
+        polarities = [entry.p for entry in scale_entries]
+        cent_deviations = [getattr(entry, 'cents_deviation', 0) for entry in scale_entries]
+        key_names = [getattr(entry, 'key_name', '') for entry in scale_entries]
     
     freq_analysis = FrequencyAnalyzer.analyze_frequency_deviation(frequencies)
     
-    return {
-        'frequency_analysis': freq_analysis,
-        'frequency_range': (min(frequencies), max(frequencies)),
-        'zone_distribution': {z: zones.count(z) for z in set(zones)},
-        'element_distribution': {e: elements.count(e) for e in set(elements)},
-        'polarity_distribution': {p: polarities.count(p) for p in set(polarities)},
+    result = {
         'total_entries': len(scale_entries),
-        'spans_octaves': math.log2(max(frequencies) / min(frequencies)) if frequencies else 0,
+        'frequency_range': (min(frequencies), max(frequencies)) if frequencies else (0, 0),
+        'spans_octaves': math.log2(max(frequencies) / min(frequencies)) if frequencies and min(frequencies) > 0 else 0,
+        'avg_deviation': freq_analysis.get('avg_deviation', 0),
+        'max_deviation': freq_analysis.get('max_deviation', 0),
+        'cent_deviations': cent_deviations,
+        'frequency_analysis': freq_analysis,
         'recommended_velocity_curve': PerformanceAnalyzer.calculate_optimal_velocity_curve(frequencies)
     }
+    
+    # 只有当有zone/element/polarity数据时才添加这些分析
+    if zones:
+        result.update({
+            'zone_distribution': {z: zones.count(z) for z in set(zones)},
+            'element_distribution': {e: elements.count(e) for e in set(elements)},
+            'polarity_distribution': {p: polarities.count(p) for p in set(polarities)}
+        })
+    
+    return result
