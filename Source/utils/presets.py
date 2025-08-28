@@ -213,8 +213,8 @@ COMPLETE_PRESET_COMBINATIONS = {
     'steinway_concert_grand': CompletePreset(
         name='Steinway音乐会三角钢琴',
         description='专业音乐会演出设置，适合古典和浪漫主义作品',
-        effect_preset='vienna_musikverein',
-        expression_preset='chopin_poetry',
+        effect_preset='hall',  # 修改为可用的预设
+        expression_preset='romantic',  # 修改为可用的预设
         recommended_instruments=[0, 1],  # Acoustic Grand, Bright Acoustic
         soundfont_preferences=['steinway', 'piano'],
         use_cases=['古典音乐会', '浪漫主义作品', '专业演出']
@@ -223,8 +223,8 @@ COMPLETE_PRESET_COMBINATIONS = {
     'chamber_music_intimate': CompletePreset(
         name='室内乐亲密演奏',
         description='小型室内乐空间的精致演奏',
-        effect_preset='intimate_salon',
-        expression_preset='mozart_elegance',
+        effect_preset='intimate',  # 修改为可用的预设
+        expression_preset='classical',  # 修改为可用的预设
         recommended_instruments=[0, 40, 73],  # Piano, Violin, Flute
         soundfont_preferences=['orchestral', 'chamber'],
         use_cases=['室内乐', '沙龙音乐会', '小型演出']
@@ -233,8 +233,8 @@ COMPLETE_PRESET_COMBINATIONS = {
     'orchestral_symphonic': CompletePreset(
         name='交响乐团演奏',
         description='大型交响乐团的宏伟演出',
-        effect_preset='berlin_philharmonie',
-        expression_preset='liszt_virtuosity',
+        effect_preset='orchestral',  # 修改为可用的预设
+        expression_preset='dramatic',  # 修改为可用的预设
         recommended_instruments=[40, 41, 42, 73, 56, 60],  # Strings, Winds, Brass
         soundfont_preferences=['orchestral', 'symphonic'],
         use_cases=['交响音乐会', '大型作品', '管弦乐']
@@ -243,8 +243,8 @@ COMPLETE_PRESET_COMBINATIONS = {
     'jazz_club_session': CompletePreset(
         name='爵士俱乐部演出',
         description='爵士俱乐部的轻松演奏',
-        effect_preset='jazz_club',
-        expression_preset='jazz_swing',
+        effect_preset='warm',  # 修改为可用的预设
+        expression_preset='jazz',  # 修改为可用的预设
         recommended_instruments=[4, 32, 56],  # Electric Piano, Bass, Trumpet
         soundfont_preferences=['jazz', 'electric'],
         use_cases=['爵士演出', '即兴演奏', '轻松娱乐']
@@ -253,8 +253,8 @@ COMPLETE_PRESET_COMBINATIONS = {
     'cathedral_sacred': CompletePreset(
         name='教堂圣乐演奏',
         description='教堂圣乐的庄严演出',
-        effect_preset='gothic_cathedral',
-        expression_preset='debussy_impressionist',
+        effect_preset='cathedral',  # 修改为可用的预设
+        expression_preset='gentle',  # 修改为可用的预设
         recommended_instruments=[19, 73, 52],  # Church Organ, Flute, Choir
         soundfont_preferences=['organ', 'choir'],
         use_cases=['宗教音乐', '教堂演出', '圣乐']
@@ -263,8 +263,8 @@ COMPLETE_PRESET_COMBINATIONS = {
     'studio_recording': CompletePreset(
         name='录音室录制',
         description='专业录音室的精确录制',
-        effect_preset='studio_close_mic',
-        expression_preset='ravel_crystalline',
+        effect_preset='dry',  # 修改为可用的预设
+        expression_preset='mechanical',  # 修改为可用的预设
         recommended_instruments=[0, 1],  # High-quality piano
         soundfont_preferences=['studio', 'high_quality'],
         use_cases=['录音制作', '精确演奏', '音频制作']
@@ -273,8 +273,8 @@ COMPLETE_PRESET_COMBINATIONS = {
     'educational_demo': CompletePreset(
         name='教学演示',
         description='教育用途的清晰演示',
-        effect_preset='chamber_recital',
-        expression_preset='haydn_wit',
+        effect_preset='chamber',  # 修改为可用的预设
+        expression_preset='study',  # 修改为可用的预设
         recommended_instruments=[0],  # Simple piano
         soundfont_preferences=['general', 'clear'],
         use_cases=['音乐教学', '理论演示', '学习辅助']
@@ -283,8 +283,8 @@ COMPLETE_PRESET_COMBINATIONS = {
     'experimental_modern': CompletePreset(
         name='现代实验音乐',
         description='现代音乐的实验性演奏',
-        effect_preset='concert_stage',
-        expression_preset='minimalist_reich',
+        effect_preset='bright',  # 修改为可用的预设
+        expression_preset='expressive',  # 修改为可用的预设
         recommended_instruments=[80, 81, 88],  # Synth leads and pads
         soundfont_preferences=['synth', 'modern'],
         use_cases=['现代音乐', '实验音乐', '电子音乐']
