@@ -340,8 +340,8 @@ def soundfont_showcase_demo():
             print(f"   📏 大小: {sf_details['size_mb']:.1f}MB")
             print(f"   ⭐ 质量: {sf_details['quality_score']:.2f}")
             
-            # 使用静默模式切换SoundFont
-            switch_success = player.switch_soundfont(sf_name, suppress_warnings=True)
+            # 使用 quiet_mode 参数,切换SoundFont
+            switch_success = player.switch_soundfont(sf_name, quiet_mode=True)
             if not switch_success:
                 print(f"   ❌ SoundFont加载失败，跳过")
                 continue
@@ -413,7 +413,7 @@ def instrument_variety_demo():
             print(f"\n🎵 {sf_name} ({sf_details['type']}):")
             
             # 切换SoundFont
-            if not player.switch_soundfont(sf_name):
+            if not player.switch_soundfont(sf_name, quiet_mode=True):
                 print(f"   ❌ 加载失败")
                 continue
             
