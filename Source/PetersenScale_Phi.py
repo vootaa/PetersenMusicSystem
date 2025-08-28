@@ -346,7 +346,7 @@ def get_delta_theta_info(delta_theta: float, phi: float = 2.0) -> Dict[str, Unio
         is_special_pattern = True
         pattern_positions = 15
         pattern_mechanism = "双重螺旋交错（2/3圆周）"
-     elif abs(delta_theta - 288.0) < 1e-6:
+    elif abs(delta_theta - 288.0) < 1e-6:
         is_special_pattern = True
         pattern_positions = 5
         pattern_mechanism = "四重五角星（4×72°，五行四重重叠）"

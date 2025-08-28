@@ -420,5 +420,5 @@ if __name__ == "__main__":
         import traceback
         traceback.print_exc()
     finally:
-    # 清理资源
-    pass
+        # 清理资源
+        pass
