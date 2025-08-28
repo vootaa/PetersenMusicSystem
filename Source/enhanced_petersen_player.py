@@ -766,19 +766,25 @@ class EnhancedPetersenPlayer:
 
 # ========== 便利函数 ==========
 
-def create_player(soundfont_dir: str = "../Soundfonts", **kwargs) -> EnhancedPetersenPlayer:
+def create_player(soundfont_dir: str = "../Soundfonts", config: Optional[PlayerConfiguration] = None, **kwargs) -> EnhancedPetersenPlayer:
     """
     创建播放器的便利函数
     
     Args:
         soundfont_dir: SoundFont目录
+        config: 预配置的PlayerConfiguration对象
         **kwargs: 其他配置参数
         
     Returns:
         配置好的播放器实例
     """
-    config = PlayerConfiguration(soundfont_directory=soundfont_dir, **kwargs)
-    return EnhancedPetersenPlayer(config)
+    if config is not None:
+        # 如果提供了配置对象，直接使用
+        return EnhancedPetersenPlayer(config)
+    else:
+        # 否则创建新的配置，使用soundfont_dir和其他kwargs
+        player_config = PlayerConfiguration(soundfont_directory=soundfont_dir, **kwargs)
+        return EnhancedPetersenPlayer(player_config)
 
 def quick_demo(scale_entries, mode: str = "solo_piano") -> bool:
     """

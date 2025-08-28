@@ -22,7 +22,7 @@ def custom_configuration_demo():
     
     # 创建自定义配置
     custom_config = PlayerConfiguration(
-        soundfont_directory="../Soundfonts",
+        soundfont_directory="../../Soundfonts",  # 修改路径以匹配examples目录结构
         sample_rate=48000,  # 更高采样率
         buffer_size=512,    # 更小缓冲区（更低延迟）
         audio_driver="coreaudio" if sys.platform == "darwin" else "pulse",
@@ -36,6 +36,7 @@ def custom_configuration_demo():
     print(f"   音频驱动: {custom_config.audio_driver}")
     print(f"   自动优化: {custom_config.auto_optimize_settings}")
     
+    # 使用config参数传递配置对象
     with create_player(config=custom_config) as player:
         print("✅ 自定义配置播放器创建成功")
         
@@ -47,7 +48,7 @@ def preset_system_demo():
     """预设系统演示"""
     print("\n🎨 === 预设系统演示 ===")
     
-    with create_player() as player:
+    with create_player(soundfont_dir="../../Soundfonts") as player:
         print("📋 可用完整预设:")
         for preset_name, preset_info in COMPLETE_PRESET_COMBINATIONS.items():
             print(f"   {preset_name}: {preset_info.description}")
@@ -88,7 +89,7 @@ def intelligent_recommendation_demo():
     """智能推荐演示"""
     print("\n🤖 === 智能推荐系统演示 ===")
     
-    with create_player() as player:
+    with create_player(soundfont_dir="../../Soundfonts") as player:
         # 获取可用SoundFont
         sf_summary = player.sf_manager.get_soundfont_summary()
         available_sfs = list(sf_summary['soundfont_details'].keys())
@@ -129,7 +130,7 @@ def real_time_effects_demo():
     """实时音效演示"""
     print("\n🎛️  === 实时音效调节演示 ===")
     
-    with create_player() as player:
+    with create_player(soundfont_dir="../../Soundfonts") as player:
         # 基础音符用于测试
         test_note_freq = 440.0  # A4
         test_note_name = "A4"
@@ -175,7 +176,7 @@ def soundfont_analysis_demo():
     """SoundFont分析演示"""
     print("\n🔍 === SoundFont深度分析演示 ===")
     
-    with create_player() as player:
+    with create_player(soundfont_dir="../../Soundfonts") as player:
         sf_summary = player.sf_manager.get_soundfont_summary()
         
         print("📁 SoundFont详细分析:")
@@ -203,7 +204,7 @@ def performance_optimization_demo():
     """性能优化演示"""
     print("\n⚡ === 性能优化演示 ===")
     
-    with create_player() as player:
+    with create_player(soundfont_dir="../../Soundfonts") as player:
         if hasattr(player, '_auto_optimize_settings'):
             player._auto_optimize_settings()
         else:
@@ -241,7 +242,7 @@ def error_handling_demo():
     """错误处理演示"""
     print("\n🛡️  === 错误处理与恢复演示 ===")
     
-    with create_player() as player:
+    with create_player(soundfont_dir="../../Soundfonts") as player:
         print("🧪 故意触发各种错误情况:")
         
         # 1. 无效频率测试
@@ -275,7 +276,7 @@ def comprehensive_demo():
     """综合演示"""
     print("\n🌟 === 综合功能演示 ===")
     
-    with create_player() as player:
+    with create_player(soundfont_dir="../../Soundfonts") as player:
         print("🎵 执行完整的音乐演示流程:")
         
         # 1. 自动选择最佳设置
