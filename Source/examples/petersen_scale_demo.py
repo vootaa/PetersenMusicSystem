@@ -1,6 +1,7 @@
 """
 Petersen音阶专用演示
 展示针对Petersen音阶的专业功能
+使用PetersenScale_Phi生成真实的Petersen音阶数据
 """
 from dataclasses import dataclass
 from typing import List
@@ -12,38 +13,81 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from enhanced_petersen_player import create_player
 from utils.analysis import analyze_petersen_scale_characteristics
+from PetersenScale_Phi import PetersenScale_Phi, PHI
 
 @dataclass
 class PetersenEntry:
-    """Petersen音阶条目（示例数据结构）"""
+    """Petersen音阶条目"""
     freq: float
     key_name: str
     cents_deviation: float = 0.0
     octave: int = 4
-    
-# 示例Petersen音阶数据（实际数据应从您的系统获取）
-SAMPLE_PETERSEN_SCALE = [
-    PetersenEntry(261.626, "C4", 0.0),
-    PetersenEntry(277.183, "C#4", 7.0),    # 稍微偏离12平均律
-    PetersenEntry(293.665, "D4", 0.0),
-    PetersenEntry(311.127, "D#4", 3.9),    # 微调
-    PetersenEntry(329.628, "E4", 0.0),
-    PetersenEntry(349.228, "F4", 0.0),
-    PetersenEntry(369.994, "F#4", -1.9),   # 微调
-    PetersenEntry(391.995, "G4", 0.0),
-    PetersenEntry(415.305, "G#4", 4.5),    # 微调
-    PetersenEntry(440.000, "A4", 0.0),
-    PetersenEntry(466.164, "A#4", -6.8),   # 微调
-    PetersenEntry(493.883, "B4", 0.0),
-    PetersenEntry(523.251, "C5", 0.0),
-]
 
-def petersen_analysis_demo():
-    """Petersen音阶分析演示"""
+def generate_petersen_scale(phi: float = PHI, delta_theta: float = 4.8, 
+                          F_base: float = 261.63, F_min: float = 30.0, 
+                          F_max: float = 6000.0, max_entries: Optional[int] = None) -> List[PetersenEntry]:
+    """
+    使用PetersenScale_Phi生成真实的Petersen音阶数据
+    
+    Args:
+        phi: 比例系数，默认黄金比例
+        delta_theta: 极性偏移角度，默认4.8°
+        F_base: 基准频率，默认C4 (261.63 Hz)
+        F_min: 最小频率限制
+        F_max: 最大频率限制
+        max_entries: 最大条目数限制（可选，用于演示）
+    
+    Returns:
+        PetersenEntry列表
+    """
+    # 创建PetersenScale_Phi实例
+    scale = PetersenScale_Phi(
+        F_base=F_base,
+        delta_theta=delta_theta,
+        phi=phi,
+        F_min=F_min,
+        F_max=F_max
+    )
+    
+    # 生成音阶条目
+    entries = scale.generate()
+    
+    # 转换为PetersenEntry格式
+    petersen_entries = []
+    for entry in entries:
+        # 计算八度（基于频率）
+        octave = int(round((entry['freq'] / 261.63) ** (1/12) * 4))  # 近似计算
+        
+        petersen_entry = PetersenEntry(
+            freq=entry['freq'],
+            key_name=entry['key_short'],  # 使用短名，如 "J-"
+            cents_deviation=entry['cents_ref'],  # 相对于参考频率的音分值
+            octave=octave
+        )
+        petersen_entries.append(petersen_entry)
+        
+        # 如果设置了最大条目数限制
+        if max_entries and len(petersen_entries) >= max_entries:
+            break
+    
+    return petersen_entries  
+
+
+def petersen_analysis_demo(phi: float = PHI, delta_theta: float = 4.8):
+    """Petersen音阶分析演示（使用实际数据）"""
     print("🔬 === Petersen音阶分析演示 ===")
     
+    # 生成实际Petersen音阶数据
+    scale_data = generate_petersen_scale(phi=phi, delta_theta=delta_theta, max_entries=20)
+    
+    # 转换为analyze_petersen_scale_characteristics所需的格式
+    analysis_data = [
+        {'freq': entry.freq, 'key_name': entry.key_name, 'cents_deviation': entry.cents_deviation}
+        for entry in scale_data
+    ]
+    
     # 分析音阶特性
-    characteristics = analyze_petersen_scale_characteristics(SAMPLE_PETERSEN_SCALE)
+    characteristics = analyze_petersen_scale_characteristics(analysis_data)
     
     print("📊 音阶分析结果:")
     print(f"   总条目数: {characteristics.get('total_entries', 0)}")
@@ -56,18 +100,21 @@ def petersen_analysis_demo():
     deviations = characteristics.get('cent_deviations', [])
     if any(abs(d) > 5 for d in deviations):
         print("\n⚠️  显著偏离12平均律的音符:")
-        for i, (entry, deviation) in enumerate(zip(SAMPLE_PETERSEN_SCALE, deviations)):
+        for i, (entry, deviation) in enumerate(zip(scale_data, deviations)):
             if abs(deviation) > 5:
                 print(f"   {entry.key_name}: {deviation:+.1f} 音分")
 
-def frequency_accuracy_demo():
-    """频率精确度演示"""
+def frequency_accuracy_demo(phi: float = PHI, delta_theta: float = 4.8):
+    """频率精确度演示（使用实际数据）"""
     print("\n🎯 === 频率精确度演示 ===")
     
     with create_player() as player:
+        # 生成实际Petersen音阶数据
+        scale_data = generate_petersen_scale(phi=phi, delta_theta=delta_theta, max_entries=12)
+        
         # 提取频率和音名
-        frequencies = [entry.freq for entry in SAMPLE_PETERSEN_SCALE]
-        key_names = [entry.key_name for entry in SAMPLE_PETERSEN_SCALE]
+        frequencies = [entry.freq for entry in scale_data]
+        key_names = [entry.key_name for entry in scale_data]
         
         # 执行精确度分析演示
         analysis = player.demonstrate_frequency_accuracy(frequencies, key_names)
@@ -78,8 +125,8 @@ def frequency_accuracy_demo():
             print(f"   补偿有效性: {analysis.get('compensation_effectiveness', 0):.1f}%")
             print(f"   残余误差: {analysis.get('residual_error', 0):.1f} 音分")
 
-def multi_mode_comparison_demo():
-    """多模式对比演示"""
+def multi_mode_comparison_demo(phi: float = PHI, delta_theta: float = 4.8):
+    """多模式对比演示（使用实际数据）"""
     print("\n🎭 === 多演奏模式对比演示 ===")
     
     with create_player() as player:
@@ -90,24 +137,30 @@ def multi_mode_comparison_demo():
             ("comparison", "12tet_vs_petersen", "12平均律对比"),
         ]
         
-        # 使用音阶的一部分进行演示（避免过长）
-        demo_scale = SAMPLE_PETERSEN_SCALE[:8]  # 一个八度
+        # 生成实际Petersen音阶数据（一个八度）
+        demo_scale = generate_petersen_scale(phi=phi, delta_theta=delta_theta, max_entries=8)
         
         for mode, style_or_arrangement, description in modes_to_demo:
             print(f"\n🎵 演示模式: {description}")
             
             try:
+                # 转换为player所需的格式
+                scale_entries = [
+                    {'freq': entry.freq, 'key_name': entry.key_name, 'cents_deviation': entry.cents_deviation}
+                    for entry in demo_scale
+                ]
+                
                 if mode == "orchestral":
                     success = player.play_petersen_scale(
-                        demo_scale, mode=mode, arrangement=style_or_arrangement
+                        scale_entries, mode=mode, arrangement=style_or_arrangement
                     )
                 elif mode == "comparison":
                     success = player.play_petersen_scale(
-                        demo_scale, mode=mode, comparison_type=style_or_arrangement
+                        scale_entries, mode=mode, comparison_type=style_or_arrangement
                     )
                 else:
                     success = player.play_petersen_scale(
-                        demo_scale, mode=mode, style=style_or_arrangement
+                        scale_entries, mode=mode, style=style_or_arrangement
                     )
                 
                 if success:
@@ -118,13 +171,13 @@ def multi_mode_comparison_demo():
             except Exception as e:
                 print(f"   ❌ {description} 演示失败: {e}")
 
-def expression_showcase():
-    """表现力展示"""
+def expression_showcase(phi: float = PHI, delta_theta: float = 4.8):
+    """表现力展示（使用实际数据）"""
     print("\n🎨 === 表现力风格展示 ===")
     
     with create_player() as player:
-        # 选择一个短旋律进行表现力对比
-        melody_scale = SAMPLE_PETERSEN_SCALE[0:5]  # C4到E4
+        # 生成实际Petersen音阶数据（短旋律）
+        melody_scale = generate_petersen_scale(phi=phi, delta_theta=delta_theta, max_entries=5)
         
         expression_styles = [
             ("mechanical", "机械式演奏"),
@@ -151,14 +204,13 @@ def expression_showcase():
             if success:
                 print(f"   ✅ {description} 完成")
 
-def effects_showcase():
-    """音效展示"""
+def effects_showcase(phi: float = PHI, delta_theta: float = 4.8):
+    """音效展示（使用实际数据）"""
     print("\n🎛️  === 音效空间展示 ===")
     
     with create_player() as player:
-        # 选择一个和弦进行音效对比
-        chord_entries = [SAMPLE_PETERSEN_SCALE[0], SAMPLE_PETERSEN_SCALE[2], 
-                        SAMPLE_PETERSEN_SCALE[4], SAMPLE_PETERSEN_SCALE[6]]  # C-E-G-B
+        # 生成实际Petersen音阶数据（和弦）
+        chord_entries = generate_petersen_scale(phi=phi, delta_theta=delta_theta, max_entries=4)
         
         effect_presets = [
             ("dry", "干声（无效果）"),
@@ -185,8 +237,8 @@ def effects_showcase():
             if success:
                 print(f"   ✅ {description} 完成")
 
-def educational_mode_demo():
-    """教育模式演示"""
+def educational_mode_demo(phi: float = PHI, delta_theta: float = 4.8):
+    """教育模式演示（使用实际数据）"""
     print("\n📚 === 教育模式演示 ===")
     
     with create_player() as player:
@@ -196,11 +248,18 @@ def educational_mode_demo():
             ("harmonic_series", "谐波系列")
         ]
         
+        # 生成实际Petersen音阶数据
+        demo_scale = generate_petersen_scale(phi=phi, delta_theta=delta_theta, max_entries=6)
+        scale_entries = [
+            {'freq': entry.freq, 'key_name': entry.key_name, 'cents_deviation': entry.cents_deviation}
+            for entry in demo_scale
+        ]
+        
         for lesson_type, description in educational_lessons:
             print(f"\n📖 {description}课程:")
             
             success = player.play_petersen_scale(
-                SAMPLE_PETERSEN_SCALE[:6],  # 使用前6个音符
+                scale_entries,
                 mode="educational",
                 lesson_type=lesson_type
             )
@@ -208,8 +267,8 @@ def educational_mode_demo():
             if success:
                 print(f"   ✅ {description}课程完成")
 
-def complete_system_showcase():
-    """完整系统展示"""
+def complete_system_showcase(phi: float = PHI, delta_theta: float = 4.8):
+    """完整系统展示（使用实际数据）"""
     print("\n🌟 === 完整系统功能展示 ===")
     
     with create_player() as player:
@@ -233,10 +292,17 @@ def complete_system_showcase():
             reverb = effects_info['reverb']
             print(f"   混响: 房间大小={reverb.get('room_size', 0):.1f}, 级别={reverb.get('level', 0):.1f}")
         
+        # 生成实际Petersen音阶数据
+        full_scale = generate_petersen_scale(phi=phi, delta_theta=delta_theta, max_entries=15)
+        scale_entries = [
+            {'freq': entry.freq, 'key_name': entry.key_name, 'cents_deviation': entry.cents_deviation}
+            for entry in full_scale
+        ]
+        
         # 演示完整Petersen音阶
-        print(f"\n🎵 完整Petersen音阶演示 ({len(SAMPLE_PETERSEN_SCALE)} 个音符):")
+        print(f"\n🎵 完整Petersen音阶演示 ({len(scale_entries)} 个音符):")
         success = player.play_petersen_scale(
-            SAMPLE_PETERSEN_SCALE,
+            scale_entries,
             mode="solo_piano",
             style="romantic"
         )
@@ -256,14 +322,18 @@ if __name__ == "__main__":
     print("🎵 Enhanced Petersen Player - Petersen音阶专用演示")
     print("=" * 60)
     
+    # 配置参数（可以根据需要调整）
+    PHI_VALUE = PHI  # 黄金比例
+    DELTA_THETA_VALUE = 4.8  # 原始Petersen系统
+    
     try:
-        petersen_analysis_demo()
-        frequency_accuracy_demo()
-        multi_mode_comparison_demo()
-        expression_showcase()
-        effects_showcase()
-        educational_mode_demo()
-        complete_system_showcase()
+        petersen_analysis_demo(phi=PHI_VALUE, delta_theta=DELTA_THETA_VALUE)
+        frequency_accuracy_demo(phi=PHI_VALUE, delta_theta=DELTA_THETA_VALUE)
+        multi_mode_comparison_demo(phi=PHI_VALUE, delta_theta=DELTA_THETA_VALUE)
+        expression_showcase(phi=PHI_VALUE, delta_theta=DELTA_THETA_VALUE)
+        effects_showcase(phi=PHI_VALUE, delta_theta=DELTA_THETA_VALUE)
+        educational_mode_demo(phi=PHI_VALUE, delta_theta=DELTA_THETA_VALUE)
+        complete_system_showcase(phi=PHI_VALUE, delta_theta=DELTA_THETA_VALUE)
         
         print("\n🎉 Petersen音阶演示完成!")
         print("🎵 感谢您体验Enhanced Petersen Music System!")
@@ -275,5 +345,5 @@ if __name__ == "__main__":
         import traceback
         traceback.print_exc()
     finally:
-    # 清理资源
-    pass
+        # 清理资源
+        pass
