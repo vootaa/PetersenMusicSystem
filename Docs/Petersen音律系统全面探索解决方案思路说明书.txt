@@ -20,8 +20,7 @@ PetersenExplorer/
 │   └── classification_system.py   # 开放性分类系统
 ├── audio/
 │   ├── playback_tester.py        # 音频播放测试器
-│   ├── musicality_validator.py   # 音乐性验证器
-│   └── soundfont_controller.py   # SoundFont控制器
+│   └── musicality_validator.py   # 音乐性验证器
 ├── analysis/
 │   ├── interval_analyzer.py      # 音程分析器
 │   ├── harmony_evaluator.py      # 和声评估器
