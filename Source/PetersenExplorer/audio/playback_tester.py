@@ -15,10 +15,18 @@ sys.path.insert(0, str(current_dir.parent.parent.parent))
 
 try:
     from enhanced_petersen_player import create_player, PlayerConfiguration
+    ENHANCED_PLAYER_AVAILABLE = True
+    print("✅ Enhanced Petersen Player 可用")
 except ImportError:
-    print("⚠️ 无法导入enhanced_petersen_player，音频测试功能将不可用")
     create_player = None
     PlayerConfiguration = None
+    ENHANCED_PLAYER_AVAILABLE = False
+    print("⚠️ Enhanced Petersen Player 不可用，音频测试功能将被禁用")
+except Exception as e:
+    create_player = None
+    PlayerConfiguration = None 
+    ENHANCED_PLAYER_AVAILABLE = False
+    print(f"⚠️ Enhanced Petersen Player 加载异常: {e}")
 
 from ..core.parameter_explorer import ExplorationResult
 
@@ -70,6 +78,8 @@ class PetersenPlaybackTester:
                            - "GD_Steinway_Model_D274II.sf2" 
                            - 完整路径
         """
+        if not ENHANCED_PLAYER_AVAILABLE:
+            raise RuntimeError("Enhanced Petersen Player 不可用，无法进行音频测试")
         # 默认使用指定的两个Steinway钢琴SoundFont之一
         if soundfont_path is None:
             self.soundfont_path = "../../Soundfonts/GD_Steinway_Model_D274.sf2"

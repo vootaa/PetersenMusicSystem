@@ -2,10 +2,11 @@
 Petersen音律多维度评估框架
 实现传统音乐理论、非平均律理论、创新潜力等多重评估标准
 """
+import math
 from typing import List, Dict, Tuple, Optional, Any
 from dataclasses import dataclass
 from enum import Enum
-import math
+
 import sys
 from pathlib import Path
 
