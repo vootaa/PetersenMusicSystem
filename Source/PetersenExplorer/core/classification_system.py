@@ -152,52 +152,74 @@ class OpenClassificationSystem:
         # 应用领域定义
         self.application_domains = self._initialize_application_domains()
     
-    def classify_system(self, evaluation: ComprehensiveEvaluation) -> ClassificationResult:
-        """
-        对音律系统进行开放性分类
-        
-        Args:
-            evaluation: 综合评估结果
+    def classify_system(self, evaluation_result: ComprehensiveEvaluation) -> ClassificationResult:
+        """对系统进行分类"""
+        try:
+            # 获取评估维度分数
+            dimension_scores = evaluation_result.dimension_scores
             
-        Returns:
-            ClassificationResult: 分类结果
-        """
-        # 确定主要类别
-        primary_category, category_confidence = self._determine_primary_category(evaluation)
-        
-        # 识别次要特征
-        secondary_traits = self._identify_secondary_traits(evaluation)
-        
-        # 推荐应用领域
-        recommended_domains = self._recommend_application_domains(evaluation, primary_category)
-        
-        # 生成优先应用
-        priority_applications = self._generate_priority_applications(evaluation, primary_category)
-        
-        # 识别优势和改进点
-        strengths = self._identify_strengths_to_leverage(evaluation)
-        improvements = self._identify_improvement_areas(evaluation)
-        
-        # 推荐互补系统
-        complementary = self._suggest_complementary_systems(evaluation, primary_category)
-        
-        # 实用性评估
-        usability_assessment = self._assess_practical_usability(evaluation)
-        
-        return ClassificationResult(
-            primary_category=primary_category,
-            secondary_traits=secondary_traits,
-            confidence_score=category_confidence,
-            recommended_domains=recommended_domains,
-            priority_applications=priority_applications,
-            strengths_to_leverage=strengths,
-            areas_for_improvement=improvements,
-            complementary_systems=complementary,
-            immediate_usability=usability_assessment['usability'],
-            learning_curve=usability_assessment['learning_curve'],
-            production_readiness=usability_assessment['production_readiness']
-        )
+            # 计算分类得分
+            traditional_score = self._get_dimension_score(dimension_scores, 'traditional_compatibility')
+            microtonal_score = self._get_dimension_score(dimension_scores, 'microtonal_potential')
+            experimental_score = self._get_dimension_score(dimension_scores, 'experimental_innovation')
+            therapeutic_score = self._get_dimension_score(dimension_scores, 'therapeutic_value')
+            
+            # 确定主要类别 - 返回枚举对象而非字符串
+            if traditional_score >= 0.7:
+                primary_category = PrimaryCategory.TRADITIONAL_EXTENSION
+                confidence = 0.8
+            elif microtonal_score >= 0.7:
+                primary_category = PrimaryCategory.MICROTONAL_EXPLORATION
+                confidence = 0.85
+            elif experimental_score >= 0.7:
+                primary_category = PrimaryCategory.EXPERIMENTAL_AVANT_GARDE
+                confidence = 0.8
+            elif therapeutic_score >= 0.7:
+                primary_category = PrimaryCategory.THERAPEUTIC_FUNCTIONAL
+                confidence = 0.75
+            else:
+                primary_category = PrimaryCategory.RESEARCH_EXPLORATION
+                confidence = 0.6
+            
+            return ClassificationResult(
+                primary_category=primary_category,  # 确保这是枚举对象
+                confidence_score=confidence,
+                secondary_categories=[],
+                classification_reasoning=f"基于评估分数的自动分类",
+                application_domains=[],
+                target_audiences=[],
+                performance_contexts=[],
+                technical_requirements=[],
+                creative_potential_assessment={},
+                usage_recommendations=[]
+            )
+            
+        except Exception as e:
+            print(f"分类过程出错: {e}")
+            # 返回默认分类
+            return ClassificationResult(
+                primary_category=PrimaryCategory.RESEARCH_EXPLORATION,
+                confidence_score=0.3,
+                secondary_categories=[],
+                classification_reasoning=f"分类失败，使用默认分类: {e}",
+                application_domains=[],
+                target_audiences=[],
+                performance_contexts=[],
+                technical_requirements=[],
+                creative_potential_assessment={},
+                usage_recommendations=[]
+            )
     
+    def _get_dimension_score(self, dimension_scores: Dict, dimension_name: str) -> float:
+        """安全获取维度分数"""
+        if dimension_name in dimension_scores:
+            score_obj = dimension_scores[dimension_name]
+            if hasattr(score_obj, 'score'):
+                return score_obj.score
+            elif isinstance(score_obj, (int, float)):
+                return float(score_obj)
+        return 0.5  # 默认分数
+
     def _determine_primary_category(self, evaluation: ComprehensiveEvaluation) -> Tuple[PrimaryCategory, float]:
         """确定主要类别"""
         scores = evaluation.dimension_scores

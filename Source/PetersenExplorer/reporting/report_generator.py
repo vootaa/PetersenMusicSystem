@@ -96,16 +96,6 @@ class PetersenExplorationReportGenerator:
                                     report_name: str = None) -> Path:
         """
         生成综合探索报告
-        
-        Args:
-            exploration_results: 探索结果列表
-            evaluations: 评估结果字典
-            classifications: 分类结果字典
-            audio_assessments: 音频评估结果字典
-            report_name: 报告名称
-            
-        Returns:
-            Path: 生成的报告文件路径
         """
         if not report_name:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -117,18 +107,18 @@ class PetersenExplorationReportGenerator:
         report_dir = self.output_dir / report_name
         report_dir.mkdir(exist_ok=True)
         
-        # 生成各部分报告
+        # 生成各部分报告 - 修复参数传递
         self._generate_executive_summary(exploration_results, evaluations, 
-                                       classifications, audio_assessments, report_dir)
+                                    classifications, audio_assessments, report_dir)
         
         self._generate_detailed_analysis(exploration_results, evaluations,
-                                       classifications, audio_assessments, report_dir)
+                                    classifications, audio_assessments, report_dir)
         
         self._generate_data_exports(exploration_results, evaluations,
-                                  classifications, audio_assessments, report_dir)
+                                classifications, audio_assessments, report_dir)
         
         self._generate_recommendations(exploration_results, evaluations,
-                                     classifications, audio_assessments, report_dir)
+                                    classifications, audio_assessments, report_dir)
         
         # 生成主报告索引
         main_report_path = self._generate_main_report_index(report_dir, report_name)
@@ -136,9 +126,58 @@ class PetersenExplorationReportGenerator:
         print(f"✅ 报告生成完成: {main_report_path}")
         return main_report_path
     
-    def _generate_executive_summary(self, exploration_results, evaluations, classifications, audio_assessments):
+    def _generate_recommendations(self, exploration_results, evaluations, classifications, audio_assessments, report_dir):
+        """生成应用建议"""
+        recommendations_path = report_dir / "recommendations.md"
+        
+        with open(recommendations_path, 'w', encoding='utf-8') as f:
+            f.write("# Petersen音律系统应用建议\n\n")
+            
+            successful_results = [r for r in exploration_results if r.success]
+            
+            if not successful_results:
+                f.write("⚠️ 没有成功的系统可供分析，无法生成具体建议。\n")
+                return
+            
+            # 基本统计
+            f.write(f"## 📊 系统概览\n\n")
+            f.write(f"- 成功系统数量: {len(successful_results)}\n")
+            
+            # 音符数量分布
+            entry_counts = [len(r.entries) for r in successful_results]
+            if entry_counts:
+                f.write(f"- 音符数量范围: {min(entry_counts)} - {max(entry_counts)}\n")
+                f.write(f"- 平均音符数量: {sum(entry_counts)/len(entry_counts):.1f}\n\n")
+            
+            # 应用建议
+            f.write("## 🎯 应用建议\n\n")
+            
+            # 根据音符数量分组
+            small_systems = [r for r in successful_results if len(r.entries) <= 15]
+            medium_systems = [r for r in successful_results if 15 < len(r.entries) <= 30]
+            large_systems = [r for r in successful_results if len(r.entries) > 30]
+            
+            if small_systems:
+                f.write(f"### 简约系统 ({len(small_systems)} 个)\n")
+                f.write("- **适用场景**: 教育、入门学习、简约音乐\n")
+                f.write("- **建议用途**: 音乐理论教学、基础作曲练习\n\n")
+            
+            if medium_systems:
+                f.write(f"### 中等复杂度系统 ({len(medium_systems)} 个)\n")
+                f.write("- **适用场景**: 室内乐、现代作曲、跨界音乐\n")
+                f.write("- **建议用途**: 专业创作、音乐实验\n\n")
+            
+            if large_systems:
+                f.write(f"### 复杂系统 ({len(large_systems)} 个)\n")
+                f.write("- **适用场景**: 微分音音乐、实验音乐、研究\n")
+                f.write("- **建议用途**: 前卫作曲、音乐研究、声音设计\n\n")
+            
+            f.write("---\n")
+            f.write(f"*生成时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}*\n")
+    
+    def _generate_executive_summary(self, exploration_results, evaluations, classifications, audio_assessments, report_dir: Path):
         """生成执行摘要"""
-        with open(self.output_path / "executive_summary.md", "w", encoding="utf-8") as f:
+        with open(report_dir / "executive_summary.md", "w", encoding="utf-8") as f:
             f.write("# PetersenExplorer 探索执行摘要\n\n")
             
             # 基本统计
@@ -157,16 +196,23 @@ class PetersenExplorationReportGenerator:
                 f.write(f"- **总测试组合**: {total_count}\n")
                 f.write(f"- **成功生成**: {success_count} (0.0%)\n")
             
-            f.write(f"- **详细分析**: {len(evaluations)}\n")
-            f.write(f"- **系统分类**: {len(classifications)}\n")
-            f.write(f"- **音频测试**: {len(audio_assessments)}\n\n")
+            f.write(f"- **详细分析**: {len(evaluations) if evaluations else 0}\n")
+            f.write(f"- **系统分类**: {len(classifications) if classifications else 0}\n")
+            f.write(f"- **音频测试**: {len(audio_assessments) if audio_assessments else 0}\n\n")
             
             # 分类分布
             if classifications:
                 f.write("## 🏷️ 系统分类分布\n\n")
                 category_counts = {}
                 for classification in classifications.values():
-                    category = classification.category if hasattr(classification, 'category') else "未分类"
+                    # 确保正确获取分类名称
+                    if hasattr(classification, 'primary_category'):
+                        if hasattr(classification.primary_category, 'value'):
+                            category = classification.primary_category.value
+                        else:
+                            category = str(classification.primary_category)
+                    else:
+                        category = "未分类"
                     category_counts[category] = category_counts.get(category, 0) + 1
                 
                 for category, count in sorted(category_counts.items(), key=lambda x: x[1], reverse=True):

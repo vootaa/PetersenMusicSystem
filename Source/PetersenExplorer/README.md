@@ -68,6 +68,7 @@ results = explore_specific_presets(
 ## 📁 项目结构
 
 ```
+
 PetersenExplorer/
 ├── core/                          # 核心分析模块
 │   ├── parameter_explorer.py      # 参数空间探索
@@ -176,6 +177,7 @@ config.audio_test_sample_size = 10  # 测试前10个最优系统
 ### 报告结构
 
 ```
+
 report_name/
 ├── README.md                      # 报告索引
 ├── executive_summary.md           # 执行摘要
