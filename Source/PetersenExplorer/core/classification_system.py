@@ -2,7 +2,7 @@
 Petersen音律开放性分类系统
 基于多维度评估结果进行灵活的音律分类和应用推荐
 """
-from typing import List, Dict, Tuple, Optional, Set
+from typing import List, Dict, Tuple, Optional, Set, Any
 from dataclasses import dataclass
 from enum import Enum
 import sys

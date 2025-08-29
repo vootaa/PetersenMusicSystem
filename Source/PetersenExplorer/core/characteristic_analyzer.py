@@ -359,40 +359,40 @@ class CharacteristicAnalyzer:
         return (variety_ratio + entropy_ratio) / 2
     
     def _analyze_harmonic_potential(self, interval_analyses: List[IntervalAnalysis], entries: List) -> HarmonicPotential:
-    """分析和声潜力"""
-    if not interval_analyses:
-        return HarmonicPotential(0, 0, 0, 1, 0, [])
-    
-    # 计算协和音程比例
-    consonant_count = sum(1 for a in interval_analyses if a.consonance_score >= 0.7)
-    consonant_ratio = consonant_count / len(interval_analyses)
-    dissonant_ratio = 1.0 - consonant_ratio
-    
-    # 和弦构建能力评分
-    chord_building_score = min(1.0, consonant_ratio * 1.5)
-    
-    # 声部进行评分（基于音程平滑度）
-    voice_leading_score = self._calculate_melodic_fluency(entries)
-    
-    # 和声复杂度
-    complexity = len(set(round(a.cents, 0) for a in interval_analyses)) / len(interval_analyses)
-    
-    # 推荐和弦大小
-    if consonant_ratio >= 0.8:
-        recommended_sizes = [3, 4, 5]
-    elif consonant_ratio >= 0.6:
-        recommended_sizes = [3, 4]
-    else:
-        recommended_sizes = [3]
-    
-    return HarmonicPotential(
-        chord_building_score=chord_building_score,
-        voice_leading_score=voice_leading_score,
-        consonant_interval_ratio=consonant_ratio,
-        dissonant_interval_ratio=dissonant_ratio,
-        harmonic_complexity=complexity,
-        recommended_chord_sizes=recommended_sizes
-    )
+        """分析和声潜力"""
+        if not interval_analyses:
+            return HarmonicPotential(0, 0, 0, 1, 0, [])
+        
+        # 计算协和音程比例
+        consonant_count = sum(1 for a in interval_analyses if a.consonance_score >= 0.7)
+        consonant_ratio = consonant_count / len(interval_analyses)
+        dissonant_ratio = 1.0 - consonant_ratio
+        
+        # 和弦构建能力评分
+        chord_building_score = min(1.0, consonant_ratio * 1.5)
+        
+        # 声部进行评分（基于音程平滑度）
+        voice_leading_score = self._calculate_melodic_fluency(entries)
+        
+        # 和声复杂度
+        complexity = len(set(round(a.cents, 0) for a in interval_analyses)) / len(interval_analyses)
+        
+        # 推荐和弦大小
+        if consonant_ratio >= 0.8:
+            recommended_sizes = [3, 4, 5]
+        elif consonant_ratio >= 0.6:
+            recommended_sizes = [3, 4]
+        else:
+            recommended_sizes = [3]
+        
+        return HarmonicPotential(
+            chord_building_score=chord_building_score,
+            voice_leading_score=voice_leading_score,
+            consonant_interval_ratio=consonant_ratio,
+            dissonant_interval_ratio=dissonant_ratio,
+            harmonic_complexity=complexity,
+            recommended_chord_sizes=recommended_sizes
+        )
 
 def _analyze_melodic_characteristics(self, interval_analyses: List[IntervalAnalysis]) -> MelodicCharacteristics:
     """分析旋律特性"""
