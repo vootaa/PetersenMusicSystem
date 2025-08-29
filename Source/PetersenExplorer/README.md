@@ -76,8 +76,7 @@ PetersenExplorer/
 │   └── classification_system.py   # 开放性分类
 ├── audio/                         # 音频验证模块
 │   ├── playback_tester.py         # 播放测试器
-│   ├── musicality_validator.py    # 音乐性验证
-│   └── soundfont_controller.py    # SoundFont控制
+│   └── musicality_validator.py    # 音乐性验证
 ├── reporting/                     # 报告生成模块
 │   ├── report_generator.py        # 报告生成器
 │   ├── visualization.py           # 可视化工具
