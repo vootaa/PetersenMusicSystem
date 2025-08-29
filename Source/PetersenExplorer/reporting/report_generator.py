@@ -135,89 +135,56 @@ class PetersenExplorationReportGenerator:
         print(f"✅ 报告生成完成: {main_report_path}")
         return main_report_path
     
-    def _generate_executive_summary(self, exploration_results: List[ExplorationResult],
-                                  evaluations: Dict, classifications: Dict,
-                                  audio_assessments: Dict, report_dir: Path):
+    def _generate_executive_summary(self, exploration_results, evaluations, classifications, audio_assessments):
         """生成执行摘要"""
-        summary_path = report_dir / "executive_summary.md"
-        
-        # 统计信息
-        successful_results = [r for r in exploration_results if r.success]
-        failed_results = [r for r in exploration_results if not r.success]
-        
-        # 分类统计
-        category_stats = {}
-        if classifications:
-            for classification in classifications.values():
-                category = classification.primary_category.value
-                category_stats[category] = category_stats.get(category, 0) + 1
-        
-        # 音频测试统计
-        audio_recommended = 0
-        if audio_assessments:
-            audio_recommended = sum(1 for a in audio_assessments.values() 
-                                  if a.recommended_for_audio)
-        
-        # 前10名系统
-        top_systems = self._identify_top_systems(successful_results, evaluations, 10)
-        
-        with open(summary_path, 'w', encoding='utf-8') as f:
-            f.write(f"# Petersen音律系统探索 - 执行摘要\n\n")
-            f.write(f"**生成时间**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
+        with open(self.output_path / "executive_summary.md", "w", encoding="utf-8") as f:
+            f.write("# PetersenExplorer 探索执行摘要\n\n")
             
-            # 核心统计
-            f.write("## 📊 核心统计\n\n")
-            f.write(f"- **总测试组合**: {len(exploration_results)}\n")
-            f.write(f"- **成功生成**: {len(successful_results)} ({len(successful_results)/len(exploration_results)*100:.1f%})\n")
-            f.write(f"- **失败组合**: {len(failed_results)} ({len(failed_results)/len(exploration_results)*100:.1f%})\n")
+            # 基本统计
+            successful_results = [r for r in exploration_results if r.success]
+            total_count = len(exploration_results)
+            success_count = len(successful_results)
             
-            if audio_assessments:
-                f.write(f"- **音频测试**: {len(audio_assessments)} 个系统\n")
-                f.write(f"- **音频推荐**: {audio_recommended} 个系统\n")
+            f.write("## 📊 基本统计\n\n")
+            
+            # 修复格式化问题
+            if total_count > 0:
+                success_rate = (success_count / total_count) * 100
+                f.write(f"- **总测试组合**: {total_count}\n")
+                f.write(f"- **成功生成**: {success_count} ({success_rate:.1f}%)\n")
+            else:
+                f.write(f"- **总测试组合**: {total_count}\n")
+                f.write(f"- **成功生成**: {success_count} (0.0%)\n")
+            
+            f.write(f"- **详细分析**: {len(evaluations)}\n")
+            f.write(f"- **系统分类**: {len(classifications)}\n")
+            f.write(f"- **音频测试**: {len(audio_assessments)}\n\n")
             
             # 分类分布
-            if category_stats:
-                f.write("\n## 🏷️ 系统分类分布\n\n")
-                for category, count in sorted(category_stats.items(), key=lambda x: x[1], reverse=True):
-                    percentage = count / len(classifications) * 100 if classifications else 0
-                    f.write(f"- **{category}**: {count} 个系统 ({percentage:.1f}%)\n")
-            
-            # 前10名系统
-            f.write("\n## 🏆 优秀系统推荐 (前10名)\n\n")
-            for i, system in enumerate(top_systems, 1):
-                params = system['exploration_result'].parameters
-                f.write(f"### {i}. φ={params.phi_name}, δθ={params.delta_theta_name}, F_base={params.f_base}Hz\n\n")
+            if classifications:
+                f.write("## 🏷️ 系统分类分布\n\n")
+                category_counts = {}
+                for classification in classifications.values():
+                    category = classification.category if hasattr(classification, 'category') else "未分类"
+                    category_counts[category] = category_counts.get(category, 0) + 1
                 
-                if 'evaluation' in system:
-                    eval_score = system['evaluation'].weighted_total_score
-                    f.write(f"- **综合评分**: {eval_score:.3f}\n")
-                
-                if 'classification' in system:
-                    category = system['classification'].primary_category.value
-                    f.write(f"- **系统类别**: {category}\n")
-                
-                if 'audio_assessment' in system:
-                    playability = system['audio_assessment'].overall_playability
-                    f.write(f"- **播放能力**: {playability:.1%}\n")
-                
-                # 基本信息
-                entries_count = len(system['exploration_result'].entries)
-                f.write(f"- **音符数量**: {entries_count}\n")
-                
-                if system['exploration_result'].basic_metrics:
-                    metrics = system['exploration_result'].basic_metrics
-                    if 'min_interval_cents' in metrics:
-                        f.write(f"- **音程范围**: {metrics['min_interval_cents']:.1f} - {metrics['max_interval_cents']:.1f} 音分\n")
-                
+                for category, count in sorted(category_counts.items(), key=lambda x: x[1], reverse=True):
+                    f.write(f"- **{category}**: {count} 个系统\n")
                 f.write("\n")
             
-            # 关键发现
-            f.write("## 🔍 关键发现\n\n")
-            f.write(self._generate_key_findings(successful_results, evaluations, classifications))
+            # 评估结果摘要
+            if evaluations:
+                f.write("## 🎯 评估结果摘要\n\n")
+                scores = [eval_result.weighted_total_score if hasattr(eval_result, 'weighted_total_score') else 0 
+                        for eval_result in evaluations.values()]
+                
+                if scores:
+                    f.write(f"- **平均评分**: {sum(scores)/len(scores):.3f}\n")
+                    f.write(f"- **最高评分**: {max(scores):.3f}\n")
+                    f.write(f"- **最低评分**: {min(scores):.3f}\n")
             
-            # 应用建议
-            f.write("\n## 💡 应用建议\n\n")
-            f.write(self._generate_application_recommendations(top_systems))
+            f.write("\n---\n")
+            f.write(f"*报告生成时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}*\n")
     
     def _generate_detailed_analysis(self, exploration_results: List[ExplorationResult],
                                   evaluations: Dict, classifications: Dict,
