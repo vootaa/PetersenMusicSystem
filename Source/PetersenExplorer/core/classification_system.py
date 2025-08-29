@@ -15,65 +15,63 @@ sys.path.insert(0, str(current_dir.parent.parent))
 from .evaluation_framework import ComprehensiveEvaluation, EvaluationDimension
 
 class PrimaryCategory(Enum):
-    """主要类别"""
-    class PrimaryCategory(Enum):
-        """主要类别：表示音律系统的主分类，并提供简要语义说明与典型应用指引。
-        
-        每个枚举值的 .value 保持为短标识符字符串，使用 .description 属性可以获取更完整的中文说明。
-        """
-        TRADITIONAL_EXTENSION = "traditional_extension"         # 传统扩展型：在十二平均律或历史音律基础上进行扩展，兼容性强，适合古典和当代传统化编制
-        MICROTONAL_EXPLORATION = "microtonal_exploration"       # 微分音探索型：强调微分音与细分音程，适合现代古典、实验室研究与精细调音的创作
-        EXPERIMENTAL_AVANT_GARDE = "experimental_avant_garde"   # 实验前卫型：追求声音创新和非常规结构，常用于声音艺术与先锋音乐装置
-        WORLD_MUSIC_FUSION = "world_music_fusion"               # 世界音乐融合型：融合多文化音阶与节奏，适合跨文化合作与民族音乐改编
-        SOUND_ART_DESIGN = "sound_art_design"                   # 声音艺术型：面向装置、空间与多媒体互动，重视音响质感与创新表达
-        THERAPEUTIC_FUNCTIONAL = "therapeutic_functional"       # 治疗功能型：注重听觉舒缓、频率与节律对情绪/生理的影响，适用于音乐治疗与冥想
-        COMPREHENSIVE_HYBRID = "comprehensive_hybrid"           # 综合混合型：多维度平衡，无单一突出特征，适合需要通用性与多场景适配的项目
-        RESEARCH_EXPLORATION = "research_exploration"           # 研究探索型：以理论验证与学术探索为主，可能尚未成熟以投入生产环境
-        CHAMBER_MUSIC = "chamber_music"                         # 室内乐/小型合奏：适用于小编制演出，强调声部平衡与现场可演性
-        FUSION_PROJECTS = "fusion_projects"                     # 跨界/融合项目：强调不同风格或文化的混合创新，适合项目式合作与试验性演出
+    """主要类别：表示音律系统的主分类，并提供简要语义说明与典型应用指引。
+    
+    每个枚举值的 .value 保持为短标识符字符串，使用 .description 属性可以获取更完整的中文说明。
+    """
+    TRADITIONAL_EXTENSION = "traditional_extension"         # 传统扩展型：在十二平均律或历史音律基础上进行扩展，兼容性强，适合古典和当代传统化编制
+    MICROTONAL_EXPLORATION = "microtonal_exploration"       # 微分音探索型：强调微分音与细分音程，适合现代古典、实验室研究与精细调音的创作
+    EXPERIMENTAL_AVANT_GARDE = "experimental_avant_garde"   # 实验前卫型：追求声音创新和非常规结构，常用于声音艺术与先锋音乐装置
+    WORLD_MUSIC_FUSION = "world_music_fusion"               # 世界音乐融合型：融合多文化音阶与节奏，适合跨文化合作与民族音乐改编
+    SOUND_ART_DESIGN = "sound_art_design"                   # 声音艺术型：面向装置、空间与多媒体互动，重视音响质感与创新表达
+    THERAPEUTIC_FUNCTIONAL = "therapeutic_functional"       # 治疗功能型：注重听觉舒缓、频率与节律对情绪/生理的影响，适用于音乐治疗与冥想
+    COMPREHENSIVE_HYBRID = "comprehensive_hybrid"           # 综合混合型：多维度平衡，无单一突出特征，适合需要通用性与多场景适配的项目
+    RESEARCH_EXPLORATION = "research_exploration"           # 研究探索型：以理论验证与学术探索为主，可能尚未成熟以投入生产环境
+    CHAMBER_MUSIC = "chamber_music"                         # 室内乐/小型合奏：适用于小编制演出，强调声部平衡与现场可演性
+    FUSION_PROJECTS = "fusion_projects"                     # 跨界/融合项目：强调不同风格或文化的混合创新，适合项目式合作与试验性演出
 
-        @property
-        def description(self) -> str:
-            """返回该类别的详细中文说明，包含典型特征与适用场景（用于展示或报告）。"""
-            descriptions = {
-                PrimaryCategory.TRADITIONAL_EXTENSION: (
-                    "在传统音律框架上做适度扩展，保留演奏者与受众的可接受性。"
-                    "典型特征：高传统兼容、可用于古典与室内乐场景。"
-                ),
-                PrimaryCategory.MICROTONAL_EXPLORATION: (
-                    "侧重微分音与精细音高处理，适合追求新音响语汇的作曲与研究。"
-                    "典型特征：高微分音潜力、需要精确调音工具。"
-                ),
-                PrimaryCategory.EXPERIMENTAL_AVANT_GARDE: (
-                    "强调前卫实验与非常规声响结构，适用于声音艺术与装置。"
-                    "典型特征：高创新性、低传统可演性。"
-                ),
-                PrimaryCategory.WORLD_MUSIC_FUSION: (
-                    "融合多民族音阶与演奏实践，适合文化交流与跨界合作。"
-                    "典型特征：文化兼容性强、节奏与音阶多样。"
-                ),
-                PrimaryCategory.SOUND_ART_DESIGN: (
-                    "面向空间与多媒体交互的声音设计，注重质感与体验感。"
-                    "典型特征：偏实验、适合装置与多通道呈现。"
-                ),
-                PrimaryCategory.THERAPEUTIC_FUNCTIONAL: (
-                    "以促进身心健康为目标，强调可控的频率与节律效果。"
-                    "典型特征：适用于音乐治疗、冥想与健康应用。"
-                ),
-                PrimaryCategory.COMPREHENSIVE_HYBRID: (
-                    "多维度均衡的混合型，既有可用性也具一定创新性，适用范围广。"
-                ),
-                PrimaryCategory.RESEARCH_EXPLORATION: (
-                    "以验证新理论和探索性研究为主，成果倾向于学术发表与原型开发。"
-                ),
-                PrimaryCategory.CHAMBER_MUSIC: (
-                    "适用于小编制演出，关注声部之间的和谐与可演性。"
-                ),
-                PrimaryCategory.FUSION_PROJECTS: (
-                    "强调风格或文化之间的融合创新，常见于跨界演出和试验性合作。"
-                ),
-            }
-            return descriptions.get(self, "")
+    @property
+    def description(self) -> str:
+        """返回该类别的详细中文说明，包含典型特征与适用场景（用于展示或报告）。"""
+        descriptions = {
+            PrimaryCategory.TRADITIONAL_EXTENSION: (
+                "在传统音律框架上做适度扩展，保留演奏者与受众的可接受性。"
+                "典型特征：高传统兼容、可用于古典与室内乐场景。"
+            ),
+            PrimaryCategory.MICROTONAL_EXPLORATION: (
+                "侧重微分音与精细音高处理，适合追求新音响语汇的作曲与研究。"
+                "典型特征：高微分音潜力、需要精确调音工具。"
+            ),
+            PrimaryCategory.EXPERIMENTAL_AVANT_GARDE: (
+                "强调前卫实验与非常规声响结构，适用于声音艺术与装置。"
+                "典型特征：高创新性、低传统可演性。"
+            ),
+            PrimaryCategory.WORLD_MUSIC_FUSION: (
+                "融合多民族音阶与演奏实践，适合文化交流与跨界合作。"
+                "典型特征：文化兼容性强、节奏与音阶多样。"
+            ),
+            PrimaryCategory.SOUND_ART_DESIGN: (
+                "面向空间与多媒体交互的声音设计，注重质感与体验感。"
+                "典型特征：偏实验、适合装置与多通道呈现。"
+            ),
+            PrimaryCategory.THERAPEUTIC_FUNCTIONAL: (
+                "以促进身心健康为目标，强调可控的频率与节律效果。"
+                "典型特征：适用于音乐治疗、冥想与健康应用。"
+            ),
+            PrimaryCategory.COMPREHENSIVE_HYBRID: (
+                "多维度均衡的混合型，既有可用性也具一定创新性，适用范围广。"
+            ),
+            PrimaryCategory.RESEARCH_EXPLORATION: (
+                "以验证新理论和探索性研究为主，成果倾向于学术发表与原型开发。"
+            ),
+            PrimaryCategory.CHAMBER_MUSIC: (
+                "适用于小编制演出，关注声部之间的和谐与可演性。"
+            ),
+            PrimaryCategory.FUSION_PROJECTS: (
+                "强调风格或文化之间的融合创新，常见于跨界演出和试验性合作。"
+            ),
+        }
+        return descriptions.get(self, "")
 
 class SecondaryTrait(Enum):
     """次要特征"""
