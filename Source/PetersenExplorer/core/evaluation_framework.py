@@ -719,57 +719,88 @@ class MultiDimensionalEvaluator:
     
     def _evaluate_harmonic_complexity(self, characteristics) -> float:
         """评估和声复杂度"""
-        if hasattr(characteristics, 'entry_count'):
-            # 基于音符数量的简化评估
-            count = characteristics.entry_count
+        try:
+            # 修正：直接访问属性，不用.get()
+            if hasattr(characteristics, 'entry_count'):
+                count = characteristics.entry_count
+            elif hasattr(characteristics, 'entries'):
+                count = len(characteristics.entries)
+            else:
+                count = 10  # 默认值
+            
             return min(1.0, count / 20.0)
-        return 0.5
+        except:
+            return 0.5
 
     def _evaluate_melodic_potential(self, characteristics) -> float:
         """评估旋律潜力"""
-        if hasattr(characteristics, 'entry_count'):
-            count = characteristics.entry_count
+        try:
+            if hasattr(characteristics, 'entry_count'):
+                count = characteristics.entry_count
+            elif hasattr(characteristics, 'entries'):
+                count = len(characteristics.entries)
+            else:
+                count = 10
+            
             return min(1.0, (count - 5) / 15.0) if count >= 5 else 0.2
-        return 0.5
+        except:
+            return 0.5
 
     def _evaluate_compositional_versatility(self, characteristics) -> float:
         """评估作曲多样性"""
-        if hasattr(characteristics, 'entry_count'):
-            count = characteristics.entry_count
+        try:
+            if hasattr(characteristics, 'entry_count'):
+                count = characteristics.entry_count
+            elif hasattr(characteristics, 'entries'):
+                count = len(characteristics.entries)
+            else:
+                count = 10
+            
             if 8 <= count <= 25:
                 return 0.9
             elif 5 <= count <= 35:
                 return 0.7
             else:
                 return 0.4
-        return 0.5
+        except:
+            return 0.5
 
     def _evaluate_performance_difficulty(self, characteristics) -> float:
         """评估演奏难度"""
-        if hasattr(characteristics, 'entry_count'):
-            count = characteristics.entry_count
-            # 音符越多难度越高
+        try:
+            if hasattr(characteristics, 'entry_count'):
+                count = characteristics.entry_count
+            elif hasattr(characteristics, 'entries'):
+                count = len(characteristics.entries)
+            else:
+                count = 10
+            
             return min(1.0, count / 30.0)
-        return 0.5
+        except:
+            return 0.5
 
     def _evaluate_theoretical_interest(self, characteristics) -> float:
         """评估理论兴趣"""
-        if hasattr(characteristics, 'frequency_range'):
-            # 基于频率范围的简化评估
-            return 0.7
-        return 0.6
+        return 0.7 
 
     def _evaluate_practical_usability(self, characteristics) -> float:
         """评估实用性"""
-        if hasattr(characteristics, 'entry_count'):
-            count = characteristics.entry_count
+        try:
+            if hasattr(characteristics, 'entry_count'):
+                count = characteristics.entry_count
+            elif hasattr(characteristics, 'entries'):
+                count = len(characteristics.entries)
+            else:
+                count = 10
+            
             if 8 <= count <= 20:
                 return 0.9
             elif 5 <= count <= 30:
                 return 0.7
             else:
                 return 0.4
-        return 0.5
+        except:
+            return 0.5
     
     def _determine_category(self, dimension_scores: Dict, total_score: float) -> str:
         """确定音律系统类别"""

@@ -162,68 +162,49 @@ class OpenClassificationSystem:
         # 应用领域定义
         self.application_domains = self._initialize_application_domains()
     
-    def classify_system(self, evaluation_result: ComprehensiveEvaluation) -> ClassificationResult:
+    def classify_system(self, evaluation: ComprehensiveEvaluation) -> SystemClassification:
         """对系统进行分类"""
         try:
-            # 获取评估维度分数
-            dimension_scores = evaluation_result.dimension_scores
+            # 获取评估维度分数, 使用字符串键而不是枚举
+            dimension_scores = evaluation.dimension_scores
             
-            # 计算分类得分
-            traditional_score = self._get_dimension_score(dimension_scores, 'traditional_compatibility')
-            microtonal_score = self._get_dimension_score(dimension_scores, 'microtonal_potential')
-            experimental_score = self._get_dimension_score(dimension_scores, 'experimental_innovation')
-            therapeutic_score = self._get_dimension_score(dimension_scores, 'therapeutic_value')
+            # 安全获取维度分数
+            traditional_score = self._get_dimension_score(dimension_scores, 'practical_usability')
+            innovation_score = self._get_dimension_score(dimension_scores, 'compositional_versatility')
+            complexity_score = self._get_dimension_score(dimension_scores, 'harmonic_complexity')
             
-            # 获取音符数量（如果可用）
-            note_count = getattr(evaluation_result, 'note_count', 20)  # 默认值
+            # 简化分类逻辑
+            if traditional_score > 0.7:
+                primary_category = SystemCategory.TRADITIONAL_COMPATIBLE
+            elif innovation_score > 0.7:
+                primary_category = SystemCategory.EXPERIMENTAL_INNOVATION
+            elif complexity_score > 0.7:
+                primary_category = SystemCategory.MICROTONAL_EXPLORATION
+            else:
+                primary_category = SystemCategory.SPECIALIZED_RESEARCH
             
-            # 确定主要类别和置信度
-            primary_category, confidence, reasoning = self._determine_category(
-                traditional_score, microtonal_score, experimental_score, therapeutic_score, note_count
-            )
+            confidence_score = (traditional_score + innovation_score + complexity_score) / 3
             
-            # 识别次要特征
-            secondary_traits = self._identify_secondary_traits(evaluation_result)
-            
-            # 生成应用建议
-            priority_applications = evaluation_result.application_suggestions if hasattr(evaluation_result, 'application_suggestions') else []
-            strengths = evaluation_result.strengths if hasattr(evaluation_result, 'strengths') else []
-            limitations = evaluation_result.limitations if hasattr(evaluation_result, 'limitations') else []
-            
-            # 评估实用性
-            practical_assessment = self._assess_practical_usability(evaluation_result)
-            
-            return ClassificationResult(
+            return SystemClassification(
                 primary_category=primary_category,
-                secondary_traits=secondary_traits,
-                confidence_score=confidence,
-                recommended_domains=[],  # 可以后续扩展
-                priority_applications=priority_applications,
-                strengths_to_leverage=strengths,
-                areas_for_improvement=limitations,
-                complementary_systems=self._suggest_complementary_systems(evaluation_result, primary_category),
-                immediate_usability=practical_assessment['usability'],
-                learning_curve=practical_assessment['learning_curve'],
-                production_readiness=practical_assessment['production_readiness'],
-                # 兼容字段
-                secondary_categories=[],
-                classification_reasoning=" | ".join(reasoning),
-                application_domains=[],
-                target_audiences=[],
-                performance_contexts=[],
-                technical_requirements=[],
-                creative_potential_assessment={},
-                usage_recommendations=priority_applications
+                confidence_score=confidence_score,
+                detailed_scores={
+                    'traditional_compatibility': traditional_score,
+                    'experimental_innovation': innovation_score,
+                    'microtonal_potential': complexity_score
+                },
+                application_recommendations=[],
+                usage_contexts=[]
             )
             
         except Exception as e:
-            print(f"分类过程出错: {e}")
             # 返回默认分类
-            return ClassificationResult(
-                primary_category=PrimaryCategory.RESEARCH_EXPLORATION,
-                confidence_score=0.3,
-                classification_reasoning=f"分类失败，使用默认分类: {e}",
-                areas_for_improvement=[f"分类错误: {e}"]
+            return SystemClassification(
+                primary_category=SystemCategory.SPECIALIZED_RESEARCH,
+                confidence_score=0.5,
+                detailed_scores={},
+                application_recommendations=[],
+                usage_contexts=[]
             )
 
     def _determine_category(self, traditional_score, microtonal_score, 

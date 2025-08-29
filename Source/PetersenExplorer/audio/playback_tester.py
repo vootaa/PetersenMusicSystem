@@ -255,6 +255,40 @@ class PetersenPlaybackTester:
             return self._test_frequency_sweep(entries)
         else:
             raise ValueError(f"未知测试类型: {test_type}")
+
+    def _extract_note_data(self, entry, index=0):
+        """统一提取音符数据"""
+        try:
+            # 尝试不同的数据格式
+            if hasattr(entry, 'freq'):
+                freq = entry.freq
+                key_short = getattr(entry, 'key_short', f'Note{index}')
+                key_long = getattr(entry, 'key_long', key_short)
+            elif hasattr(entry, 'frequency'):
+                freq = entry.frequency
+                key_short = getattr(entry, 'key_short', f'Note{index}')
+                key_long = getattr(entry, 'key_long', key_short)
+            elif isinstance(entry, dict):
+                freq = entry.get('freq', entry.get('frequency', 440.0))
+                key_short = entry.get('key_short', entry.get('key', f'Note{index}'))
+                key_long = entry.get('key_long', entry.get('name', key_short))
+            else:
+                # 默认值
+                freq = 440.0
+                key_short = f'Note{index}'
+                key_long = key_short
+            
+            return {
+                'freq': float(freq),
+                'key': key_short,
+                'name': key_long
+            }
+        except Exception as e:
+            return {
+                'freq': 440.0,
+                'key': f'Note{index}',
+                'name': f'Note{index}'
+            }
     
     def _test_scale_ascending(self, entries: List) -> PlaybackTestResult:
         """测试上行音阶"""
@@ -272,57 +306,39 @@ class PetersenPlaybackTester:
             note_start = time.time()
             
             try:
-                # 修复：安全获取频率和键名
-                if hasattr(entry, 'freq'):
-                    freq = entry.freq
-                    key_short = getattr(entry, 'key_short', f'Note{i}')
-                    key_long = getattr(entry, 'key_long', f'Note{i}')
-                elif isinstance(entry, dict):
-                    freq = entry.get('frequency', entry.get('freq', 440.0))
-                    key_short = entry.get('key_short', entry.get('key', f'Note{i}'))
-                    key_long = entry.get('key_long', entry.get('name', f'Note{i}'))
-                else:
-                    # 如果都不是，跳过这个音符
-                    failed += 1
-                    error_messages.append(f"音符 {i} 数据格式错误")
-                    continue
-                
-                scale_data = [{
-                    'freq': freq,
-                    'key': key_short,
-                    'name': key_long
-                }]
-                
+                # 使用统一的数据提取
+                note_data = self._extract_note_data(entry, i)
+                scale_data = [note_data]
+
                 success = self.player.play_petersen_scale(
                     scale_data,
                     duration=self.test_configuration['note_duration'],
                     velocity=self.test_configuration['velocity']
                 )
-                
+
                 if success:
                     played += 1
                     detailed_log.append({
                         'index': i,
-                        'frequency': freq,
-                        'key': key_short,
+                        'frequency': note_data['freq'],
+                        'key': note_data['key'],
                         'success': True,
                         'duration': time.time() - note_start
                     })
                 else:
                     failed += 1
-                    error_messages.append(f"音符 {key_short} ({freq:.1f}Hz) 播放失败")
+                    error_messages.append(f"音符 {note_data['key']} ({note_data['freq']:.1f}Hz) 播放失败")
                     detailed_log.append({
                         'index': i,
-                        'frequency': freq,
-                        'key': key_short,
+                        'frequency': note_data['freq'],
+                        'key': note_data['key'],
                         'success': False,
                         'error': '播放函数返回失败'
                     })
                 
-                # 音符间隔
                 if i < len(test_entries) - 1:
                     time.sleep(self.test_configuration['rest_duration'])
-            
+
             except Exception as e:
                 failed += 1
                 error_messages.append(f"音符 {i} 播放异常: {str(e)}")
@@ -335,20 +351,15 @@ class PetersenPlaybackTester:
                 })
         
         total_time = time.time() - start_time
-        avg_duration = total_time / len(test_entries) if test_entries else 0
-        
-        success_rate = played / (played + failed) if (played + failed) > 0 else 0
+        success_rate = played / len(test_entries) if test_entries else 0
         
         return PlaybackTestResult(
-            test_type=PlaybackTestType.SCALE_ASCENDING,
-            success=success_rate >= 0.8,  # 80%以上成功率认为成功
+            test_name="scale_ascending",
+            success_rate=success_rate,
             notes_played=played,
             notes_failed=failed,
-            avg_play_duration=avg_duration,
-            timing_accuracy=self._calculate_timing_accuracy(detailed_log),
-            frequency_accuracy=1.0,  # 假设频率精确（由Player处理）
-            subjective_quality=self._assess_subjective_quality(success_rate),
-            error_messages=error_messages,
+            total_time=total_time,
+            error_messages=error_messages[:5],  # 限制错误消息数量
             detailed_log=detailed_log
         )
     

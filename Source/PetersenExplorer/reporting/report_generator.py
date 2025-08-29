@@ -356,7 +356,7 @@ class PetersenExplorationReportGenerator:
         self._export_scale_files(exploration_results, data_dir)
     
     def _export_complete_data_csv(self, exploration_results, evaluations, 
-                            classifications, audio_assessments, report_dir):
+                        classifications, audio_assessments, report_dir):
         """导出完整数据CSV"""
         csv_path = report_dir / "complete_data.csv"
         
@@ -382,7 +382,7 @@ class PetersenExplorationReportGenerator:
                     continue
                     
                 result_key = self._get_result_key(result)
-
+                
                 # 安全获取参数
                 params = result.parameters if hasattr(result, 'parameters') else None
                 phi_name = 'unknown'
@@ -393,6 +393,25 @@ class PetersenExplorationReportGenerator:
                     phi_name = getattr(params, 'phi_preset_name', getattr(params, 'phi_name', 'unknown'))
                     theta_name = getattr(params, 'delta_theta_preset_name', getattr(params, 'delta_theta_name', 'unknown'))
                     f_base = getattr(params, 'f_base', 0)
+                
+                # 安全获取频率范围 - 修复属性名
+                frequency_range = "unknown"
+                try:
+                    if result.entries:
+                        frequencies = []
+                        for entry in result.entries:
+                            # 尝试不同的频率属性名
+                            if hasattr(entry, 'freq'):
+                                frequencies.append(entry.freq)
+                            elif hasattr(entry, 'frequency'):
+                                frequencies.append(entry.frequency)
+                            elif isinstance(entry, dict):
+                                frequencies.append(entry.get('freq', entry.get('frequency', 440.0)))
+                        
+                        if frequencies:
+                            frequency_range = f"{min(frequencies):.1f}-{max(frequencies):.1f}"
+                except Exception as e:
+                    frequency_range = "error"
 
                 row = {
                     'system_id': result_key,
@@ -400,7 +419,7 @@ class PetersenExplorationReportGenerator:
                     'delta_theta_preset': theta_name,
                     'f_base': f_base,
                     'note_count': len(result.entries),
-                    'frequency_range_hz': f"{min(entry.frequency for entry in result.entries):.1f}-{max(entry.frequency for entry in result.entries):.1f}",
+                    'frequency_range_hz': frequency_range,
                     'weighted_total_score': 0,
                     'primary_category': '',
                     'confidence_score': 0,
