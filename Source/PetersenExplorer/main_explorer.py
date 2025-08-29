@@ -169,7 +169,7 @@ class ExplorationConfiguration:
     batch_size: int = 50
     
     # 音频配置
-    steinway_soundfont: str = "GD_Steinway_Model_D274.sf2"  # 或 "GD_Steinway_Model_D274II.sf2"
+    preferred_soundfont: Optional[str] = None
     audio_test_sample_size: int = 5  # 音频测试的系统数量
     
     # 报告配置
@@ -484,11 +484,11 @@ class PetersenMainExplorer:
         print(f"🎵 测试 {len(test_systems)} 个优选系统的音频播放能力...")
         
         try:
-            # 修复音频测试器初始化 - 正确传递SoundFont配置
-            tester = PetersenPlaybackTester(
-                soundfont_path=getattr(self.config, 'steinway_soundfont', None),
-                soundfont_directory=getattr(self.config, 'soundfont_directory', "../../Soundfonts")
-            )
+            # 简化初始化 - 只传递SoundFont文件名
+            if hasattr(self.config, 'preferred_soundfont') and self.config.preferred_soundfont:
+                tester = PetersenPlaybackTester(soundfont_name=self.config.preferred_soundfont)
+            else:
+                tester = PetersenPlaybackTester()
             
             for i, result in enumerate(test_systems, 1):
                 result_key = self._get_result_key(result)

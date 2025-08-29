@@ -81,30 +81,20 @@ class SystemPlaybackAssessment:
 class PetersenPlaybackTester:
     """Petersen音律播放测试器"""
     
-    def __init__(self, soundfont_path: str = None, soundfont_directory: str = None):
-        """
-        初始化播放测试器
-        
-        Args:
-            soundfont_path: 特定SoundFont文件路径
-            soundfont_directory: SoundFont目录路径
-        """
+    def __init__(self, soundfont_name: str = None):
+        """初始化播放测试器 - 只接受SoundFont文件名"""
         if not ENHANCED_PLAYER_AVAILABLE:
             raise RuntimeError("Enhanced Petersen Player 不可用，无法进行音频测试")
         
-        self.soundfont_path = soundfont_path
-        self.soundfont_directory = soundfont_directory or "../../Soundfonts"
+        self.soundfont_name = soundfont_name
         self.player = None
         self._initialize_player()
     
     def _initialize_player(self):
         """初始化播放器"""
         try:
-            # 创建播放器配置
+            # 创建播放器配置 - 使用简化参数
             config = PlayerConfiguration(
-                soundfont_directory=self.soundfont_directory,
-                default_soundfont=self.soundfont_path if self.soundfont_path else "",
-                auto_select_soundfont=True if not self.soundfont_path else False,
                 enable_effects=True,
                 enable_expression=True
             )
@@ -112,21 +102,31 @@ class PetersenPlaybackTester:
             # 创建播放器
             self.player = create_player(config=config)
             
-            # 如果指定了特定的SoundFont文件，尝试加载它
-            if self.soundfont_path:
-                soundfont_name = Path(self.soundfont_path).name
-                success = self.player.switch_soundfont(soundfont_name, quiet_mode=True)
+            # 如果指定了SoundFont，尝试切换
+            if self.soundfont_name:
+                success = self.player.switch_soundfont(self.soundfont_name, quiet_mode=True)
                 if success:
-                    print(f"✅ 指定SoundFont加载成功: {soundfont_name}")
+                    print(f"✅ SoundFont切换成功: {self.soundfont_name}")
                 else:
-                    print(f"⚠️ 指定SoundFont加载失败，使用默认: {soundfont_name}")
+                    print(f"⚠️ SoundFont切换失败，使用默认: {self.soundfont_name}")
             
-            print("✅ Enhanced Petersen Player 初始化完成")
+            print("✅ 播放测试器初始化完成")
             
         except Exception as e:
             print(f"❌ 播放器初始化失败: {e}")
             self.player = None
             raise
+
+    # 添加测试配置属性
+    @property
+    def test_configuration(self):
+        """测试配置"""
+        return {
+            'note_duration': 0.3,
+            'rest_duration': 0.1,
+            'chord_duration': 0.5,
+            'velocity': 80
+        }
     
     def __enter__(self):
         """上下文管理器进入"""

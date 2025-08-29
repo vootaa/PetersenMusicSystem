@@ -50,6 +50,18 @@ def run_complete_exploration():
     from main_explorer import PetersenMainExplorer, ExplorationConfiguration
     
     print("\n🚀 启动完整PetersenExplorer系统")
+
+    soundfont_choice = input("选择SoundFont (1=D274, 2=D274II, 其他=禁用音频): ").strip()
+
+    if soundfont_choice == "1":
+        preferred_soundfont = "GD_Steinway_Model_D274.sf2"
+        enable_audio = True
+    elif soundfont_choice == "2":
+        preferred_soundfont = "GD_Steinway_Model_D274II.sf2"
+        enable_audio = True
+    else:
+        preferred_soundfont = None
+        enable_audio = False
     
     # 配置完整探索参数
     config = ExplorationConfiguration(
@@ -63,9 +75,12 @@ def run_complete_exploration():
         max_entries=60,
         
         # 功能开关
-        enable_audio_testing=True,      # 启用音频测试
-        enable_detailed_analysis=True,  # 启用详细分析
-        enable_reporting=True,          # 启用报告生成
+        enable_audio_testing=enable_audio,      # 启用音频测试
+        enable_detailed_analysis=True,          # 启用详细分析
+        enable_reporting=True,                  # 启用报告生成
+
+        #SoundFont
+        preferred_soundfont=preferred_soundfont,
         
         # 性能配置
         max_workers=4,
