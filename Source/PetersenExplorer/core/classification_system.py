@@ -162,7 +162,7 @@ class OpenClassificationSystem:
         # 应用领域定义
         self.application_domains = self._initialize_application_domains()
     
-    def classify_system(self, evaluation: ComprehensiveEvaluation) -> SystemClassification:
+    def classify_system(self, evaluation: ComprehensiveEvaluation) -> ClassificationResult:
         """对系统进行分类"""
         try:
             # 获取评估维度分数, 使用字符串键而不是枚举
@@ -185,7 +185,7 @@ class OpenClassificationSystem:
             
             confidence_score = (traditional_score + innovation_score + complexity_score) / 3
             
-            return SystemClassification(
+            return ClassificationResult(
                 primary_category=primary_category,
                 confidence_score=confidence_score,
                 detailed_scores={
@@ -199,7 +199,7 @@ class OpenClassificationSystem:
             
         except Exception as e:
             # 返回默认分类
-            return SystemClassification(
+            return ClassificationResult(
                 primary_category=SystemCategory.SPECIALIZED_RESEARCH,
                 confidence_score=0.5,
                 detailed_scores={},
