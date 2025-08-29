@@ -30,7 +30,7 @@ except ImportError as e:
 try:
     from core.parameter_explorer import ParameterSpaceExplorer, ExplorationResult
     from core.characteristic_analyzer import CharacteristicAnalyzer  
-    from core.evaluation_framework import MultiDimensionalEvaluator, ComprehensiveEvaluation
+    from core.evaluation_framework import MultiDimensionalEvaluator, ComprehensiveEvaluation, DimensionScore
     from core.classification_system import OpenClassificationSystem, ClassificationResult
     from reporting.report_generator import PetersenExplorationReportGenerator
     CORE_MODULES_AVAILABLE = True
@@ -39,6 +39,12 @@ except ImportError as e:
     CORE_MODULES_AVAILABLE = False
     
     # 简化类定义
+    class DimensionScore:
+        def __init__(self, score=0.0, confidence=0.0, details=None):
+            self.score = score
+            self.confidence = confidence
+            self.details = details or {}
+
     class ExplorationResult:
         def __init__(self, parameters, scale, entries, success, basic_metrics=None):
             self.parameters = parameters
@@ -52,57 +58,61 @@ except ImportError as e:
             self.f_base_candidates = f_base_candidates
             self.f_min = f_min
             self.f_max = f_max
+            # 使用 PetersenScale_Phi 的预设计算总组合数
+            from PetersenScale_Phi import PHI_PRESETS, DELTA_THETA_PRESETS
             self.total_combinations = len(PHI_PRESETS) * len(DELTA_THETA_PRESETS) * len(f_base_candidates)
         
         def explore_all_combinations(self, progress_callback=None, error_callback=None):
             return self._simplified_exploration(progress_callback, error_callback)
         
         def _simplified_exploration(self, progress_callback, error_callback):
-            # 简化的探索实现
             results = []
-            count = 0
+            # 创建一些示例结果用于测试
+            from PetersenScale_Phi import PetersenScale_Phi, PHI_PRESETS, DELTA_THETA_PRESETS
+            from core.parameter_explorer import ExplorationParameters
             
-            for phi_name, phi_value in list(PHI_PRESETS.items())[:5]:  # 限制测试数量
-                for theta_name, theta_value in list(DELTA_THETA_PRESETS.items())[:5]:
-                    for f_base in self.f_base_candidates:
+            count = 0
+            phi_items = list(PHI_PRESETS.items())[:3]  # 只测试前3个φ值
+            delta_theta_items = list(DELTA_THETA_PRESETS.items())[:3]  # 只测试前3个δθ值
+            
+            for phi_name, phi_value in phi_items:
+                for dth_name, dth_value in delta_theta_items:
+                    for f_base in self.f_base_candidates[:2]:  # 只测试前2个f_base
                         count += 1
-                        
                         try:
-                            from types import SimpleNamespace
-                            params = SimpleNamespace(
+                            params = ExplorationParameters(
                                 phi_name=phi_name,
                                 phi_value=phi_value,
-                                delta_theta_name=theta_name,
-                                delta_theta_value=theta_value,
-                                f_base=f_base
+                                delta_theta_name=dth_name,
+                                delta_theta_value=dth_value,
+                                f_base=f_base,
+                                f_min=self.f_min,
+                                f_max=self.f_max
                             )
                             
                             scale = PetersenScale_Phi(
                                 F_base=f_base,
-                                delta_theta=theta_value,
                                 phi=phi_value,
+                                delta_theta=dth_value,
                                 F_min=self.f_min,
                                 F_max=self.f_max
                             )
                             
-                            entries = scale.generate()
+                            entries = scale.generate_raw()
                             
                             result = ExplorationResult(
                                 parameters=params,
                                 scale=scale,
                                 entries=entries,
                                 success=True,
-                                basic_metrics={
-                                    'entry_count': len(entries),
-                                    'frequency_range': (entries[0]['freq'], entries[-1]['freq']) if entries else (0, 0)
-                                }
+                                basic_metrics={'entry_count': len(entries)}
                             )
                             
                             results.append(result)
                             
                             if progress_callback:
-                                progress_callback(count, min(25, self.total_combinations), result)
-                            
+                                progress_callback(count, self.total_combinations, result)
+                                
                         except Exception as e:
                             if error_callback:
                                 error_callback(params, str(e))
@@ -111,10 +121,10 @@ except ImportError as e:
             return results
         
         def filter_by_criteria(self, results=None, **kwargs):
-            if not hasattr(self, '_last_results'):
-                return []
-            results = results or self._last_results
-            return [r for r in results if r.success and len(r.entries) >= kwargs.get('min_entries', 5)]
+            if results is None:
+                results = []
+            # 简单筛选：返回成功的结果
+            return [r for r in results if r.success]
     
     class CharacteristicAnalyzer:
         def analyze_scale_characteristics(self, scale, entries):

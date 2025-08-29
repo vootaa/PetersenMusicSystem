@@ -12,6 +12,20 @@ current_dir = Path(__file__).parent
 sys.path.insert(0, str(current_dir.parent))
 sys.path.insert(0, str(current_dir))
 
+try:
+    from core.evaluation_framework import EvaluationDimension
+except ImportError:
+    # 如果导入失败，创建简单的枚举
+    class EvaluationDimension:
+        TRADITIONAL_COMPATIBILITY = "traditional_compatibility"
+        EXPERIMENTAL_INNOVATION = "experimental_innovation"
+        MICROTONAL_POTENTIAL = "microtonal_potential"
+        WORLD_MUSIC_AFFINITY = "world_music_affinity"
+        THERAPEUTIC_VALUE = "therapeutic_value"
+        HARMONIC_RICHNESS = "harmonic_richness"
+        MELODIC_EXPRESSIVENESS = "melodic_expressiveness"
+        TECHNICAL_FEASIBILITY = "technical_feasibility"
+
 def simple_exploration():
     """简化的探索流程"""
     print("🎼" + "="*60 + "🎼")
@@ -178,13 +192,33 @@ def print_system_recommendations(explorer):
     """打印系统推荐"""
     print(f"\n💡 应用推荐:")
     
-    # 传统音乐系统
+    # 传统音乐系统 - 修复维度键名访问
     traditional_systems = explorer.get_top_systems(3, criteria="traditional")
     if traditional_systems:
         print(f"   🎼 传统音乐应用 (前3名):")
         for i, (result, evaluation, classification) in enumerate(traditional_systems, 1):
             params = result.parameters
-            score = evaluation.dimension_scores['traditional_compatibility'].score if evaluation else 0
+            # 修复：安全访问维度分数
+            score = 0
+            if evaluation and hasattr(evaluation, 'dimension_scores') and evaluation.dimension_scores:
+                # 尝试多个可能的键名
+                possible_keys = [
+                    'traditional_compatibility', 
+                    EvaluationDimension.TRADITIONAL_COMPATIBILITY,
+                    'harmonic_complexity', 
+                    'practical_usability'
+                ]
+                
+                for key in possible_keys:
+                    if key in evaluation.dimension_scores:
+                        score_obj = evaluation.dimension_scores[key]
+                        score = score_obj.score if hasattr(score_obj, 'score') else float(score_obj)
+                        break
+                
+                # 如果找不到具体的维度，使用加权总分
+                if score == 0 and hasattr(evaluation, 'weighted_total_score'):
+                    score = evaluation.weighted_total_score
+            
             print(f"      {i}. {params.phi_name} × {params.delta_theta_name} (兼容性: {score:.3f})")
     
     # 实验音乐系统
@@ -193,7 +227,24 @@ def print_system_recommendations(explorer):
         print(f"   🔬 实验音乐应用 (前3名):")
         for i, (result, evaluation, classification) in enumerate(experimental_systems, 1):
             params = result.parameters
-            score = evaluation.dimension_scores['experimental_innovation'].score if evaluation else 0
+            score = 0
+            if evaluation and hasattr(evaluation, 'dimension_scores') and evaluation.dimension_scores:
+                possible_keys = [
+                    'experimental_innovation',
+                    EvaluationDimension.EXPERIMENTAL_INNOVATION,
+                    'compositional_versatility', 
+                    'theoretical_interest'
+                ]
+                
+                for key in possible_keys:
+                    if key in evaluation.dimension_scores:
+                        score_obj = evaluation.dimension_scores[key]
+                        score = score_obj.score if hasattr(score_obj, 'score') else float(score_obj)
+                        break
+                
+                if score == 0 and hasattr(evaluation, 'weighted_total_score'):
+                    score = evaluation.weighted_total_score
+            
             print(f"      {i}. {params.phi_name} × {params.delta_theta_name} (创新性: {score:.3f})")
     
     # 音频播放推荐

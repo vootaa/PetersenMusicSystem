@@ -263,30 +263,16 @@ class PetersenPlaybackTester:
             if hasattr(entry, 'freq'):
                 # 如果是对象，直接访问属性
                 frequency = entry.freq
-                key = getattr(entry, 'key', f"Note{index}")
+                key = getattr(entry, 'key_short', f"Note{index}")
             elif isinstance(entry, dict):
-                # 如果是字典，使用键访问
-                if 'freq' in entry:
-                    frequency = entry['freq']
-                    key = entry.get('key', f"Note{index}")
-                elif 'frequency' in entry:
-                    frequency = entry['frequency']
-                    key = entry.get('key', f"Note{index}")
-                else:
-                    # 检查是否有其他可能的频率字段
-                    freq_fields = ['f', 'hz', 'frequency_hz']
-                    frequency = None
-                    for field in freq_fields:
-                        if field in entry:
-                            frequency = entry[field]
-                            break
-                    
-                    if frequency is None:
-                        # 如果找不到频率字段，输出调试信息
-                        print(f"调试：entry类型={type(entry)}, 内容={entry}")
-                        raise ValueError(f"无法在条目中找到频率信息: {list(entry.keys())}")
-                    
-                    key = entry.get('key', f"Note{index}")
+                # 如果是字典，使用键访问 - 修复：PetersenScale_Phi 返回的字典使用 'freq' 键
+                frequency = entry.get('freq')
+                if frequency is None:
+                    # 调试输出，看看实际的键名是什么
+                    print(f"调试：entry keys = {list(entry.keys()) if isinstance(entry, dict) else 'not dict'}")
+                    raise ValueError(f"无法在条目中找到频率信息，可用键: {list(entry.keys())}")
+                
+                key = entry.get('key_short', f"Note{index}")
             else:
                 # 尝试将其作为数值处理
                 try:
