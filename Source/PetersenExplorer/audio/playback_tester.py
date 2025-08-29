@@ -265,11 +265,11 @@ class PetersenPlaybackTester:
                 frequency = entry.freq
                 key = getattr(entry, 'key_short', f"Note{index}")
             elif isinstance(entry, dict):
-                # 如果是字典，使用键访问 - 修复：PetersenScale_Phi 返回的字典使用 'freq' 键
+                # 如果是字典，使用键访问
                 frequency = entry.get('freq')
                 if frequency is None:
                     # 调试输出，看看实际的键名是什么
-                    print(f"调试：entry keys = {list(entry.keys()) if isinstance(entry, dict) else 'not dict'}")
+                    print(f"调试：entry = {entry}")
                     raise ValueError(f"无法在条目中找到频率信息，可用键: {list(entry.keys())}")
                 
                 key = entry.get('key_short', f"Note{index}")
@@ -520,11 +520,9 @@ class PetersenPlaybackTester:
             note_start = time.time()
             
             try:
-                scale_data = [{
-                    'freq': entry.freq,
-                    'key': entry.key_short,
-                    'name': entry.key_long
-                }]
+                # 使用统一的数据提取方法
+                note_data = self._extract_note_data(entry, i)
+                scale_data = [note_data]
                 
                 # 旋律中的音符稍长一些
                 duration = self.test_configuration['note_duration'] * 1.2
@@ -539,21 +537,22 @@ class PetersenPlaybackTester:
                     played += 1
                     detailed_log.append({
                         'index': i,
-                        'frequency': entry.freq,
-                        'key': entry.key_short,
+                        'frequency': note_data['freq'],
+                        'key': note_data['key'],
                         'success': True,
                         'duration': time.time() - note_start,
                         'melody_position': i
                     })
                 else:
                     failed += 1
-                    error_messages.append(f"旋律音符 {entry.key_short} 播放失败")
+                    error_messages.append(f"旋律音符 {note_data['key']} 播放失败")
                 
                 time.sleep(self.test_configuration['rest_duration'] * 0.8)  # 旋律间隔稍短
             
             except Exception as e:
                 failed += 1
-                error_messages.append(f"旋律音符 {entry.key_short} 异常: {str(e)}")
+                note_data = self._extract_note_data(entry, i)
+                error_messages.append(f"旋律音符 {note_data['key']} 异常: {str(e)}")
         
         total_time = time.time() - start_time
         avg_duration = total_time / len(melody_pattern) if melody_pattern else 0
@@ -606,29 +605,19 @@ class PetersenPlaybackTester:
         chord_start = time.time()
         
         try:
-            # 准备和弦数据
+            # 准备和弦数据 - 使用统一的数据提取方法
             chord_data = []
             for entry in chord_notes:
-                chord_data.append({
-                    'freq': entry.freq,
-                    'key': entry.key_short,
-                    'name': entry.key_long
-                })
-            
-            # 尝试同时播放和弦（如果Player支持）
-            # 这里假设player支持和弦模式
-            success = True
+                note_data = self._extract_note_data(entry)
+                chord_data.append(note_data)
             
             # 如果不支持同时播放，则快速连续播放
             for i, entry in enumerate(chord_notes):
-                note_data = [{
-                    'freq': entry.freq,
-                    'key': entry.key_short,
-                    'name': entry.key_long
-                }]
+                note_data = self._extract_note_data(entry, i)
+                scale_data = [note_data]
                 
                 note_success = self.player.play_petersen_scale(
-                    note_data,
+                    scale_data,
                     duration=self.test_configuration['chord_duration'],
                     velocity=self.test_configuration['velocity'] - 10  # 和弦音量稍低
                 )
@@ -637,16 +626,15 @@ class PetersenPlaybackTester:
                     played += 1
                     detailed_log.append({
                         'index': i,
-                        'frequency': entry.freq,
-                        'key': entry.key_short,
+                        'frequency': note_data['freq'],
+                        'key': note_data['key'],
                         'success': True,
                         'chord_position': i,
                         'duration': time.time() - chord_start
                     })
                 else:
                     failed += 1
-                    success = False
-                    error_messages.append(f"和弦音符 {entry.key_short} 播放失败")
+                    error_messages.append(f"和弦音符 {note_data['key']} 播放失败")
                 
                 # 和弦音符之间的微小间隔
                 if i < len(chord_notes) - 1:
@@ -655,7 +643,6 @@ class PetersenPlaybackTester:
         except Exception as e:
             failed = len(chord_notes)
             played = 0
-            success = False
             error_messages.append(f"和弦播放异常: {str(e)}")
         
         total_time = time.time() - start_time

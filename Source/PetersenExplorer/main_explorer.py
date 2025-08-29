@@ -504,6 +504,7 @@ class PetersenMainExplorer:
                 result_key = self._get_result_key(result)
                 print(f"  🎼 [{i}/{len(test_systems)}] 测试 {result_key}")
                 
+                # 确保传递正确格式的条目 - 使用 raw entries 而不是 dict entries
                 assessment = tester.test_system_playability(result, interactive=False)
                 self.audio_assessments[result_key] = assessment
         
