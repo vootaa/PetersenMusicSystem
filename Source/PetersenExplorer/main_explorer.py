@@ -4,28 +4,38 @@ Petersen音律系统主探索控制器
 """
 import time
 import traceback
-import sys
 from typing import List, Dict, Tuple, Optional, Any, Callable
 from dataclasses import dataclass, field
-from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, as_completed
+
+import sys
+from pathlib import Path
 
 # 添加父级路径
 current_dir = Path(__file__).parent
 sys.path.insert(0, str(current_dir.parent))
 sys.path.insert(0, str(current_dir))
 
+# 在文件开头添加更好的导入处理
+try:
+    # 首先尝试导入PetersenScale_Phi
+    from PetersenScale_Phi import PetersenScale_Phi, PHI_PRESETS, DELTA_THETA_PRESETS
+    PETERSEN_SCALE_AVAILABLE = True
+except ImportError as e:
+    print(f"❌ 无法导入PetersenScale_Phi: {e}")
+    print("请确保PetersenScale_Phi.py在正确的路径中")
+    sys.exit(1)
+
 # 导入核心模块
 try:
     from core.parameter_explorer import ParameterSpaceExplorer, ExplorationResult
-    from core.characteristic_analyzer import CharacteristicAnalyzer
+    from core.characteristic_analyzer import CharacteristicAnalyzer  
     from core.evaluation_framework import MultiDimensionalEvaluator, ComprehensiveEvaluation
     from core.classification_system import OpenClassificationSystem, ClassificationResult
     from reporting.report_generator import PetersenExplorationReportGenerator
     CORE_MODULES_AVAILABLE = True
 except ImportError as e:
     print(f"⚠️ 核心模块导入失败: {e}")
-    print("将使用简化模式...")
     CORE_MODULES_AVAILABLE = False
     
     # 简化类定义

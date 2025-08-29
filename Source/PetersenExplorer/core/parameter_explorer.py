@@ -2,9 +2,11 @@
 Petersen音律参数空间探索引擎
 负责系统性遍历所有φ和δθ预设组合，生成完整的参数探索矩阵
 """
+import math
+import itertools
 from typing import List, Dict, Tuple, Optional, Iterator
 from dataclasses import dataclass
-import itertools
+
 import sys
 from pathlib import Path
 

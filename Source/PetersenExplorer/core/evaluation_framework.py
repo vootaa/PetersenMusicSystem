@@ -27,6 +27,13 @@ class EvaluationDimension(Enum):
     TECHNICAL_FEASIBILITY = "technical_feasibility"
 
 @dataclass
+class DimensionScore:
+    """维度评分"""
+    score: float  # 0-1
+    confidence: float  # 评估置信度 0-1
+    details: str  # 评分详情
+
+@dataclass
 class EvaluationScore:
     """单项评估得分"""
     dimension: EvaluationDimension
@@ -126,8 +133,11 @@ class MultiDimensionalEvaluator:
         """简化的传统兼容性评估"""
         score = getattr(characteristics, 'traditional_compatibility', 0.5)
         return EvaluationScore(
-            EvaluationDimension.TRADITIONAL_COMPATIBILITY,
-            score, 0.7, f"传统兼容性: {score:.1%}", {}
+            dimension=EvaluationDimension.TRADITIONAL_COMPATIBILITY,
+            score=score, 
+            confidence=0.7, 
+            reasoning=f"传统兼容性: {score:.1%}", 
+            details={}
         )
 
     def _simple_microtonal_eval(self, characteristics) -> EvaluationScore:
@@ -135,16 +145,22 @@ class MultiDimensionalEvaluator:
         entry_count = getattr(characteristics, 'entry_count', 12)
         score = min(1.0, (entry_count - 12) / 20) if entry_count > 12 else 0.3
         return EvaluationScore(
-            EvaluationDimension.MICROTONAL_POTENTIAL,
-            score, 0.6, f"微分音潜力: {score:.1%}", {}
+            dimension=EvaluationDimension.MICROTONAL_POTENTIAL,
+            score=score, 
+            confidence=0.6, 
+            reasoning=f"微分音潜力: {score:.1%}", 
+            details={}
         )
 
     def _simple_innovation_eval(self, characteristics) -> EvaluationScore:
         """简化的创新性评估"""
         score = getattr(characteristics, 'experimental_potential', 0.7)
         return EvaluationScore(
-            EvaluationDimension.EXPERIMENTAL_INNOVATION,
-            score, 0.6, f"创新性: {score:.1%}", {}
+            dimension=EvaluationDimension.EXPERIMENTAL_INNOVATION,
+            score=score, 
+            confidence=0.6, 
+            reasoning=f"创新性: {score:.1%}", 
+            details={}
         )
 
     def _simple_harmonic_eval(self, characteristics) -> EvaluationScore:
@@ -152,8 +168,11 @@ class MultiDimensionalEvaluator:
         entry_count = getattr(characteristics, 'entry_count', 12)
         score = min(1.0, entry_count / 15) if entry_count >= 3 else 0.2
         return EvaluationScore(
-            EvaluationDimension.HARMONIC_RICHNESS,
-            score, 0.5, f"和声丰富度: {score:.1%}", {}
+            dimension=EvaluationDimension.HARMONIC_RICHNESS,
+            score=score, 
+            confidence=0.5, 
+            reasoning=f"和声丰富度: {score:.1%}", 
+            details={}
         )
 
     def _simple_technical_eval(self, characteristics) -> EvaluationScore:
@@ -164,8 +183,11 @@ class MultiDimensionalEvaluator:
         else:
             score = 0.6
         return EvaluationScore(
-            EvaluationDimension.TECHNICAL_FEASIBILITY,
-            score, 0.9, f"技术可行性: {score:.1%}", {}
+            dimension=EvaluationDimension.TECHNICAL_FEASIBILITY,
+            score=score, 
+            confidence=0.9, 
+            reasoning=f"技术可行性: {score:.1%}", 
+            details={}
         )
     
     def evaluate_comprehensive_detailed(self, characteristics: ScaleCharacteristics) -> ComprehensiveEvaluation:
