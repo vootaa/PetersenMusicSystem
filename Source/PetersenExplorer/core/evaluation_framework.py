@@ -32,7 +32,7 @@ class DimensionScore:
     """维度评分"""
     score: float  # 0-1
     confidence: float  # 评估置信度 0-1
-    details: str  # 评分详情
+    details: Dict[str, Any] = field(default_factory=dict)  # 评分详情
 
 @dataclass
 class EvaluationScore:
@@ -46,13 +46,14 @@ class EvaluationScore:
 @dataclass
 class ComprehensiveEvaluation:
     """综合评估结果"""
-    dimension_scores: Dict[EvaluationDimension, EvaluationScore]
+    dimension_scores: Dict[str, DimensionScore]
     weighted_total_score: float
-    category_recommendation: str
-    application_suggestions: List[str]
-    strengths: List[str]
-    limitations: List[str]
-    overall_viability: str  # "high", "medium", "low", "experimental"
+    category_recommendation: str = ""
+    application_suggestions: List[str] = field(default_factory=list)
+    strengths: List[str] = field(default_factory=list)
+    limitations: List[str] = field(default_factory=list)
+    overall_viability: str = "" # "high", "medium", "low", "experimental"
+    note_count: int = 0 
 
 class MultiDimensionalEvaluator:
     """多维度评估器"""

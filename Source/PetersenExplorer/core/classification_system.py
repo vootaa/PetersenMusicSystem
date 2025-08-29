@@ -100,22 +100,32 @@ class ApplicationDomain:
 class ClassificationResult:
     """分类结果"""
     primary_category: PrimaryCategory
-    secondary_traits: List[SecondaryTrait]
-    confidence_score: float  # 分类置信度
+    secondary_traits: List[SecondaryTrait] = field(default_factory=list)
+    confidence_score: float = 0.0  # 分类置信度
     
     # 应用推荐
-    recommended_domains: List[ApplicationDomain]
-    priority_applications: List[str]
+    recommended_domains: List[ApplicationDomain] = field(default_factory=list)
+    priority_applications: List[str] = field(default_factory=list)
     
     # 发展建议
-    strengths_to_leverage: List[str]
-    areas_for_improvement: List[str]
-    complementary_systems: List[str]
+    strengths_to_leverage: List[str] = field(default_factory=list)
+    areas_for_improvement: List[str] = field(default_factory=list)
+    complementary_systems: List[str] = field(default_factory=list)
     
     # 实用性评估
-    immediate_usability: str     # "high", "medium", "low", "research"
-    learning_curve: str          # "easy", "moderate", "challenging", "expert"
-    production_readiness: str    # "ready", "needs_development", "experimental"
+    immediate_usability: str = "research"     # "high", "medium", "low", "research"
+    learning_curve: str = "moderate"          # "easy", "moderate", "challenging", "expert"
+    production_readiness: str = "experimental" # "ready", "needs_development", "experimental"
+    
+    # 兼容旧版本的字段（避免导入错误）
+    secondary_categories: List = field(default_factory=list)
+    classification_reasoning: str = ""
+    application_domains: List = field(default_factory=list)
+    target_audiences: List = field(default_factory=list)
+    performance_contexts: List = field(default_factory=list)
+    technical_requirements: List = field(default_factory=list)
+    creative_potential_assessment: Dict = field(default_factory=dict)
+    usage_recommendations: List = field(default_factory=list)
 
 class OpenClassificationSystem:
     """开放性分类系统"""
@@ -164,34 +174,46 @@ class OpenClassificationSystem:
             experimental_score = self._get_dimension_score(dimension_scores, 'experimental_innovation')
             therapeutic_score = self._get_dimension_score(dimension_scores, 'therapeutic_value')
             
-            # 确定主要类别 - 返回枚举对象而非字符串
-            if traditional_score >= 0.7:
-                primary_category = PrimaryCategory.TRADITIONAL_EXTENSION
-                confidence = 0.8
-            elif microtonal_score >= 0.7:
-                primary_category = PrimaryCategory.MICROTONAL_EXPLORATION
-                confidence = 0.85
-            elif experimental_score >= 0.7:
-                primary_category = PrimaryCategory.EXPERIMENTAL_AVANT_GARDE
-                confidence = 0.8
-            elif therapeutic_score >= 0.7:
-                primary_category = PrimaryCategory.THERAPEUTIC_FUNCTIONAL
-                confidence = 0.75
-            else:
-                primary_category = PrimaryCategory.RESEARCH_EXPLORATION
-                confidence = 0.6
+            # 获取音符数量（如果可用）
+            note_count = getattr(evaluation_result, 'note_count', 20)  # 默认值
+            
+            # 确定主要类别和置信度
+            primary_category, confidence, reasoning = self._determine_category(
+                traditional_score, microtonal_score, experimental_score, therapeutic_score, note_count
+            )
+            
+            # 识别次要特征
+            secondary_traits = self._identify_secondary_traits(evaluation_result)
+            
+            # 生成应用建议
+            priority_applications = evaluation_result.application_suggestions if hasattr(evaluation_result, 'application_suggestions') else []
+            strengths = evaluation_result.strengths if hasattr(evaluation_result, 'strengths') else []
+            limitations = evaluation_result.limitations if hasattr(evaluation_result, 'limitations') else []
+            
+            # 评估实用性
+            practical_assessment = self._assess_practical_usability(evaluation_result)
             
             return ClassificationResult(
-                primary_category=primary_category,  # 确保这是枚举对象
+                primary_category=primary_category,
+                secondary_traits=secondary_traits,
                 confidence_score=confidence,
+                recommended_domains=[],  # 可以后续扩展
+                priority_applications=priority_applications,
+                strengths_to_leverage=strengths,
+                areas_for_improvement=limitations,
+                complementary_systems=self._suggest_complementary_systems(evaluation_result, primary_category),
+                immediate_usability=practical_assessment['usability'],
+                learning_curve=practical_assessment['learning_curve'],
+                production_readiness=practical_assessment['production_readiness'],
+                # 兼容字段
                 secondary_categories=[],
-                classification_reasoning=f"基于评估分数的自动分类",
+                classification_reasoning=" | ".join(reasoning),
                 application_domains=[],
                 target_audiences=[],
                 performance_contexts=[],
                 technical_requirements=[],
                 creative_potential_assessment={},
-                usage_recommendations=[]
+                usage_recommendations=priority_applications
             )
             
         except Exception as e:
@@ -200,15 +222,38 @@ class OpenClassificationSystem:
             return ClassificationResult(
                 primary_category=PrimaryCategory.RESEARCH_EXPLORATION,
                 confidence_score=0.3,
-                secondary_categories=[],
                 classification_reasoning=f"分类失败，使用默认分类: {e}",
-                application_domains=[],
-                target_audiences=[],
-                performance_contexts=[],
-                technical_requirements=[],
-                creative_potential_assessment={},
-                usage_recommendations=[]
+                areas_for_improvement=[f"分类错误: {e}"]
             )
+
+    def _determine_category(self, traditional_score, microtonal_score, 
+                        experimental_score, therapeutic_score, note_count):
+        """确定系统分类"""
+        
+        # 使用统一的枚举值
+        if traditional_score >= 0.7:
+            if note_count <= 30:
+                return PrimaryCategory.CHAMBER_MUSIC, 0.8, ["传统音律特征", "适合室内乐"]
+            else:
+                return PrimaryCategory.TRADITIONAL_EXTENSION, 0.9, ["高传统兼容性"]
+        
+        elif note_count >= 100:
+            return PrimaryCategory.MICROTONAL_EXPLORATION, 0.85, ["超高音符密度", "微分音特征"]
+        
+        elif experimental_score >= 0.6:
+            if note_count >= 50:
+                return PrimaryCategory.FUSION_PROJECTS, 0.75, ["实验性", "适合融合项目"]
+            else:
+                return PrimaryCategory.EXPERIMENTAL_AVANT_GARDE, 0.8, ["高实验创新性"]
+        
+        elif therapeutic_score >= 0.8:
+            return PrimaryCategory.THERAPEUTIC_FUNCTIONAL, 0.7, ["高治疗潜力"]
+        
+        elif 30 <= note_count <= 80:
+            return PrimaryCategory.WORLD_MUSIC_FUSION, 0.6, ["中等音符数量", "融合特征"]
+        
+        else:
+            return PrimaryCategory.RESEARCH_EXPLORATION, 0.5, ["特殊用途音律"]
     
     def _get_dimension_score(self, dimension_scores: Dict, dimension_name: str) -> float:
         """安全获取维度分数"""

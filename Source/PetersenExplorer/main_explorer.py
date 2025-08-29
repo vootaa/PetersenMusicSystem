@@ -399,14 +399,46 @@ class PetersenMainExplorer:
                 # 多维度评估
                 evaluation = self.evaluator.evaluate_comprehensive(characteristics)
                 
-                # 开放性分类
-                classification = self.classifier.classify_system(evaluation)
+                # 开放性分类 - 修复这里：确保 evaluation 不为 None
+                if evaluation is not None:
+                    classification = self.classifier.classify_system(evaluation)
+                else:
+                    # 如果评估失败，创建默认分类
+                    from core.classification_system import PrimaryCategory, ClassificationResult
+                    classification = ClassificationResult(
+                        primary_category=PrimaryCategory.RESEARCH_EXPLORATION,
+                        secondary_traits=[],
+                        confidence_score=0.3,
+                        recommended_domains=[],
+                        priority_applications=[],
+                        strengths_to_leverage=[],
+                        areas_for_improvement=["评估数据不足"],
+                        complementary_systems=[],
+                        immediate_usability="research",
+                        learning_curve="expert",
+                        production_readiness="experimental"
+                    )
                 
                 return result_key, characteristics, evaluation, classification
                 
             except Exception as e:
                 print(f"❌ 分析系统失败 {result_key}: {e}")
-                return result_key, None, None, None
+                # 返回默认的失败结果
+                from core.classification_system import PrimaryCategory, ClassificationResult
+                default_classification = ClassificationResult(
+                    primary_category=PrimaryCategory.RESEARCH_EXPLORATION,
+                    secondary_traits=[],
+                    confidence_score=0.1,
+                    recommended_domains=[],
+                    priority_applications=[],
+                    strengths_to_leverage=[],
+                    areas_for_improvement=[f"分析失败: {e}"],
+                    complementary_systems=[],
+                    immediate_usability="research",
+                    learning_curve="expert",
+                    production_readiness="experimental"
+                )
+                return result_key, None, None, default_classification
         
         # 使用线程池并行分析
         with ThreadPoolExecutor(max_workers=self.config.max_workers) as executor:
@@ -452,13 +484,15 @@ class PetersenMainExplorer:
         print(f"🎵 测试 {len(test_systems)} 个优选系统的音频播放能力...")
         
         try:
-            with PetersenPlaybackTester(soundfont_path=self.config.steinway_soundfont) as tester:
-                for i, result in enumerate(test_systems, 1):
-                    result_key = self._get_result_key(result)
-                    print(f"  🎼 [{i}/{len(test_systems)}] 测试 {result_key}")
-                    
-                    assessment = tester.test_system_playability(result, interactive=False)
-                    self.audio_assessments[result_key] = assessment
+            # 修复音频测试器初始化
+            tester = PetersenPlaybackTester(soundfont_path=self.config.steinway_soundfont)
+            
+            for i, result in enumerate(test_systems, 1):
+                result_key = self._get_result_key(result)
+                print(f"  🎼 [{i}/{len(test_systems)}] 测试 {result_key}")
+                
+                assessment = tester.test_system_playability(result, interactive=False)
+                self.audio_assessments[result_key] = assessment
         
         except Exception as e:
             print(f"⚠️ 音频测试模块初始化失败: {str(e)}")
