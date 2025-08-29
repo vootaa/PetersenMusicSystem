@@ -2,16 +2,18 @@
 Petersen音律音频播放测试器
 使用Enhanced Petersen Player进行实际音频验证
 """
+import time
 from typing import List, Dict, Tuple, Optional, Any
 from dataclasses import dataclass
 from enum import Enum
-import time
+
 import sys
 from pathlib import Path
 
 # 添加父级路径
 current_dir = Path(__file__).parent
 sys.path.insert(0, str(current_dir.parent.parent.parent))
+sys.path.insert(0, str(current_dir.parent)) 
 
 try:
     from enhanced_petersen_player import create_player, PlayerConfiguration
@@ -28,7 +30,18 @@ except Exception as e:
     ENHANCED_PLAYER_AVAILABLE = False
     print(f"⚠️ Enhanced Petersen Player 加载异常: {e}")
 
-from ..core.parameter_explorer import ExplorationResult
+try:
+    from core.parameter_explorer import ExplorationResult
+except ImportError:
+    # 备用方案：如果无法导入，创建简单的类型定义
+    class ExplorationResult:
+        def __init__(self, parameters=None, scale=None, entries=None, success=False, **kwargs):
+            self.parameters = parameters
+            self.scale = scale
+            self.entries = entries or []
+            self.success = success
+            for k, v in kwargs.items():
+                setattr(self, k, v)
 
 class PlaybackTestType(Enum):
     """播放测试类型"""
