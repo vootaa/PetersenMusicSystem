@@ -572,12 +572,13 @@ class PetersenMainExplorer:
         }
     
     def get_top_systems(self, count: int = 10, 
-                       criteria: str = "overall") -> List[Tuple[ExplorationResult, ComprehensiveEvaluation, ClassificationResult]]:
+                     criteria: str = "overall") -> List[Tuple[ExplorationResult, ComprehensiveEvaluation, ClassificationResult]]:
         """获取顶级系统"""
-        if not self.evaluations:
+        if not self.exploration_results:
             return []
         
-        systems = []
+        # 收集有效的系统数据
+        valid_systems = []
         
         for result in self.exploration_results:
             if not result.success:
@@ -585,26 +586,58 @@ class PetersenMainExplorer:
                 
             result_key = self._get_result_key(result)
             
-            if result_key in self.evaluations:
-                eval_result = self.evaluations[result_key]
-                classif_result = self.classifications.get(result_key)
-                
-                if criteria == "traditional":
-                    score = eval_result.dimension_scores['traditional_compatibility'].score
-                elif criteria == "experimental":
-                    score = eval_result.dimension_scores['experimental_innovation'].score
-                elif criteria == "audio" and result_key in self.audio_assessments:
-                    assessment = self.audio_assessments[result_key]
-                    score = getattr(assessment, 'overall_playability', 0)
-                else:
-                    score = eval_result.weighted_total_score
-                
-                systems.append((score, result, eval_result, classif_result))
+            # 获取评估和分类结果
+            evaluation = self.evaluations.get(result_key)
+            classification = self.classifications.get(result_key)
+            
+            if evaluation:
+                valid_systems.append((result, evaluation, classification))
         
-        # 按分数排序
-        systems.sort(key=lambda x: x[0], reverse=True)
+        if not valid_systems:
+            return []
         
-        return [(result, eval, classif) for score, result, eval, classif in systems[:count]]
+        # 根据不同标准排序
+        try:
+            if criteria == "traditional":
+                # 使用实际存在的维度键名
+                valid_systems.sort(
+                    key=lambda x: x[1].dimension_scores.get('practical_usability', DimensionScore(0.0, 0.0)).score,
+                    reverse=True
+                )
+            elif criteria == "experimental":
+                valid_systems.sort(
+                    key=lambda x: x[1].dimension_scores.get('compositional_versatility', DimensionScore(0.0, 0.0)).score,
+                    reverse=True
+                )
+            elif criteria == "audio":
+                # 优先考虑音频测试过的系统
+                def audio_score(system_tuple):
+                    result, evaluation, classification = system_tuple
+                    result_key = self._get_result_key(result)
+                    audio_assessment = self.audio_assessments.get(result_key)
+                    
+                    if audio_assessment and hasattr(audio_assessment, 'overall_playability'):
+                        return audio_assessment.overall_playability
+                    else:
+                        # 回退到综合评分
+                        return evaluation.weighted_total_score
+                
+                valid_systems.sort(key=audio_score, reverse=True)
+            else:
+                # 默认按综合评分排序
+                valid_systems.sort(
+                    key=lambda x: x[1].weighted_total_score,
+                    reverse=True
+                )
+        except Exception as e:
+            print(f"⚠️ 排序失败，使用默认排序: {e}")
+            # 使用安全的默认排序
+            valid_systems.sort(
+                key=lambda x: x[1].weighted_total_score if hasattr(x[1], 'weighted_total_score') else 0.0,
+                reverse=True
+            )
+        
+        return valid_systems[:count]
     
     def _get_result_key(self, result: ExplorationResult) -> str:
         """获取结果的唯一键"""

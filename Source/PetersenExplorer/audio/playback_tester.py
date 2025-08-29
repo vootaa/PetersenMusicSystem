@@ -257,37 +257,62 @@ class PetersenPlaybackTester:
             raise ValueError(f"未知测试类型: {test_type}")
 
     def _extract_note_data(self, entry, index=0):
-        """统一提取音符数据"""
+        """从音阶条目中提取音符数据"""
         try:
-            # 尝试不同的数据格式
+            # 处理不同的数据结构
             if hasattr(entry, 'freq'):
-                freq = entry.freq
-                key_short = getattr(entry, 'key_short', f'Note{index}')
-                key_long = getattr(entry, 'key_long', key_short)
-            elif hasattr(entry, 'frequency'):
-                freq = entry.frequency
-                key_short = getattr(entry, 'key_short', f'Note{index}')
-                key_long = getattr(entry, 'key_long', key_short)
+                # 如果是对象，直接访问属性
+                frequency = entry.freq
+                key = getattr(entry, 'key', f"Note{index}")
             elif isinstance(entry, dict):
-                freq = entry.get('freq', entry.get('frequency', 440.0))
-                key_short = entry.get('key_short', entry.get('key', f'Note{index}'))
-                key_long = entry.get('key_long', entry.get('name', key_short))
+                # 如果是字典，使用键访问
+                if 'freq' in entry:
+                    frequency = entry['freq']
+                    key = entry.get('key', f"Note{index}")
+                elif 'frequency' in entry:
+                    frequency = entry['frequency']
+                    key = entry.get('key', f"Note{index}")
+                else:
+                    # 检查是否有其他可能的频率字段
+                    freq_fields = ['f', 'hz', 'frequency_hz']
+                    frequency = None
+                    for field in freq_fields:
+                        if field in entry:
+                            frequency = entry[field]
+                            break
+                    
+                    if frequency is None:
+                        # 如果找不到频率字段，输出调试信息
+                        print(f"调试：entry类型={type(entry)}, 内容={entry}")
+                        raise ValueError(f"无法在条目中找到频率信息: {list(entry.keys())}")
+                    
+                    key = entry.get('key', f"Note{index}")
             else:
-                # 默认值
-                freq = 440.0
-                key_short = f'Note{index}'
-                key_long = key_short
+                # 尝试将其作为数值处理
+                try:
+                    frequency = float(entry)
+                    key = f"Note{index}"
+                except (ValueError, TypeError):
+                    print(f"调试：无法解析entry={entry}, 类型={type(entry)}")
+                    raise ValueError(f"无法解析音符数据: {entry}")
+            
+            # 验证频率值
+            if not isinstance(frequency, (int, float)) or frequency <= 0:
+                raise ValueError(f"无效的频率值: {frequency}")
             
             return {
-                'freq': float(freq),
-                'key': key_short,
-                'name': key_long
+                'freq': float(frequency),
+                'key': str(key),
+                'velocity': self.test_configuration.get('velocity', 64)
             }
+            
         except Exception as e:
+            print(f"❌ 提取音符数据失败: {e}")
+            # 返回默认值以避免完全失败
             return {
-                'freq': 440.0,
-                'key': f'Note{index}',
-                'name': f'Note{index}'
+                'freq': 440.0,  # 默认A4
+                'key': f"Default{index}",
+                'velocity': 64
             }
     
     def _test_scale_ascending(self, entries: List) -> PlaybackTestResult:
