@@ -357,3 +357,136 @@ class CharacteristicAnalyzer:
         entropy_ratio = entropy / max_entropy if max_entropy > 0 else 0
         
         return (variety_ratio + entropy_ratio) / 2
+    
+    def _analyze_harmonic_potential(self, interval_analyses: List[IntervalAnalysis], entries: List) -> HarmonicPotential:
+    """分析和声潜力"""
+    if not interval_analyses:
+        return HarmonicPotential(0, 0, 0, 1, 0, [])
+    
+    # 计算协和音程比例
+    consonant_count = sum(1 for a in interval_analyses if a.consonance_score >= 0.7)
+    consonant_ratio = consonant_count / len(interval_analyses)
+    dissonant_ratio = 1.0 - consonant_ratio
+    
+    # 和弦构建能力评分
+    chord_building_score = min(1.0, consonant_ratio * 1.5)
+    
+    # 声部进行评分（基于音程平滑度）
+    voice_leading_score = self._calculate_melodic_fluency(entries)
+    
+    # 和声复杂度
+    complexity = len(set(round(a.cents, 0) for a in interval_analyses)) / len(interval_analyses)
+    
+    # 推荐和弦大小
+    if consonant_ratio >= 0.8:
+        recommended_sizes = [3, 4, 5]
+    elif consonant_ratio >= 0.6:
+        recommended_sizes = [3, 4]
+    else:
+        recommended_sizes = [3]
+    
+    return HarmonicPotential(
+        chord_building_score=chord_building_score,
+        voice_leading_score=voice_leading_score,
+        consonant_interval_ratio=consonant_ratio,
+        dissonant_interval_ratio=dissonant_ratio,
+        harmonic_complexity=complexity,
+        recommended_chord_sizes=recommended_sizes
+    )
+
+def _analyze_melodic_characteristics(self, interval_analyses: List[IntervalAnalysis]) -> MelodicCharacteristics:
+    """分析旋律特性"""
+    if not interval_analyses:
+        return MelodicCharacteristics(0, 0, 0, 0, 0, (60, 120))
+    
+    # 统计级进和跳进
+    step_motion = sum(1 for a in interval_analyses if a.cents <= 200)
+    leap_motion = len(interval_analyses) - step_motion
+    
+    step_ratio = step_motion / len(interval_analyses)
+    leap_ratio = leap_motion / len(interval_analyses)
+    
+    # 旋律流畅度
+    flow_score = self._calculate_melodic_fluency_from_analyses(interval_analyses)
+    
+    # 表达范围
+    cents_range = max(a.cents for a in interval_analyses) - min(a.cents for a in interval_analyses)
+    range_score = min(1.0, cents_range / 1200.0)
+    
+    # 可唱性（基于音程大小和流畅度）
+    singability_score = step_ratio * 0.6 + flow_score * 0.4
+    
+    # 推荐速度
+    if flow_score >= 0.8:
+        tempo_range = (80, 140)
+    elif flow_score >= 0.6:
+        tempo_range = (60, 120)
+    else:
+        tempo_range = (40, 100)
+    
+    return MelodicCharacteristics(
+        step_motion_ratio=step_ratio,
+        leap_motion_ratio=leap_ratio,
+        melodic_flow_score=flow_score,
+        expressive_range_score=range_score,
+        singability_score=singability_score,
+        recommended_tempo_range=tempo_range
+    )
+
+def _calculate_melodic_fluency_from_analyses(self, interval_analyses: List[IntervalAnalysis]) -> float:
+    """从音程分析计算旋律流畅度"""
+    if not interval_analyses:
+        return 0.0
+    
+    # 基于自然度和协和度的平均值
+    naturalness_avg = sum(a.naturalness_score for a in interval_analyses) / len(interval_analyses)
+    consonance_avg = sum(a.consonance_score for a in interval_analyses) / len(interval_analyses)
+    
+    return (naturalness_avg * 0.6 + consonance_avg * 0.4)
+
+def _analyze_style_characteristics(self, interval_analyses: List[IntervalAnalysis], entries: List) -> Dict[str, float]:
+    """分析风格特征"""
+    traditional_score = sum(a.traditional_similarity for a in interval_analyses) / len(interval_analyses) if interval_analyses else 0
+    
+    # 实验潜力基于独特性
+    unique_intervals = len(set(round(a.cents, 0) for a in interval_analyses))
+    experimental_score = min(1.0, unique_intervals / 12.0)
+    
+    # 世界音乐亲和性（简化评估）
+    world_music_score = 0.5  # 默认中等
+    
+    # 治疗潜力基于协和度
+    therapeutic_score = sum(a.consonance_score for a in interval_analyses) / len(interval_analyses) if interval_analyses else 0
+    
+    return {
+        'traditional_compatibility': traditional_score,
+        'experimental_potential': experimental_score,
+        'world_music_affinity': world_music_score,
+        'therapeutic_potential': therapeutic_score
+    }
+
+def _calculate_overall_scores(self, interval_analyses, harmonic_potential, melodic_characteristics, style_scores) -> Dict[str, float]:
+    """计算综合评分"""
+    # 整体音乐性
+    musicality = (
+        harmonic_potential.chord_building_score * 0.3 +
+        melodic_characteristics.melodic_flow_score * 0.3 +
+        style_scores['traditional_compatibility'] * 0.2 +
+        harmonic_potential.consonant_interval_ratio * 0.2
+    )
+    
+    # 创新性评分
+    innovation = style_scores['experimental_potential']
+    
+    # 实用可行性
+    viability = (
+        style_scores['traditional_compatibility'] * 0.4 +
+        harmonic_potential.chord_building_score * 0.3 +
+        melodic_characteristics.singability_score * 0.3
+    )
+    
+    return {
+        'overall_musicality': musicality,
+        'innovation_score': innovation,
+        'practical_viability': viability
+    }
