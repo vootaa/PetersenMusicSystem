@@ -550,22 +550,29 @@ class PetersenMainExplorer:
             category = classification.primary_category.value
             category_distribution[category] = category_distribution.get(category, 0) + 1
         
-        # 识别顶级系统
+        # 识别顶级系统 - 修复：直接从 ExplorationResult 获取参数信息
         top_systems = []
         if self.evaluations:
-            scored_systems = [
-                (eval_result.weighted_total_score, result_key, eval_result)
-                for result_key, eval_result in self.evaluations.items()
-            ]
+            scored_systems = []
+            for result in self.exploration_results:
+                if not result.success:
+                    continue
+                    
+                result_key = self._get_result_key(result)
+                if result_key in self.evaluations:
+                    evaluation = self.evaluations[result_key]
+                    scored_systems.append((evaluation.weighted_total_score, result, evaluation))
+            
             scored_systems.sort(key=lambda x: x[0], reverse=True)
             
-            for score, result_key, evaluation in scored_systems[:10]:
-                params_parts = result_key.split('_')
+            for score, result, evaluation in scored_systems[:10]:
+                # 直接从 ExplorationResult.parameters 获取准确信息
+                params = result.parameters
                 top_systems.append({
-                    'result_key': result_key,
-                    'phi_name': params_parts[0] if len(params_parts) > 0 else "unknown",
-                    'delta_theta_name': params_parts[1] if len(params_parts) > 1 else "unknown",
-                    'f_base': params_parts[2] if len(params_parts) > 2 else "unknown",
+                    'result_key': self._get_result_key(result),
+                    'phi_name': params.phi_name,
+                    'delta_theta_name': params.delta_theta_name,
+                    'f_base': params.f_base,  # 这是正确的数值
                     'score': score
                 })
         

@@ -169,8 +169,21 @@ def print_exploration_summary(summary, explorer):
         if top_systems:
             print(f"\n🏆 顶级音律系统 (前10名):")
             for i, system in enumerate(top_systems[:10], 1):
-                print(f"   {i:2d}. φ={system['phi_name']}, δθ={system['delta_theta_name']}, "
-                      f"F_base={system['f_base']}Hz (评分: {system['score']:.3f})")
+                # 现在 system 是字典，直接访问即可
+                phi_name = system.get('phi_name', 'unknown')
+                delta_theta_name = system.get('delta_theta_name', 'unknown')
+                f_base = system.get('f_base', 0)  # 现在是正确的数值
+                score = system.get('score', 0)
+                
+                # 确保 f_base 是数值类型
+                if isinstance(f_base, str):
+                    try:
+                        f_base = float(f_base)
+                    except ValueError:
+                        f_base = 0
+                
+                print(f"   {i:2d}. φ={phi_name}, δθ={delta_theta_name}, "
+                      f"F_base={f_base}Hz (评分: {score:.3f})")
         
         # 性能指标
         perf = summary.get("performance_metrics", {})
