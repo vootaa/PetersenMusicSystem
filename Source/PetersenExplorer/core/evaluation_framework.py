@@ -4,7 +4,7 @@ Petersen音律多维度评估框架
 """
 import math
 from typing import List, Dict, Tuple, Optional, Any
-from dataclasses import dataclass
+from dataclasses import dataclass, field 
 from enum import Enum
 
 import sys
