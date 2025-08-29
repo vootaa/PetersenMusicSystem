@@ -81,20 +81,19 @@ class SystemPlaybackAssessment:
 class PetersenPlaybackTester:
     """Petersen音律播放测试器"""
     
-    def __init__(self, soundfont_path: str = None):
+    def __init__(self, soundfont_path: str = None, soundfont_directory: str = None):
         """
         初始化播放测试器
         
         Args:
-            soundfont_path: SoundFont文件路径，支持以下选项：
-                           - "GD_Steinway_Model_D274.sf2" (默认)
-                           - "GD_Steinway_Model_D274II.sf2" 
-                           - 完整路径
+            soundfont_path: 特定SoundFont文件路径
+            soundfont_directory: SoundFont目录路径
         """
-        """初始化播放测试器"""
         if not ENHANCED_PLAYER_AVAILABLE:
             raise RuntimeError("Enhanced Petersen Player 不可用，无法进行音频测试")
         
+        self.soundfont_path = soundfont_path
+        self.soundfont_directory = soundfont_directory or "../../Soundfonts"
         self.player = None
         self._initialize_player()
     
@@ -103,13 +102,25 @@ class PetersenPlaybackTester:
         try:
             # 创建播放器配置
             config = PlayerConfiguration(
-                auto_select_soundfont=True,
+                soundfont_directory=self.soundfont_directory,
+                default_soundfont=self.soundfont_path if self.soundfont_path else "",
+                auto_select_soundfont=True if not self.soundfont_path else False,
                 enable_effects=True,
                 enable_expression=True
             )
             
             # 创建播放器
-            self.player = create_player(config)
+            self.player = create_player(config=config)
+            
+            # 如果指定了特定的SoundFont文件，尝试加载它
+            if self.soundfont_path:
+                soundfont_name = Path(self.soundfont_path).name
+                success = self.player.switch_soundfont(soundfont_name, quiet_mode=True)
+                if success:
+                    print(f"✅ 指定SoundFont加载成功: {soundfont_name}")
+                else:
+                    print(f"⚠️ 指定SoundFont加载失败，使用默认: {soundfont_name}")
+            
             print("✅ Enhanced Petersen Player 初始化完成")
             
         except Exception as e:
