@@ -12,70 +12,176 @@ current_dir = Path(__file__).parent
 sys.path.insert(0, str(current_dir.parent))
 sys.path.insert(0, str(current_dir))
 
-from main_explorer import PetersenMainExplorer, ExplorationConfiguration
-
-def main():
-    """主执行函数"""
+def simple_exploration():
+    """简化的探索流程"""
     print("🎼" + "="*60 + "🎼")
-    print("   PetersenExplorer - 完整音律探索系统")
-    print("   开放性原则：多样性、潜力、创新性、适应性")
+    print("   PetersenExplorer - 音律探索系统")
     print("🎼" + "="*60 + "🎼")
-    
-    # 配置探索参数
-    config = ExplorationConfiguration(
-        f_base_candidates=[110.0, 220.0, 261.63, 293.66],  # A2, A3, C4, D4
-        f_min=110.0,
-        f_max=880.0,
-        min_entries=5,
-        max_entries=200,  # 调整以适应实际生成数量
-        enable_detailed_analysis=True,
-        enable_audio_testing=False,  # 可根据需要开启
-        enable_reporting=True,
-        max_workers=2,
-        report_name=f"petersen_exploration_{int(time.time())}"
-    )
-    
-    print(f"\n📋 探索配置:")
-    print(f"   基频候选: {config.f_base_candidates}")
-    print(f"   频率范围: {config.f_min}-{config.f_max} Hz")
-    print(f"   音符范围: {config.min_entries}-{config.max_entries}")
-    print(f"   详细分析: {'开启' if config.enable_detailed_analysis else '关闭'}")
-    print(f"   音频测试: {'开启' if config.enable_audio_testing else '关闭'}")
-    print(f"   报告生成: {'开启' if config.enable_reporting else '关闭'}")
     
     try:
-        # 创建并运行探索器
-        explorer = PetersenMainExplorer(config)
-        summary = explorer.run_complete_exploration()
+        # 导入基础模块
+        from PetersenScale_Phi import PetersenScale_Phi, PHI_PRESETS, DELTA_THETA_PRESETS
         
-        # 显示结果摘要
-        print(f"\n🎉 探索完成!")
-        print(f"   状态: {summary.get('status', '未知')}")
-        print(f"   处理时间: {summary.get('duration', 0):.1f} 秒")
+        print(f"📊 可用预设: φ={len(PHI_PRESETS)}, δθ={len(DELTA_THETA_PRESETS)}")
         
-        if summary.get('statistics'):
-            stats = summary['statistics']
-            print(f"   测试系统: {stats.get('total_combinations', 0)}")
-            print(f"   成功系统: {stats.get('successful_systems', 0)}")
-            print(f"   分析系统: {stats.get('analyzed_systems', 0)}")
-            print(f"   成功率: {stats.get('success_rate', 0):.1%}")
+        # 尝试导入完整模块
+        try:
+            from core.parameter_explorer import ParameterSpaceExplorer
+            from core.evaluation_framework import MultiDimensionalEvaluator
+            print("✅ 使用完整分析模块")
+            use_full_system = True
+        except ImportError as e:
+            print(f"⚠️ 完整模块不可用: {e}")
+            print("🔄 使用简化模式...")
+            use_full_system = False
         
-        # 显示顶级系统
-        if summary.get('top_systems'):
-            print(f"\n🏆 发现的优秀音律系统:")
-            for i, system in enumerate(summary['top_systems'][:5], 1):
-                print(f"   {i}. {system['phi_name']} × {system['delta_theta_name']} "
-                      f"(评分: {system['score']:.3f})")
+        if use_full_system:
+            return run_full_exploration()
+        else:
+            return run_basic_exploration()
+            
+    except Exception as e:
+        print(f"❌ 系统启动失败: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+
+def run_basic_exploration():
+    """基础探索模式"""
+    from PetersenScale_Phi import PetersenScale_Phi, PHI_PRESETS, DELTA_THETA_PRESETS
+    
+    print("\n🚀 启动基础音律探索")
+    
+    results = []
+    count = 0
+    max_tests = 10
+    
+    phi_items = list(PHI_PRESETS.items())[:3]  # 测试前3个φ值
+    theta_items = list(DELTA_THETA_PRESETS.items())[:3]  # 测试前3个δθ值
+    
+    for phi_name, phi_value in phi_items:
+        for theta_name, theta_value in theta_items:
+            count += 1
+            if count > max_tests:
+                break
+                
+            try:
+                print(f"  📊 [{count}/{max_tests}] 测试: {phi_name} × {theta_name}")
+                
+                scale = PetersenScale_Phi(
+                    F_base=220.0,
+                    delta_theta=theta_value,
+                    phi=phi_value,
+                    F_min=110.0,
+                    F_max=880.0
+                )
+                
+                entries = scale.generate()
+                
+                if entries and len(entries) >= 5:
+                    freq_range = (entries[0]['freq'], entries[-1]['freq'])
+                    print(f"      ✅ 生成 {len(entries)} 个音符 ({freq_range[0]:.1f}-{freq_range[1]:.1f} Hz)")
+                    
+                    # 简单评分
+                    score = min(1.0, len(entries) / 20.0)  # 基于音符数量的简单评分
+                    
+                    results.append({
+                        'phi_name': phi_name,
+                        'theta_name': theta_name,
+                        'entry_count': len(entries),
+                        'freq_range': freq_range,
+                        'score': score
+                    })
+                else:
+                    print(f"      ❌ 生成失败或音符过少")
+                
+            except Exception as e:
+                print(f"      ❌ 错误: {str(e)[:50]}...")
+                continue
+    
+    # 显示结果
+    if results:
+        print(f"\n🎉 基础探索完成！发现 {len(results)} 个有效音律系统")
+        
+        # 按评分排序
+        results.sort(key=lambda x: x['score'], reverse=True)
+        
+        print(f"\n🏆 前5名音律系统:")
+        for i, result in enumerate(results[:5], 1):
+            print(f"   {i}. {result['phi_name']} × {result['theta_name']}")
+            print(f"      音符数: {result['entry_count']}, 评分: {result['score']:.3f}")
         
         return True
+    else:
+        print(f"\n❌ 未发现有效的音律系统")
+        return False
+
+def run_full_exploration():
+    """完整探索模式"""
+    from core.parameter_explorer import ParameterSpaceExplorer
+    from core.evaluation_framework import MultiDimensionalEvaluator
+    
+    print("\n🚀 启动完整音律探索")
+    
+    # 创建探索器
+    explorer = ParameterSpaceExplorer([220.0])
+    evaluator = MultiDimensionalEvaluator()
+    
+    # 运行探索
+    def progress_callback(current, total, result):
+        if current % 3 == 0:
+            status = "✅" if result.success else "❌"
+            count = len(result.entries) if result.success else 0
+            print(f"  📊 [{current}/{min(total, 15)}] {result.parameters.phi_name}×{result.parameters.delta_theta_name}: {count} 音符 {status}")
+        return current < 15  # 限制15个测试
+    
+    results = explorer.explore_all_combinations(progress_callback=progress_callback)
+    successful = [r for r in results if r.success and len(r.entries) >= 5]
+    
+    print(f"\n✅ 完整探索完成！{len(successful)}/{len(results)} 系统成功")
+    
+    if successful:
+        # 评估前5个系统
+        print(f"\n🔬 开始详细评估...")
         
+        evaluated_systems = []
+        for i, result in enumerate(successful[:5], 1):
+            try:
+                evaluation = evaluator.evaluate_comprehensive()
+                evaluated_systems.append((result, evaluation))
+                print(f"  📊 [{i}/5] {result.parameters.phi_name}×{result.parameters.delta_theta_name}: "
+                      f"评分={evaluation.weighted_total_score:.3f}")
+            except Exception as e:
+                print(f"  ❌ 评估失败: {str(e)[:50]}...")
+                continue
+        
+        if evaluated_systems:
+            # 按评分排序
+            evaluated_systems.sort(key=lambda x: x[1].weighted_total_score, reverse=True)
+            
+            print(f"\n🏆 最佳音律系统:")
+            best_result, best_eval = evaluated_systems[0]
+            print(f"   系统: {best_result.parameters.phi_name} × {best_result.parameters.delta_theta_name}")
+            print(f"   评分: {best_eval.weighted_total_score:.3f}")
+            print(f"   类别: {best_eval.category_recommendation}")
+            print(f"   应用: {', '.join(best_eval.application_suggestions[:2])}")
+        
+        return True
+    else:
+        print(f"\n❌ 未发现有效的音律系统")
+        return False
+
+def main():
+    """主函数"""
+    try:
+        success = simple_exploration()
+        print(f"\n{'✅ 探索成功完成!' if success else '❌ 探索未完成'}")
+        return success
     except KeyboardInterrupt:
         print("\n⚠️ 用户中断探索")
         return False
     except Exception as e:
-        print(f"\n❌ 探索失败: {str(e)}")
-        import traceback
-        traceback.print_exc()
+        print(f"\n❌ 意外错误: {e}")
         return False
 
 if __name__ == "__main__":

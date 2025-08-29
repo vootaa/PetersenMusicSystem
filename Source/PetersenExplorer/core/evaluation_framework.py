@@ -168,9 +168,9 @@ class MultiDimensionalEvaluator:
             score, 0.9, f"技术可行性: {score:.1%}", {}
         )
     
-    def evaluate_comprehensive(self, characteristics: ScaleCharacteristics) -> ComprehensiveEvaluation:
+    def evaluate_comprehensive_detailed(self, characteristics: ScaleCharacteristics) -> ComprehensiveEvaluation:
         """
-        执行综合评估
+        执行详细综合评估 - 完整版本
         
         Args:
             characteristics: 音阶特性
