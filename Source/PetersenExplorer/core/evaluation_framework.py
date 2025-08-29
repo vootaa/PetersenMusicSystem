@@ -82,43 +82,78 @@ class MultiDimensionalEvaluator:
             'gamelan_slendro': [0, 240, 480, 720, 960, 1200]
         }
     
-    def evaluate_comprehensive(self, characteristics=None) -> ComprehensiveEvaluation:
-        """执行综合评估 - 简化版本"""
-        if characteristics is None:
-            # 创建默认特性
-            characteristics = self._create_default_characteristics()
-        
-        dimension_scores = {}
-        
-        # 简化的评估实现
-        for dimension in EvaluationDimension:
-            if dimension == EvaluationDimension.TRADITIONAL_COMPATIBILITY:
-                score = self._simple_traditional_eval(characteristics)
-            elif dimension == EvaluationDimension.MICROTONAL_POTENTIAL:
-                score = self._simple_microtonal_eval(characteristics)
-            elif dimension == EvaluationDimension.EXPERIMENTAL_INNOVATION:
-                score = self._simple_innovation_eval(characteristics)
-            elif dimension == EvaluationDimension.HARMONIC_RICHNESS:
-                score = self._simple_harmonic_eval(characteristics)
-            elif dimension == EvaluationDimension.TECHNICAL_FEASIBILITY:
-                score = self._simple_technical_eval(characteristics)
-            else:
-                score = EvaluationScore(dimension, 0.5, 0.5, "简化评估", {})
+    def evaluate_comprehensive(self, characteristics) -> ComprehensiveEvaluation:
+        """执行综合评估"""
+        try:
+            dimension_scores = {}
             
-            dimension_scores[dimension] = score
-        
-        # 计算加权总分
-        weighted_total = sum(score.score * 0.2 for score in dimension_scores.values())
-        
-        return ComprehensiveEvaluation(
-            dimension_scores=dimension_scores,
-            weighted_total_score=weighted_total,
-            category_recommendation="实验性音律",
-            application_suggestions=["音乐实验", "声音设计"],
-            strengths=["独特性"],
-            limitations=["需要进一步验证"],
-            overall_viability="experimental"
-        )
+            # 使用标准化的维度名称
+            standard_dimensions = {
+                'harmonic_complexity': self._evaluate_harmonic_complexity,
+                'melodic_potential': self._evaluate_melodic_potential,
+                'compositional_versatility': self._evaluate_compositional_versatility,
+                'performance_difficulty': self._evaluate_performance_difficulty,
+                'theoretical_interest': self._evaluate_theoretical_interest,
+                'practical_usability': self._evaluate_practical_usability
+            }
+            
+            # 计算各维度分数
+            for dimension_name, evaluator in standard_dimensions.items():
+                try:
+                    score = evaluator(characteristics)
+                    confidence = 0.8  # 默认置信度
+                    
+                    dimension_scores[dimension_name] = DimensionScore(
+                        score=score,
+                        confidence=confidence,
+                        details={'method': evaluator.__name__}
+                    )
+                except Exception as e:
+                    print(f"维度 {dimension_name} 评估失败: {e}")
+                    dimension_scores[dimension_name] = DimensionScore(
+                        score=0.5,
+                        confidence=0.3,
+                        details={'error': str(e)}
+                    )
+            
+            # 计算加权总分
+            weights = {
+                'harmonic_complexity': 0.2,
+                'melodic_potential': 0.2,
+                'compositional_versatility': 0.15,
+                'performance_difficulty': 0.15,
+                'theoretical_interest': 0.15,
+                'practical_usability': 0.15
+            }
+            
+            weighted_total = sum(
+                dimension_scores[dim].score * weight 
+                for dim, weight in weights.items()
+                if dim in dimension_scores
+            )
+            
+            return ComprehensiveEvaluation(
+                dimension_scores=dimension_scores,
+                weighted_total_score=weighted_total,
+                note_count=len(characteristics.get('entries', [])),
+                application_suggestions=[],
+                strengths=[],
+                limitations=[],
+                overall_viability="experimental" if weighted_total < 0.6 else "viable"
+            )
+            
+        except Exception as e:
+            print(f"综合评估失败: {e}")
+            # 返回默认评估
+            return ComprehensiveEvaluation(
+                dimension_scores={},
+                weighted_total_score=0.5,
+                note_count=0,
+                application_suggestions=[],
+                strengths=[],
+                limitations=[f"评估失败: {e}"],
+                overall_viability="unknown"
+            )
 
     def _create_default_characteristics(self):
         """创建默认特性对象"""

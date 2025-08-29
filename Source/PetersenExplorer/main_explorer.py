@@ -484,8 +484,8 @@ class PetersenMainExplorer:
         print(f"🎵 测试 {len(test_systems)} 个优选系统的音频播放能力...")
         
         try:
-            # 修复音频测试器初始化
-            tester = PetersenPlaybackTester(soundfont_path=self.config.steinway_soundfont)
+            # 修复音频测试器初始化 - 移除参数
+            tester = PetersenPlaybackTester()
             
             for i, result in enumerate(test_systems, 1):
                 result_key = self._get_result_key(result)

@@ -355,103 +355,113 @@ class PetersenExplorationReportGenerator:
         # 音阶文件导出
         self._export_scale_files(exploration_results, data_dir)
     
-    def _export_complete_data_csv(self, exploration_results: List[ExplorationResult],
-                                evaluations: Dict, classifications: Dict,
-                                audio_assessments: Dict, data_dir: Path):
-        """导出完整数据为CSV"""
-        csv_path = data_dir / "complete_exploration_data.csv"
+    def _export_complete_data_csv(self, exploration_results, evaluations, 
+                            classifications, audio_assessments, report_dir):
+        """导出完整数据CSV"""
+        csv_path = report_dir / "complete_data.csv"
         
-        with open(csv_path, 'w', newline='', encoding='utf-8') as f:
-            writer = csv.writer(f)
-            
-            # 写入表头
-            headers = [
-                'phi_name', 'phi_value', 'delta_theta_name', 'delta_theta_value', 'f_base',
-                'success', 'entry_count', 'min_freq', 'max_freq',
-                'avg_interval_cents', 'micro_interval_ratio', 'large_interval_ratio'
+        with open(csv_path, 'w', newline='', encoding='utf-8') as csvfile:
+            # 定义CSV字段
+            fieldnames = [
+                'system_id', 'phi_preset', 'delta_theta_preset', 'f_base',
+                'note_count', 'frequency_range_hz', 'weighted_total_score',
+                'primary_category', 'confidence_score',
+                # 安全地访问维度分数
+                'harmonic_complexity', 'melodic_potential', 'compositional_versatility',
+                'performance_difficulty', 'theoretical_interest', 'practical_usability'
             ]
             
-            if evaluations:
-                headers.extend([
-                    'weighted_total_score', 'traditional_compatibility', 'microtonal_potential',
-                    'experimental_innovation', 'therapeutic_value', 'harmonic_richness'
-                ])
-            
-            if classifications:
-                headers.extend(['primary_category', 'confidence_score'])
-            
             if audio_assessments:
-                headers.extend(['overall_playability', 'technical_score', 'musical_score', 'audio_recommended'])
+                fieldnames.extend(['audio_clarity', 'audio_expressiveness', 'audio_overall'])
             
-            writer.writerow(headers)
+            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+            writer.writeheader()
             
-            # 写入数据行
             for result in exploration_results:
-                row = [
-                    result.parameters.phi_name,
-                    result.parameters.phi_value,
-                    result.parameters.delta_theta_name,
-                    result.parameters.delta_theta_value,
-                    result.parameters.f_base,
-                    result.success,
-                    len(result.entries) if result.success else 0
-                ]
-                
-                if result.success and result.entries:
-                    frequencies = [e.freq for e in result.entries]
-                    row.extend([min(frequencies), max(frequencies)])
-                else:
-                    row.extend([0, 0])
-                
-                # 添加基础指标
-                if result.basic_metrics:
-                    row.extend([
-                        result.basic_metrics.get('avg_interval_cents', 0),
-                        result.basic_metrics.get('micro_interval_ratio', 0),
-                        result.basic_metrics.get('large_interval_ratio', 0)
-                    ])
-                else:
-                    row.extend([0, 0, 0])
-                
-                # 添加评估数据
+                if not result.success:
+                    continue
+                    
                 result_key = self._get_result_key(result)
+                row = {
+                    'system_id': result_key,
+                    'phi_preset': result.parameters.phi_preset_name if result.parameters else 'unknown',
+                    'delta_theta_preset': result.parameters.delta_theta_preset_name if result.parameters else 'unknown',
+                    'f_base': result.parameters.f_base if result.parameters else 0,
+                    'note_count': len(result.entries),
+                    'frequency_range_hz': f"{min(entry.frequency for entry in result.entries):.1f}-{max(entry.frequency for entry in result.entries):.1f}",
+                    'weighted_total_score': 0,
+                    'primary_category': '',
+                    'confidence_score': 0,
+                    'harmonic_complexity': 0,
+                    'melodic_potential': 0,
+                    'compositional_versatility': 0,
+                    'performance_difficulty': 0,
+                    'theoretical_interest': 0,
+                    'practical_usability': 0
+                }
                 
+                # 安全地获取评估数据
                 if evaluations and result_key in evaluations:
                     eval_result = evaluations[result_key]
-                    row.extend([
-                        eval_result.weighted_total_score,
-                        eval_result.dimension_scores['traditional_compatibility'].score,
-                        eval_result.dimension_scores['microtonal_potential'].score,
-                        eval_result.dimension_scores['experimental_innovation'].score,
-                        eval_result.dimension_scores['therapeutic_value'].score,
-                        eval_result.dimension_scores['harmonic_richness'].score
-                    ])
-                elif evaluations:
-                    row.extend([0] * 6)
+                    row['weighted_total_score'] = eval_result.weighted_total_score
+                    
+                    # 安全地访问维度分数
+                    dimension_scores = eval_result.dimension_scores
+                    
+                    # 定义维度映射 - 使用实际存在的维度名称
+                    dimension_mapping = {
+                        'harmonic_complexity': ['harmonic_complexity', 'harmony_analysis', 'harmonic_quality'],
+                        'melodic_potential': ['melodic_potential', 'melodic_quality', 'melody_analysis'],
+                        'compositional_versatility': ['compositional_versatility', 'composition_potential', 'versatility'],
+                        'performance_difficulty': ['performance_difficulty', 'playability', 'difficulty'],
+                        'theoretical_interest': ['theoretical_interest', 'theory_compliance', 'theoretical_value'],
+                        'practical_usability': ['practical_usability', 'usability', 'practical_value']
+                    }
+                    
+                    for csv_field, possible_keys in dimension_mapping.items():
+                        score = 0
+                        for key in possible_keys:
+                            if key in dimension_scores:
+                                score_obj = dimension_scores[key]
+                                if hasattr(score_obj, 'score'):
+                                    score = score_obj.score
+                                elif isinstance(score_obj, (int, float)):
+                                    score = float(score_obj)
+                                break
+                        row[csv_field] = score
                 
-                # 添加分类数据
+                # 安全地获取分类数据
                 if classifications and result_key in classifications:
-                    class_result = classifications[result_key]
-                    row.extend([
-                        class_result.primary_category.value,
-                        class_result.confidence_score
-                    ])
-                elif classifications:
-                    row.extend(['', 0])
+                    classification = classifications[result_key]
+                    if hasattr(classification, 'primary_category'):
+                        if hasattr(classification.primary_category, 'value'):
+                            row['primary_category'] = classification.primary_category.value
+                        else:
+                            row['primary_category'] = str(classification.primary_category)
+                    
+                    if hasattr(classification, 'confidence_score'):
+                        row['confidence_score'] = classification.confidence_score
                 
-                # 添加音频测试数据
+                # 安全地获取音频数据
                 if audio_assessments and result_key in audio_assessments:
-                    audio_result = audio_assessments[result_key]
-                    row.extend([
-                        audio_result.overall_playability,
-                        audio_result.technical_score,
-                        audio_result.musical_score,
-                        audio_result.recommended_for_audio
-                    ])
-                elif audio_assessments:
-                    row.extend([0, 0, 0, False])
+                    audio_assessment = audio_assessments[result_key]
+                    if hasattr(audio_assessment, 'clarity_score'):
+                        row['audio_clarity'] = audio_assessment.clarity_score
+                    if hasattr(audio_assessment, 'expressiveness_score'):
+                        row['audio_expressiveness'] = audio_assessment.expressiveness_score
+                    if hasattr(audio_assessment, 'overall_score'):
+                        row['audio_overall'] = audio_assessment.overall_score
                 
                 writer.writerow(row)
+        
+        print(f"✅ 完整数据已导出: {csv_path}")
+
+    def _get_result_key(self, result):
+        """获取结果键名"""
+        if hasattr(result, 'parameters') and result.parameters:
+            return f"{result.parameters.phi_preset_name}_{result.parameters.delta_theta_preset_name}_{result.parameters.f_base}"
+        else:
+            return f"unknown_system_{id(result)}"
     
     def _identify_top_systems(self, successful_results: List[ExplorationResult],
                             evaluations: Dict, count: int = 10) -> List[Dict[str, Any]]:
@@ -475,11 +485,6 @@ class PetersenExplorationReportGenerator:
             systems.sort(key=lambda x: len(x['exploration_result'].entries), reverse=True)
         
         return systems[:count]
-    
-    def _get_result_key(self, result: ExplorationResult) -> str:
-        """获取结果的唯一键"""
-        params = result.parameters
-        return f"{params.phi_name}_{params.delta_theta_name}_{params.f_base}"
     
     def _generate_key_findings(self, successful_results: List[ExplorationResult],
                              evaluations: Dict, classifications: Dict) -> str:

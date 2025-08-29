@@ -91,34 +91,18 @@ class PetersenPlaybackTester:
                            - "GD_Steinway_Model_D274II.sf2" 
                            - 完整路径
         """
+        """初始化播放测试器"""
         if not ENHANCED_PLAYER_AVAILABLE:
             raise RuntimeError("Enhanced Petersen Player 不可用，无法进行音频测试")
-
-        # 默认使用指定的两个Steinway钢琴SoundFont之一
-        if soundfont_path is None:
-            self.soundfont_path = "../../Soundfonts/GD_Steinway_Model_D274.sf2"
-        elif soundfont_path in ["GD_Steinway_Model_D274.sf2", "GD_Steinway_Model_D274II.sf2"]:
-            self.soundfont_path = f"../../Soundfonts/{soundfont_path}"
-        else:
-            self.soundfont_path = soundfont_path
-            
+        
         self.player = None
         self._initialize_player()
-
-        self.test_configuration = {
-            'note_duration': 0.5,
-            'chord_duration': 1.5,
-            'rest_duration': 0.1,
-            'velocity': 70,
-            'test_timeout': 30.0
-        }
     
     def _initialize_player(self):
         """初始化播放器"""
         try:
-            # 创建播放器配置 - 不传递 mode 参数
+            # 创建播放器配置
             config = PlayerConfiguration(
-                soundfont_path=self.soundfont_path,
                 auto_select_soundfont=True,
                 enable_effects=True,
                 enable_expression=True
