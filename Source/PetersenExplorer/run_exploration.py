@@ -124,7 +124,7 @@ def run_full_exploration():
     print("\n🚀 启动完整音律探索")
     
     # 创建探索器
-    explorer = ParameterSpaceExplorer([220.0])
+    explorer = ParameterSpaceExplorer([110.0, 146.83, 220.0, 261.63, 293.66])
     evaluator = MultiDimensionalEvaluator()
     
     # 运行探索
@@ -174,7 +174,7 @@ def run_full_exploration():
 def main():
     """主函数"""
     try:
-        success = simple_exploration()
+        success = run_full_exploration()
         print(f"\n{'✅ 探索成功完成!' if success else '❌ 探索未完成'}")
         return success
     except KeyboardInterrupt:
