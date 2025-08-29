@@ -82,13 +82,6 @@ class PetersenExplorationReportGenerator:
 
         # 确保输出目录存在
         self.output_dir.mkdir(exist_ok=True)
-
-        
-        # 创建子目录
-        (self.output_dir / "detailed").mkdir(exist_ok=True)
-        (self.output_dir / "summaries").mkdir(exist_ok=True)
-        (self.output_dir / "data").mkdir(exist_ok=True)
-        (self.output_dir / "audio_tests").mkdir(exist_ok=True)
     
     def generate_comprehensive_report(self,
                                     exploration_results: List[ExplorationResult],
