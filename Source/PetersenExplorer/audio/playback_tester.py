@@ -353,12 +353,16 @@ class PetersenPlaybackTester:
         total_time = time.time() - start_time
         success_rate = played / len(test_entries) if test_entries else 0
         
+        # 修复构造函数参数
         return PlaybackTestResult(
-            test_name="scale_ascending",
-            success_rate=success_rate,
+            test_type=PlaybackTestType.SCALE_ASCENDING,
+            success=success_rate >= 0.8,
             notes_played=played,
             notes_failed=failed,
-            total_time=total_time,
+            avg_play_duration=total_time / len(test_entries) if test_entries else 0,
+            timing_accuracy=self._calculate_timing_accuracy(detailed_log),
+            frequency_accuracy=1.0,
+            subjective_quality=self._assess_subjective_quality(success_rate),
             error_messages=error_messages[:5],  # 限制错误消息数量
             detailed_log=detailed_log
         )
@@ -409,11 +413,9 @@ class PetersenPlaybackTester:
             note_start = time.time()
             
             try:
-                scale_data = [{
-                    'freq': entry.freq,
-                    'key': entry.key_short,
-                    'name': entry.key_long
-                }]
+                # 使用统一的数据提取方法
+                note_data = self._extract_note_data(entry, i)
+                scale_data = [note_data]
                 
                 success = self.player.play_petersen_scale(
                     scale_data,
@@ -425,21 +427,22 @@ class PetersenPlaybackTester:
                     played += 1
                     detailed_log.append({
                         'index': i,
-                        'frequency': entry.freq,
-                        'key': entry.key_short,
+                        'frequency': note_data['freq'],
+                        'key': note_data['key'],
                         'success': True,
                         'duration': time.time() - note_start,
                         'jump_type': 'interval_jump'
                     })
                 else:
                     failed += 1
-                    error_messages.append(f"跳跃音符 {entry.key_short} 播放失败")
+                    error_messages.append(f"跳跃音符 {note_data['key']} 播放失败")
                 
                 time.sleep(self.test_configuration['rest_duration'])
             
             except Exception as e:
                 failed += 1
-                error_messages.append(f"跳跃音符 {entry.key_short} 异常: {str(e)}")
+                note_data = self._extract_note_data(entry, i)
+                error_messages.append(f"跳跃音符 {note_data['key']} 异常: {str(e)}")
         
         total_time = time.time() - start_time
         avg_duration = total_time / len(jump_pattern) if jump_pattern else 0

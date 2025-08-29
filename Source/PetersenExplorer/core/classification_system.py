@@ -173,38 +173,46 @@ class OpenClassificationSystem:
             innovation_score = self._get_dimension_score(dimension_scores, 'compositional_versatility')
             complexity_score = self._get_dimension_score(dimension_scores, 'harmonic_complexity')
             
-            # 简化分类逻辑
+            # 简化分类逻辑 - 使用 PrimaryCategory
             if traditional_score > 0.7:
-                primary_category = SystemCategory.TRADITIONAL_COMPATIBLE
+                primary_category = PrimaryCategory.TRADITIONAL_EXTENSION
             elif innovation_score > 0.7:
-                primary_category = SystemCategory.EXPERIMENTAL_INNOVATION
+                primary_category = PrimaryCategory.EXPERIMENTAL_AVANT_GARDE
             elif complexity_score > 0.7:
-                primary_category = SystemCategory.MICROTONAL_EXPLORATION
+                primary_category = PrimaryCategory.MICROTONAL_EXPLORATION
             else:
-                primary_category = SystemCategory.SPECIALIZED_RESEARCH
+                primary_category = PrimaryCategory.RESEARCH_EXPLORATION
             
             confidence_score = (traditional_score + innovation_score + complexity_score) / 3
             
             return ClassificationResult(
                 primary_category=primary_category,
                 confidence_score=confidence_score,
-                detailed_scores={
-                    'traditional_compatibility': traditional_score,
-                    'experimental_innovation': innovation_score,
-                    'microtonal_potential': complexity_score
-                },
-                application_recommendations=[],
-                usage_contexts=[]
+                secondary_traits=[],
+                recommended_domains=[],
+                priority_applications=[],
+                strengths_to_leverage=[],
+                areas_for_improvement=[],
+                complementary_systems=[],
+                immediate_usability="research",
+                learning_curve="moderate",
+                production_readiness="experimental"
             )
             
         except Exception as e:
             # 返回默认分类
             return ClassificationResult(
-                primary_category=SystemCategory.SPECIALIZED_RESEARCH,
+                primary_category=PrimaryCategory.RESEARCH_EXPLORATION,
                 confidence_score=0.5,
-                detailed_scores={},
-                application_recommendations=[],
-                usage_contexts=[]
+                secondary_traits=[],
+                recommended_domains=[],
+                priority_applications=[],
+                strengths_to_leverage=[],
+                areas_for_improvement=[f"分析失败: {e}"],
+                complementary_systems=[],
+                immediate_usability="research",
+                learning_curve="expert",
+                production_readiness="experimental"
             )
 
     def _determine_category(self, traditional_score, microtonal_score, 

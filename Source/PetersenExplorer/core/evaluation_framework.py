@@ -132,10 +132,17 @@ class MultiDimensionalEvaluator:
                 if dim in dimension_scores
             )
             
+            # 安全获取 entries 数量
+            note_count = 0
+            if hasattr(characteristics, 'entry_count'):
+                note_count = characteristics.entry_count
+            elif hasattr(characteristics, 'entries'):
+                note_count = len(characteristics.entries) if characteristics.entries else 0
+            
             return ComprehensiveEvaluation(
                 dimension_scores=dimension_scores,
                 weighted_total_score=weighted_total,
-                note_count=len(characteristics.get('entries', [])),
+                note_count=note_count,
                 application_suggestions=[],
                 strengths=[],
                 limitations=[],
