@@ -381,7 +381,8 @@ class PetersenScaleDemo:
                 frequencies, 
                 key_names,
                 duration=duration,
-                gap=gap
+                gap=gap,
+                use_accurate_frequency=True
             )
             
             if success:
