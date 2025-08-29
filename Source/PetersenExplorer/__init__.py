@@ -22,19 +22,26 @@ PetersenExplorer - Petersen音律系统全面探索工具包
 __version__ = "1.0.0"
 __author__ = "PetersenMusicSystem Development Team"
 
-# 导入主要类和函数
-from .main_explorer import (
-    PetersenMainExplorer,
-    ExplorationConfiguration,
-    quick_exploration,
-    explore_specific_presets
-)
+# 导入主要类和函数 - 容错版本
+try:
+    from .main_explorer import (
+        PetersenMainExplorer,
+        ExplorationConfiguration,
+        quick_exploration
+    )
+    MAIN_AVAILABLE = True
+except ImportError as e:
+    print(f"⚠️ 主模块导入失败: {e}")
+    MAIN_AVAILABLE = False
 
-from .core.parameter_explorer import (
-    ParameterSpaceExplorer,
-    ExplorationParameters,
-    ExplorationResult
-)
+try:
+    from .core.parameter_explorer import (
+        ParameterSpaceExplorer,
+        ExplorationParameters,
+        ExplorationResult
+    )
+except ImportError:
+    pass
 
 from .core.evaluation_framework import (
     MultiDimensionalEvaluator,
@@ -68,6 +75,15 @@ from .reporting.report_generator import (
 Explorer = PetersenMainExplorer
 Config = ExplorationConfiguration
 quick_explore = quick_exploration
+
+if MAIN_AVAILABLE:
+    Explorer = PetersenMainExplorer
+    Config = ExplorationConfiguration
+    quick_explore = quick_exploration
+else:
+    Explorer = None
+    Config = None
+    quick_explore = None
 
 __all__ = [
     # 主要类

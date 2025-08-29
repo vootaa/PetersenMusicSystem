@@ -73,6 +73,101 @@ class MultiDimensionalEvaluator:
             'gamelan_slendro': [0, 240, 480, 720, 960, 1200]
         }
     
+    def evaluate_comprehensive(self, characteristics=None) -> ComprehensiveEvaluation:
+        """执行综合评估 - 简化版本"""
+        if characteristics is None:
+            # 创建默认特性
+            characteristics = self._create_default_characteristics()
+        
+        dimension_scores = {}
+        
+        # 简化的评估实现
+        for dimension in EvaluationDimension:
+            if dimension == EvaluationDimension.TRADITIONAL_COMPATIBILITY:
+                score = self._simple_traditional_eval(characteristics)
+            elif dimension == EvaluationDimension.MICROTONAL_POTENTIAL:
+                score = self._simple_microtonal_eval(characteristics)
+            elif dimension == EvaluationDimension.EXPERIMENTAL_INNOVATION:
+                score = self._simple_innovation_eval(characteristics)
+            elif dimension == EvaluationDimension.HARMONIC_RICHNESS:
+                score = self._simple_harmonic_eval(characteristics)
+            elif dimension == EvaluationDimension.TECHNICAL_FEASIBILITY:
+                score = self._simple_technical_eval(characteristics)
+            else:
+                score = EvaluationScore(dimension, 0.5, 0.5, "简化评估", {})
+            
+            dimension_scores[dimension] = score
+        
+        # 计算加权总分
+        weighted_total = sum(score.score * 0.2 for score in dimension_scores.values())
+        
+        return ComprehensiveEvaluation(
+            dimension_scores=dimension_scores,
+            weighted_total_score=weighted_total,
+            category_recommendation="实验性音律",
+            application_suggestions=["音乐实验", "声音设计"],
+            strengths=["独特性"],
+            limitations=["需要进一步验证"],
+            overall_viability="experimental"
+        )
+
+    def _create_default_characteristics(self):
+        """创建默认特性对象"""
+        from types import SimpleNamespace
+        return SimpleNamespace(
+            entry_count=12,
+            frequency_range=(220, 440),
+            interval_analyses=[],
+            traditional_compatibility=0.5,
+            experimental_potential=0.7
+        )
+
+    def _simple_traditional_eval(self, characteristics) -> EvaluationScore:
+        """简化的传统兼容性评估"""
+        score = getattr(characteristics, 'traditional_compatibility', 0.5)
+        return EvaluationScore(
+            EvaluationDimension.TRADITIONAL_COMPATIBILITY,
+            score, 0.7, f"传统兼容性: {score:.1%}", {}
+        )
+
+    def _simple_microtonal_eval(self, characteristics) -> EvaluationScore:
+        """简化的微分音评估"""
+        entry_count = getattr(characteristics, 'entry_count', 12)
+        score = min(1.0, (entry_count - 12) / 20) if entry_count > 12 else 0.3
+        return EvaluationScore(
+            EvaluationDimension.MICROTONAL_POTENTIAL,
+            score, 0.6, f"微分音潜力: {score:.1%}", {}
+        )
+
+    def _simple_innovation_eval(self, characteristics) -> EvaluationScore:
+        """简化的创新性评估"""
+        score = getattr(characteristics, 'experimental_potential', 0.7)
+        return EvaluationScore(
+            EvaluationDimension.EXPERIMENTAL_INNOVATION,
+            score, 0.6, f"创新性: {score:.1%}", {}
+        )
+
+    def _simple_harmonic_eval(self, characteristics) -> EvaluationScore:
+        """简化的和声评估"""
+        entry_count = getattr(characteristics, 'entry_count', 12)
+        score = min(1.0, entry_count / 15) if entry_count >= 3 else 0.2
+        return EvaluationScore(
+            EvaluationDimension.HARMONIC_RICHNESS,
+            score, 0.5, f"和声丰富度: {score:.1%}", {}
+        )
+
+    def _simple_technical_eval(self, characteristics) -> EvaluationScore:
+        """简化的技术可行性评估"""
+        freq_range = getattr(characteristics, 'frequency_range', (220, 440))
+        if 100 <= freq_range[0] <= 400 and 300 <= freq_range[1] <= 2000:
+            score = 0.9
+        else:
+            score = 0.6
+        return EvaluationScore(
+            EvaluationDimension.TECHNICAL_FEASIBILITY,
+            score, 0.9, f"技术可行性: {score:.1%}", {}
+        )
+    
     def evaluate_comprehensive(self, characteristics: ScaleCharacteristics) -> ComprehensiveEvaluation:
         """
         执行综合评估

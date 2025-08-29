@@ -433,6 +433,90 @@ def _analyze_melodic_characteristics(self, interval_analyses: List[IntervalAnaly
         recommended_tempo_range=tempo_range
     )
 
+def _calculate_melodic_fluency(self, entries: List) -> float:
+    """计算旋律流畅度"""
+    if len(entries) < 2:
+        return 0.0
+    
+    frequencies = [entry.freq for entry in entries]
+    intervals = []
+    
+    for i in range(len(frequencies) - 1):
+        ratio = frequencies[i+1] / frequencies[i]
+        cents = 1200 * math.log2(ratio)
+        intervals.append(abs(cents))
+    
+    # 评估音程合理性
+    reasonable_intervals = [i for i in intervals if 50 <= i <= 400]
+    if not intervals:
+        return 0.0
+    
+    fluency_ratio = len(reasonable_intervals) / len(intervals)
+    
+    # 评估变化平滑性
+    if len(intervals) > 2:
+        changes = [abs(intervals[i+1] - intervals[i]) for i in range(len(intervals)-1)]
+        avg_change = sum(changes) / len(changes)
+        smoothness = max(0, 1 - avg_change / 200)
+    else:
+        smoothness = 1.0
+    
+    return fluency_ratio * 0.7 + smoothness * 0.3
+
+def _analyze_modal_context(self, entries: List) -> ContextualAssessment:
+    """评估调式语境适用性"""
+    if len(entries) < 5:
+        return ContextualAssessment(
+            context=MusicalContext.MODAL,
+            suitability_score=0.0,
+            strengths=["音符数量不足"],
+            limitations=["无法进行调式分析"],
+            suggested_applications=["扩展音阶"]
+        )
+    
+    # 计算与传统调式的相似度
+    frequencies = [entry.freq for entry in entries]
+    base_freq = min(frequencies)
+    
+    # 转换为音分
+    cents_values = []
+    for freq in frequencies:
+        cents = 1200 * math.log2(freq / base_freq) % 1200
+        cents_values.append(cents)
+    
+    cents_values = sorted(set(cents_values))
+    
+    # 与大调音阶比较（简化版）
+    major_scale = [0, 200, 400, 500, 700, 900, 1100]
+    matches = 0
+    
+    for scale_note in major_scale:
+        for actual_note in cents_values:
+            if abs(actual_note - scale_note) <= 50:  # 50音分容差
+                matches += 1
+                break
+    
+    similarity = matches / len(major_scale)
+    
+    strengths = []
+    limitations = []
+    applications = []
+    
+    if similarity >= 0.6:
+        strengths.append("具有调式特征")
+        applications.append("传统音乐创作")
+    else:
+        strengths.append("独特音响色彩")
+        applications.append("现代实验音乐")
+    
+    return ContextualAssessment(
+        context=MusicalContext.MODAL,
+        suitability_score=similarity,
+        strengths=strengths,
+        limitations=limitations,
+        suggested_applications=applications
+    )
+
 def _calculate_melodic_fluency_from_analyses(self, interval_analyses: List[IntervalAnalysis]) -> float:
     """从音程分析计算旋律流畅度"""
     if not interval_analyses:

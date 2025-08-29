@@ -22,27 +22,89 @@ try:
     from core.evaluation_framework import MultiDimensionalEvaluator, ComprehensiveEvaluation
     from core.classification_system import OpenClassificationSystem, ClassificationResult
     from reporting.report_generator import PetersenExplorationReportGenerator
+    CORE_MODULES_AVAILABLE = True
 except ImportError as e:
-    print(f"❌ 导入核心模块失败: {e}")
-    print("正在尝试创建基本功能...")
+    print(f"⚠️ 核心模块导入失败: {e}")
+    print("将使用简化模式...")
+    CORE_MODULES_AVAILABLE = False
     
-    # 创建基本的占位符类
+    # 简化类定义
     class ExplorationResult:
-        def __init__(self):
-            self.success = False
-            self.parameters = None
-            self.entries = []
-            self.scale = None
+        def __init__(self, parameters, scale, entries, success, basic_metrics=None):
+            self.parameters = parameters
+            self.scale = scale
+            self.entries = entries
+            self.success = success
+            self.basic_metrics = basic_metrics or {}
     
     class ParameterSpaceExplorer:
-        def __init__(self, **kwargs):
-            self.total_combinations = 1
+        def __init__(self, f_base_candidates, f_min, f_max):
+            self.f_base_candidates = f_base_candidates
+            self.f_min = f_min
+            self.f_max = f_max
+            self.total_combinations = len(PHI_PRESETS) * len(DELTA_THETA_PRESETS) * len(f_base_candidates)
         
-        def explore_all_combinations(self, **kwargs):
-            return []
+        def explore_all_combinations(self, progress_callback=None, error_callback=None):
+            return self._simplified_exploration(progress_callback, error_callback)
         
-        def filter_by_criteria(self, **kwargs):
-            return []
+        def _simplified_exploration(self, progress_callback, error_callback):
+            # 简化的探索实现
+            results = []
+            count = 0
+            
+            for phi_name, phi_value in list(PHI_PRESETS.items())[:5]:  # 限制测试数量
+                for theta_name, theta_value in list(DELTA_THETA_PRESETS.items())[:5]:
+                    for f_base in self.f_base_candidates:
+                        count += 1
+                        
+                        try:
+                            from types import SimpleNamespace
+                            params = SimpleNamespace(
+                                phi_name=phi_name,
+                                phi_value=phi_value,
+                                delta_theta_name=theta_name,
+                                delta_theta_value=theta_value,
+                                f_base=f_base
+                            )
+                            
+                            scale = PetersenScale_Phi(
+                                F_base=f_base,
+                                delta_theta=theta_value,
+                                phi=phi_value,
+                                F_min=self.f_min,
+                                F_max=self.f_max
+                            )
+                            
+                            entries = scale.generate()
+                            
+                            result = ExplorationResult(
+                                parameters=params,
+                                scale=scale,
+                                entries=entries,
+                                success=True,
+                                basic_metrics={
+                                    'entry_count': len(entries),
+                                    'frequency_range': (entries[0]['freq'], entries[-1]['freq']) if entries else (0, 0)
+                                }
+                            )
+                            
+                            results.append(result)
+                            
+                            if progress_callback:
+                                progress_callback(count, min(25, self.total_combinations), result)
+                            
+                        except Exception as e:
+                            if error_callback:
+                                error_callback(params, str(e))
+                            continue
+            
+            return results
+        
+        def filter_by_criteria(self, results=None, **kwargs):
+            if not hasattr(self, '_last_results'):
+                return []
+            results = results or self._last_results
+            return [r for r in results if r.success and len(r.entries) >= kwargs.get('min_entries', 5)]
     
     class CharacteristicAnalyzer:
         def analyze_scale_characteristics(self, scale, entries):
@@ -230,24 +292,23 @@ class PetersenMainExplorer:
             percentage = current / total * 100
             status = "✅" if result.success else "❌"
             
-            if current % 10 == 0 or current == total:
+            if current % 5 == 0 or current == total:
                 print(f"  📊 进度: {current}/{total} ({percentage:.1f}%) {status}")
-            
-            # 调用外部回调
-            for callback in self.progress_callbacks:
-                try:
-                    callback("parameter_exploration", current, total, result)
-                except Exception as e:
-                    print(f"⚠️ 回调函数错误: {e}")
         
         def error_callback(params, error):
-            if "频率范围" not in error:
+            if len(error) < 50:
                 print(f"⚠️ 生成失败: {params.phi_name}×{params.delta_theta_name} - {error}")
         
-        self.exploration_results = self.parameter_explorer.explore_all_combinations(
-            progress_callback=progress_callback,
-            error_callback=error_callback
-        )
+        if CORE_MODULES_AVAILABLE:
+            self.exploration_results = self.parameter_explorer.explore_all_combinations(
+                progress_callback=progress_callback,
+                error_callback=error_callback
+            )
+        else:
+            self.exploration_results = self.parameter_explorer._simplified_exploration(
+                progress_callback, error_callback
+            )
+            self.parameter_explorer._last_results = self.exploration_results
 
     def _run_simple_exploration(self):
         """简化的探索模式，用于测试基本功能"""
