@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Petersen音阶交互式演示程序
-简化版本，专注于音阶生成和播放测试
+增强版本，支持音阶过滤、表现力和音效控制
 """
 import sys
 from pathlib import Path
@@ -11,8 +11,9 @@ current_dir = Path(__file__).parent
 sys.path.insert(0, str(current_dir.parent))
 sys.path.insert(0, str(current_dir))
 
-from PetersenScale_Phi import PetersenScale_Phi, PHI_PRESETS, DELTA_THETA_PRESETS
+from PetersenScale_Phi import PetersenScale_Phi, PHI_PRESETS, DELTA_THETA_PRESETS, ELEMENTS_CN, ELEMENTS_PY
 from enhanced_petersen_player import create_player, PlayerConfiguration
+from utils.presets import COMPLETE_PRESET_COMBINATIONS
 
 class PetersenScaleDemo:
     """Petersen音阶演示类"""
@@ -43,10 +44,38 @@ class PetersenScaleDemo:
             print(f"❌ 播放器初始化失败: {e}")
             return False
     
+    def check_soundfont_switch(self):
+        """检查是否需要切换SoundFont"""
+        available_sf = self.list_available_soundfonts()
+        if len(available_sf) <= 1:
+            print("📝 只有一个SoundFont可用，跳过切换")
+            return True
+        
+        current_sf = getattr(self.player.sf_manager, 'current_soundfont', None)
+        print(f"\n📁 当前SoundFont: {current_sf}")
+        print("可用SoundFont:")
+        for i, sf in enumerate(available_sf, 1):
+            mark = " (当前)" if sf == current_sf else ""
+            print(f"   {i}. {sf}{mark}")
+        
+        switch_choice = input("\n是否切换SoundFont? (y/n, 默认n): ").strip().lower()
+        if switch_choice == 'y':
+            while True:
+                try:
+                    choice = input(f"选择SoundFont (1-{len(available_sf)}): ").strip()
+                    index = int(choice) - 1
+                    if 0 <= index < len(available_sf):
+                        return self.load_steinway_soundfont(available_sf[index])
+                    else:
+                        print(f"❌ 请输入 1-{len(available_sf)}")
+                except ValueError:
+                    print("❌ 请输入有效数字")
+        
+        return True
+    
     def list_available_soundfonts(self):
         """列出可用的Steinway SoundFont"""
         if not self.player:
-            print("❌ 播放器未初始化")
             return []
         
         sf_summary = self.player.sf_manager.get_soundfont_summary()
@@ -58,30 +87,12 @@ class PetersenScaleDemo:
         
         return available_steinway
     
-    def load_steinway_soundfont(self, sf_name: str = None):
+    def load_steinway_soundfont(self, sf_name: str):
         """加载Steinway SoundFont"""
-        if not self.player:
-            print("❌ 播放器未初始化")
-            return False
-        
-        available = self.list_available_soundfonts()
-        if not available:
-            print("❌ 未找到Steinway SoundFont文件")
-            return False
-        
-        if sf_name is None:
-            sf_name = available[0]  # 使用第一个可用的
-        
-        if sf_name not in available:
-            print(f"❌ SoundFont {sf_name} 不可用")
-            print(f"可用文件: {available}")
-            return False
-        
         print(f"🎹 加载 {sf_name}...")
         success = self.player.switch_soundfont(sf_name)
         
         if success:
-            # 切换到钢琴音色 (程序0)
             self.player.switch_instrument(0)
             print(f"✅ 成功加载 {sf_name} 并切换到钢琴音色")
             return True
@@ -92,31 +103,28 @@ class PetersenScaleDemo:
     def show_presets(self):
         """显示预设值"""
         print("\n📋 PHI 预设值:")
-        for i, (name, value) in enumerate(PHI_PRESETS.items(), 1):
-            cents_per_zone = 1200 * (value ** (1/12) - 1) * 12  # 近似音分
-            print(f"  {i:2d}. {name:<15}: {value:.6f} ({cents_per_zone:6.1f} cents/zone)")
+        for name, value in PHI_PRESETS.items():
+            print(f"   {name:<18}: {value:.6f}")
         
         print("\n📋 DELTA_THETA 预设值:")
-        for i, (name, value) in enumerate(DELTA_THETA_PRESETS.items(), 1):
+        for name, value in DELTA_THETA_PRESETS.items():
             eq_div = round(360.0 / value) if value > 0 else 0
-            print(f"  {i:2d}. {name:<20}: {value:5.1f}° ({eq_div:3d}等分)")
+            print(f"   {name:<20}: {value:5.1f}° ({eq_div:3d}等分)")
     
     def get_phi_preset(self, input_str: str):
         """根据输入获取PHI值"""
-        try:
-            # 尝试作为数字解析
-            return float(input_str)
-        except ValueError:
-            pass
+        if not input_str:
+            return None
         
-        # 尝试作为编号解析
+        # 尝试作为数字解析
         try:
-            index = int(input_str) - 1
-            presets = list(PHI_PRESETS.items())
-            if 0 <= index < len(presets):
-                name, value = presets[index]
-                print(f"📝 选择PHI预设: {name} = {value:.6f}")
+            value = float(input_str)
+            if 1.0 <= value <= 5.0:  # 合理范围检查
+                print(f"📝 使用PHI值: {value:.6f}")
                 return value
+            else:
+                print(f"❌ PHI值应在1.0-5.0范围内")
+                return None
         except ValueError:
             pass
         
@@ -127,24 +135,23 @@ class PetersenScaleDemo:
             return value
         
         print(f"❌ 无效的PHI值: {input_str}")
+        print("请输入预设名称或1.0-5.0之间的数值")
         return None
     
     def get_delta_theta_preset(self, input_str: str):
         """根据输入获取DELTA_THETA值"""
-        try:
-            # 尝试作为数字解析
-            return float(input_str)
-        except ValueError:
-            pass
+        if not input_str:
+            return None
         
-        # 尝试作为编号解析
+        # 尝试作为数字解析
         try:
-            index = int(input_str) - 1
-            presets = list(DELTA_THETA_PRESETS.items())
-            if 0 <= index < len(presets):
-                name, value = presets[index]
-                print(f"📝 选择DELTA_THETA预设: {name} = {value}°")
+            value = float(input_str)
+            if 0.1 <= value <= 360.0:  # 合理范围检查
+                print(f"📝 使用DELTA_THETA值: {value}°")
                 return value
+            else:
+                print(f"❌ DELTA_THETA值应在0.1-360.0度范围内")
+                return None
         except ValueError:
             pass
         
@@ -155,6 +162,7 @@ class PetersenScaleDemo:
             return value
         
         print(f"❌ 无效的DELTA_THETA值: {input_str}")
+        print("请输入预设名称或0.1-360.0之间的数值")
         return None
     
     def create_petersen_scale(self, f0, phi, delta_theta, f_min, f_max):
@@ -206,12 +214,129 @@ class PetersenScaleDemo:
         print(f"   五行分布: {stats['elements_distribution']}")
         print(f"   极性分布: {stats['polarity_distribution']}")
         
-        # 显示前几个频率
+        # 显示音区分布
         entries = self.current_scale.generate()
-        print(f"\n🎼 前10个音符:")
-        for i, entry in enumerate(entries[:10]):
-            print(f"   {i+1:2d}. {entry['key_short']:<4} {entry['key_long']:<6} "
-                  f"{entry['freq']:8.2f}Hz (音区{entry['n']})")
+        zones = {}
+        for entry in entries:
+            zone = entry['n']
+            if zone not in zones:
+                zones[zone] = []
+            zones[zone].append(entry)
+        
+        print(f"\n🎼 音区分布:")
+        for zone in sorted(zones.keys()):
+            print(f"   音区{zone}: {len(zones[zone])}个音符 "
+                  f"({zones[zone][0]['freq']:.1f}-{zones[zone][-1]['freq']:.1f}Hz)")
+    
+    def get_filter_options(self):
+        """获取播放过滤选项"""
+        if not self.current_scale:
+            return None, None
+        
+        entries = self.current_scale.generate()
+        
+        print("\n🎵 播放选项:")
+        print("1. 播放全部音符")
+        print("2. 按音区过滤")
+        print("3. 按五行过滤")
+        print("4. 按极性过滤")
+        print("5. 自定义数量限制")
+        
+        choice = input("选择播放方式 (1-5, 默认1): ").strip()
+        
+        filtered_entries = entries
+        filter_desc = "全部音符"
+        
+        if choice == "2":
+            # 按音区过滤
+            zones = sorted(set(entry['n'] for entry in entries))
+            print(f"可用音区: {zones}")
+            zone_input = input("输入音区编号 (用逗号分隔多个): ").strip()
+            if zone_input:
+                try:
+                    selected_zones = [int(z.strip()) for z in zone_input.split(',')]
+                    filtered_entries = [e for e in entries if e['n'] in selected_zones]
+                    filter_desc = f"音区{selected_zones}"
+                except ValueError:
+                    print("❌ 音区输入格式错误")
+                    
+        elif choice == "3":
+            # 按五行过滤
+            print(f"五行元素: {', '.join([f'{py}({cn})' for py, cn in zip(ELEMENTS_PY, ELEMENTS_CN)])}")
+            element_input = input("输入五行代码 (如J,M或金,木): ").strip()
+            if element_input:
+                elements = [e.strip() for e in element_input.split(',')]
+                # 转换中文到拼音
+                converted_elements = []
+                for elem in elements:
+                    if elem in ELEMENTS_CN:
+                        converted_elements.append(ELEMENTS_PY[ELEMENTS_CN.index(elem)])
+                    elif elem in ELEMENTS_PY:
+                        converted_elements.append(elem)
+                
+                filtered_entries = [e for e in entries if e['key_short'][0] in converted_elements]
+                filter_desc = f"五行{elements}"
+                
+        elif choice == "4":
+            # 按极性过滤
+            print("极性选项: - (阴), 0 (中), + (阳)")
+            polarity_input = input("输入极性 (如-,+): ").strip()
+            if polarity_input:
+                polarities = [p.strip() for p in polarity_input.split(',')]
+                filtered_entries = [e for e in entries if e['key_short'][-1] in polarities]
+                filter_desc = f"极性{polarities}"
+                
+        elif choice == "5":
+            # 自定义数量限制
+            count_input = input("输入播放音符数量: ").strip()
+            if count_input:
+                try:
+                    count = int(count_input)
+                    filtered_entries = entries[:count]
+                    filter_desc = f"前{count}个音符"
+                except ValueError:
+                    print("❌ 数量输入错误")
+        
+        print(f"📝 将播放: {filter_desc} (共{len(filtered_entries)}个音符)")
+        return filtered_entries, filter_desc
+    
+    def select_performance_style(self):
+        """选择演奏风格"""
+        print("\n🎨 演奏风格选项:")
+        presets = list(COMPLETE_PRESET_COMBINATIONS.keys())
+        for i, preset_name in enumerate(presets, 1):
+            preset = COMPLETE_PRESET_COMBINATIONS[preset_name]
+            print(f"   {i}. {preset.name}")
+            print(f"      音效: {preset.effect_preset}, 表现力: {preset.expression_preset}")
+        
+        choice = input(f"\n选择演奏风格 (1-{len(presets)}, 默认1): ").strip()
+        
+        try:
+            if not choice:
+                choice = "1"
+            index = int(choice) - 1
+            if 0 <= index < len(presets):
+                preset_name = presets[index]
+                preset = COMPLETE_PRESET_COMBINATIONS[preset_name]
+                
+                print(f"🎨 应用演奏风格: {preset.name}")
+                success = self.player.apply_preset_combination(
+                    preset.effect_preset,
+                    preset.expression_preset
+                )
+                
+                if success:
+                    print(f"✅ 演奏风格应用成功")
+                    return True
+                else:
+                    print(f"❌ 演奏风格应用失败")
+                    return False
+            else:
+                print(f"❌ 请输入 1-{len(presets)}")
+                return False
+        except ValueError:
+            print("❌ 请输入有效数字")
+            return False
     
     def play_scale(self):
         """播放当前音阶"""
@@ -224,31 +349,39 @@ class PetersenScaleDemo:
             return False
         
         try:
-            print(f"\n🎵 播放Petersen音阶...")
+            # 获取过滤选项
+            filtered_entries, filter_desc = self.get_filter_options()
+            if not filtered_entries:
+                print("❌ 没有符合条件的音符")
+                return False
             
-            # 获取频率列表
-            frequencies = self.current_scale.frequencies_only()
+            # 选择演奏风格
+            if not self.select_performance_style():
+                print("📝 使用默认演奏风格")
             
-            # 限制播放数量（避免太长）
-            max_notes = 24
-            if len(frequencies) > max_notes:
-                frequencies = frequencies[:max_notes]
-                print(f"📝 限制播放前{max_notes}个音符")
+            print(f"\n🎵 播放Petersen音阶: {filter_desc}")
             
-            # 生成音名
-            entries = self.current_scale.generate()
-            key_names = [entry['key_short'] for entry in entries[:len(frequencies)]]
+            # 提取频率和音名
+            frequencies = [entry['freq'] for entry in filtered_entries]
+            key_names = [entry['key_short'] for entry in filtered_entries]
             
             print(f"播放 {len(frequencies)} 个音符:")
-            for freq, name in zip(frequencies, key_names):
-                print(f"   {name}: {freq:.1f}Hz")
+            for i, (freq, name, entry) in enumerate(zip(frequencies, key_names, filtered_entries), 1):
+                print(f"   {i:2d}. {name:<4} {entry['key_long']:<8} {freq:8.2f}Hz (音区{entry['n']})")
+            
+            # 询问播放参数
+            duration_input = input("\n音符时长 (秒, 默认0.8): ").strip()
+            duration = float(duration_input) if duration_input else 0.8
+            
+            gap_input = input("音符间隔 (秒, 默认0.2): ").strip()
+            gap = float(gap_input) if gap_input else 0.2
             
             # 播放音阶
             success = self.player.play_frequencies(
                 frequencies, 
                 key_names,
-                duration=0.8,
-                gap=0.2
+                duration=duration,
+                gap=gap
             )
             
             if success:
@@ -264,38 +397,16 @@ class PetersenScaleDemo:
     
     def run(self):
         """运行主程序"""
-        print("🎵 Petersen音阶交互式演示程序")
+        print("🎵 Petersen音阶交互式演示程序 (增强版)")
         print("=" * 50)
         
         # 初始化播放器
         if not self.initialize_player():
             return
         
-        # 加载SoundFont
-        available_sf = self.list_available_soundfonts()
-        if not available_sf:
-            print("❌ 未找到Steinway SoundFont文件")
+        # 检查是否需要切换SoundFont
+        if not self.check_soundfont_switch():
             return
-        
-        print(f"\n📁 可用SoundFont:")
-        for i, sf in enumerate(available_sf, 1):
-            print(f"   {i}. {sf}")
-        
-        # 选择SoundFont
-        while True:
-            try:
-                choice = input(f"\n选择SoundFont (1-{len(available_sf)}, 默认1): ").strip()
-                if not choice:
-                    choice = "1"
-                
-                index = int(choice) - 1
-                if 0 <= index < len(available_sf):
-                    if self.load_steinway_soundfont(available_sf[index]):
-                        break
-                else:
-                    print(f"❌ 请输入 1-{len(available_sf)}")
-            except ValueError:
-                print("❌ 请输入有效数字")
         
         # 主循环
         while True:
@@ -303,22 +414,41 @@ class PetersenScaleDemo:
             print("🎵 Petersen音阶参数设置")
             
             try:
-                # 输入基础频率F0
-                f0_input = input("输入基础频率F0 (Hz, 默认55): ").strip()
-                f0 = float(f0_input) if f0_input else 55.0
+                # 输入基础频率F0 (必填)
+                while True:
+                    f0_input = input("输入基础频率F0 (Hz): ").strip()
+                    if f0_input:
+                        try:
+                            f0 = float(f0_input)
+                            if 10.0 <= f0 <= 1000.0:  # 合理范围
+                                break
+                            else:
+                                print("❌ F0应在10-1000Hz范围内")
+                        except ValueError:
+                            print("❌ 请输入有效的数字")
+                    else:
+                        print("❌ F0是必填项")
                 
-                # 显示预设并选择PHI
+                # 显示预设并选择PHI (必填)
                 self.show_presets()
-                phi_input = input("\n输入PHI值 (数字/编号/名称, 默认golden): ").strip()
-                phi = self.get_phi_preset(phi_input if phi_input else "golden")
-                if phi is None:
-                    continue
+                while True:
+                    phi_input = input("\n输入PHI值 (预设名称或数值): ").strip()
+                    if phi_input:
+                        phi = self.get_phi_preset(phi_input)
+                        if phi is not None:
+                            break
+                    else:
+                        print("❌ PHI是必填项")
                 
-                # 选择DELTA_THETA
-                delta_theta_input = input("输入DELTA_THETA值 (数字/编号/名称, 默认petersen_original): ").strip()
-                delta_theta = self.get_delta_theta_preset(delta_theta_input if delta_theta_input else "petersen_original")
-                if delta_theta is None:
-                    continue
+                # 选择DELTA_THETA (必填)
+                while True:
+                    delta_theta_input = input("输入DELTA_THETA值 (预设名称或数值): ").strip()
+                    if delta_theta_input:
+                        delta_theta = self.get_delta_theta_preset(delta_theta_input)
+                        if delta_theta is not None:
+                            break
+                    else:
+                        print("❌ DELTA_THETA是必填项")
                 
                 # 输入频率范围
                 f_min_input = input("输入最小频率 (Hz, 默认30): ").strip()
