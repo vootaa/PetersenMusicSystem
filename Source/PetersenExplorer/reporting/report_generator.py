@@ -14,10 +14,48 @@ import sys
 current_dir = Path(__file__).parent
 sys.path.insert(0, str(current_dir.parent.parent))
 
-from ..core.parameter_explorer import ExplorationResult
-from ..core.evaluation_framework import ComprehensiveEvaluation
-from ..core.classification_system import ClassificationResult
-from ..audio.playback_tester import SystemPlaybackAssessment
+try:
+    # 尝试相对导入
+    from ..core.parameter_explorer import ExplorationResult
+    from ..core.evaluation_framework import ComprehensiveEvaluation
+    from ..core.classification_system import ClassificationResult
+    from ..audio.playback_tester import SystemPlaybackAssessment
+except ImportError:
+    # 回退到绝对导入
+    try:
+        from core.parameter_explorer import ExplorationResult
+        from core.evaluation_framework import ComprehensiveEvaluation
+        from core.classification_system import ClassificationResult
+        from audio.playback_tester import SystemPlaybackAssessment
+    except ImportError:
+        # 创建简化的替代类
+        from typing import NamedTuple
+        
+        class ExplorationResult(NamedTuple):
+            parameters: Any
+            scale: Any
+            entries: List
+            success: bool
+            basic_metrics: Dict
+        
+        class ComprehensiveEvaluation(NamedTuple):
+            dimension_scores: Dict
+            weighted_total_score: float
+            category_recommendation: str
+            application_suggestions: List
+            strengths: List
+            limitations: List
+            overall_viability: str
+        
+        class ClassificationResult(NamedTuple):
+            primary_category: Any
+            confidence_score: float
+        
+        class SystemPlaybackAssessment(NamedTuple):
+            overall_playability: float
+            technical_score: float
+            musical_score: float
+            recommended_for_audio: bool
 
 @dataclass
 class ExplorationSummary:
