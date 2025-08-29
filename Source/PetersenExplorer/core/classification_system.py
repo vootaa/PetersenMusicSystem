@@ -257,12 +257,31 @@ class OpenClassificationSystem:
     
     def _get_dimension_score(self, dimension_scores: Dict, dimension_name: str) -> float:
         """安全获取维度分数"""
+        # 首先尝试直接访问
         if dimension_name in dimension_scores:
             score_obj = dimension_scores[dimension_name]
             if hasattr(score_obj, 'score'):
                 return score_obj.score
             elif isinstance(score_obj, (int, float)):
                 return float(score_obj)
+        
+        # 映射到实际存在的维度
+        dimension_mapping = {
+            'traditional_compatibility': ['harmonic_complexity', 'practical_usability'],
+            'microtonal_potential': ['melodic_potential', 'theoretical_interest'],
+            'experimental_innovation': ['compositional_versatility', 'performance_difficulty'],
+            'therapeutic_value': ['practical_usability', 'harmonic_complexity']
+        }
+        
+        if dimension_name in dimension_mapping:
+            for alt_name in dimension_mapping[dimension_name]:
+                if alt_name in dimension_scores:
+                    score_obj = dimension_scores[alt_name]
+                    if hasattr(score_obj, 'score'):
+                        return score_obj.score
+                    elif isinstance(score_obj, (int, float)):
+                        return float(score_obj)
+        
         return 0.5  # 默认分数
 
     def _determine_primary_category(self, evaluation: ComprehensiveEvaluation) -> Tuple[PrimaryCategory, float]:

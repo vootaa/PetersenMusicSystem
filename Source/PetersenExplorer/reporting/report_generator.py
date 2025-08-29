@@ -382,11 +382,23 @@ class PetersenExplorationReportGenerator:
                     continue
                     
                 result_key = self._get_result_key(result)
+
+                # 安全获取参数
+                params = result.parameters if hasattr(result, 'parameters') else None
+                phi_name = 'unknown'
+                theta_name = 'unknown'
+                f_base = 0
+                
+                if params:
+                    phi_name = getattr(params, 'phi_preset_name', getattr(params, 'phi_name', 'unknown'))
+                    theta_name = getattr(params, 'delta_theta_preset_name', getattr(params, 'delta_theta_name', 'unknown'))
+                    f_base = getattr(params, 'f_base', 0)
+
                 row = {
                     'system_id': result_key,
-                    'phi_preset': result.parameters.phi_preset_name if result.parameters else 'unknown',
-                    'delta_theta_preset': result.parameters.delta_theta_preset_name if result.parameters else 'unknown',
-                    'f_base': result.parameters.f_base if result.parameters else 0,
+                    'phi_preset': phi_name,
+                    'delta_theta_preset': theta_name,
+                    'f_base': f_base,
                     'note_count': len(result.entries),
                     'frequency_range_hz': f"{min(entry.frequency for entry in result.entries):.1f}-{max(entry.frequency for entry in result.entries):.1f}",
                     'weighted_total_score': 0,
@@ -459,7 +471,12 @@ class PetersenExplorationReportGenerator:
     def _get_result_key(self, result):
         """获取结果键名"""
         if hasattr(result, 'parameters') and result.parameters:
-            return f"{result.parameters.phi_preset_name}_{result.parameters.delta_theta_preset_name}_{result.parameters.f_base}"
+            params = result.parameters
+            # 安全获取参数名称
+            phi_name = getattr(params, 'phi_preset_name', getattr(params, 'phi_name', 'unknown'))
+            theta_name = getattr(params, 'delta_theta_preset_name', getattr(params, 'delta_theta_name', 'unknown'))
+            f_base = getattr(params, 'f_base', 'unknown')
+            return f"{phi_name}_{theta_name}_{f_base}"
         else:
             return f"unknown_system_{id(result)}"
     

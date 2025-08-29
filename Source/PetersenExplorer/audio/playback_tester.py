@@ -272,10 +272,25 @@ class PetersenPlaybackTester:
             note_start = time.time()
             
             try:
+                # 修复：安全获取频率和键名
+                if hasattr(entry, 'freq'):
+                    freq = entry.freq
+                    key_short = getattr(entry, 'key_short', f'Note{i}')
+                    key_long = getattr(entry, 'key_long', f'Note{i}')
+                elif isinstance(entry, dict):
+                    freq = entry.get('frequency', entry.get('freq', 440.0))
+                    key_short = entry.get('key_short', entry.get('key', f'Note{i}'))
+                    key_long = entry.get('key_long', entry.get('name', f'Note{i}'))
+                else:
+                    # 如果都不是，跳过这个音符
+                    failed += 1
+                    error_messages.append(f"音符 {i} 数据格式错误")
+                    continue
+                
                 scale_data = [{
-                    'freq': entry.freq,
-                    'key': entry.key_short,
-                    'name': entry.key_long
+                    'freq': freq,
+                    'key': key_short,
+                    'name': key_long
                 }]
                 
                 success = self.player.play_petersen_scale(
@@ -288,18 +303,18 @@ class PetersenPlaybackTester:
                     played += 1
                     detailed_log.append({
                         'index': i,
-                        'frequency': entry.freq,
-                        'key': entry.key_short,
+                        'frequency': freq,
+                        'key': key_short,
                         'success': True,
                         'duration': time.time() - note_start
                     })
                 else:
                     failed += 1
-                    error_messages.append(f"音符 {entry.key_short} ({entry.freq:.1f}Hz) 播放失败")
+                    error_messages.append(f"音符 {key_short} ({freq:.1f}Hz) 播放失败")
                     detailed_log.append({
                         'index': i,
-                        'frequency': entry.freq,
-                        'key': entry.key_short,
+                        'frequency': freq,
+                        'key': key_short,
                         'success': False,
                         'error': '播放函数返回失败'
                     })
@@ -310,11 +325,11 @@ class PetersenPlaybackTester:
             
             except Exception as e:
                 failed += 1
-                error_messages.append(f"音符 {entry.key_short} 播放异常: {str(e)}")
+                error_messages.append(f"音符 {i} 播放异常: {str(e)}")
                 detailed_log.append({
                     'index': i,
-                    'frequency': entry.freq,
-                    'key': entry.key_short,
+                    'frequency': 440.0,
+                    'key': f'Note{i}',
                     'success': False,
                     'error': str(e)
                 })
