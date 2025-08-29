@@ -432,6 +432,7 @@ class EnhancedPetersenPlayer:
             else:
                 # 使用简单播放
                 success = self._play_simple_sequence(frequencies, key_names, params)
+                print("✅ 简单播放完成")
             
             # 更新统计
             play_time = time.time() - start_time
