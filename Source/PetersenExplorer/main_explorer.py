@@ -505,18 +505,30 @@ class PetersenMainExplorer:
     
     def _generate_comprehensive_report(self) -> Path:
         """生成综合报告"""
-        print("📋 生成综合探索报告...")
+        if not self.config.enable_reporting:
+            return None
         
-        report_path = self.report_generator.generate_comprehensive_report(
-            exploration_results=self.exploration_results,
-            evaluations=self.evaluations,
-            classifications=self.classifications,
-            audio_assessments=self.audio_assessments,
-            report_name=self.config.report_name
-        )
-        
-        print(f"✅ 报告已生成: {report_path}")
-        return report_path
+        try:
+            from reporting.report_generator import PetersenExplorationReportGenerator
+            
+            # 传递配置的输出目录，而不是重新创建
+            generator = PetersenExplorationReportGenerator(
+                output_dir=self.config.output_dir  # 使用配置的目录
+            )
+            
+            report_path = generator.generate_comprehensive_report(
+                exploration_results=self.exploration_results,
+                evaluations=self.evaluations,
+                classifications=self.classifications,
+                audio_assessments=self.audio_assessments,
+                report_name=self.config.report_name
+            )
+            
+            return report_path
+            
+        except Exception as e:
+            print(f"⚠️ 报告生成失败: {e}")
+            return None
     
     def _generate_exploration_summary(self, duration: float) -> Dict[str, Any]:
         """生成探索摘要"""

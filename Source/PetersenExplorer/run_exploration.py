@@ -51,6 +51,11 @@ def run_complete_exploration():
     
     print("\n🚀 启动完整PetersenExplorer系统")
 
+    # 统一的输出目录管理
+    base_output_dir = Path("./output")
+    timestamp = int(time.time())
+    session_output_dir = base_output_dir / f"session_{timestamp}"
+
     soundfont_choice = input("选择SoundFont (1=D274, 2=D274II, 其他=禁用音频): ").strip()
 
     if soundfont_choice == "1":
@@ -87,9 +92,11 @@ def run_complete_exploration():
         audio_test_sample_size=10,      # 测试前10个最优系统
         
         # 报告配置
-        report_name=f"petersen_exploration_{int(time.time())}",
-        output_dir=Path("./output")
+        output_dir=session_output_dir, 
+        report_name=f"petersen_exploration_{timestamp}",
     )
+
+    print(f"📁 输出目录: {session_output_dir}")
     
     print(f"⚙️ 配置概览:")
     print(f"   - 基频候选: {len(config.f_base_candidates)} 个")

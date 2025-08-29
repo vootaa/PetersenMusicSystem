@@ -78,9 +78,11 @@ class PetersenExplorationReportGenerator:
         Args:
             output_dir: 输出目录路径
         """
-        self.output_dir = output_dir or Path("./reports")
-        self.output_path = self.output_dir
+        self.output_dir = output_dir or Path("./output")
+
+        # 确保输出目录存在
         self.output_dir.mkdir(exist_ok=True)
+
         
         # 创建子目录
         (self.output_dir / "detailed").mkdir(exist_ok=True)
