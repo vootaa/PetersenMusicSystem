@@ -18,7 +18,7 @@ Petersen 可变比例音区模块（库形式）
 - 支持频率范围限制、多种导出格式、音程分析等功能
 
 核心API：
-  - PetersenScale_Phi(F_base=20, delta_theta=4.8, phi=PHI, F_min=30, F_max=6000, reference=440)
+  - PetersenScale(F_base=20, delta_theta=4.8, phi=PHI, F_min=30, F_max=6000, reference=440)
   - scale.generate() -> List[Dict]: 生成音阶条目字典列表
   - scale.generate_raw() -> List[ScaleEntry]: 生成原始精度的音阶条目
   - scale.frequencies_only() -> List[float]: 仅返回频率列表
@@ -31,10 +31,10 @@ Petersen 可变比例音区模块（库形式）
 使用示例：
   ```python
   # 创建不同φ值的音阶对象
-  scale_golden = PetersenScale_Phi(F_base=20.0, delta_theta=4.8, phi=1.618)  # 黄金比例
-  scale_octave = PetersenScale_Phi(F_base=20.0, delta_theta=4.8, phi=2.0)    # 八度关系
-  scale_fifth = PetersenScale_Phi(F_base=20.0, delta_theta=4.8, phi=1.5)     # 完全五度
-  scale_tritone = PetersenScale_Phi(F_base=20.0, delta_theta=4.8, phi=1.414) # 增四度
+  scale_golden = PetersenScale(F_base=20.0, delta_theta=4.8, phi=1.618)  # 黄金比例
+  scale_octave = PetersenScale(F_base=20.0, delta_theta=4.8, phi=2.0)    # 八度关系
+  scale_fifth = PetersenScale(F_base=20.0, delta_theta=4.8, phi=1.5)     # 完全五度
+  scale_tritone = PetersenScale(F_base=20.0, delta_theta=4.8, phi=1.414) # 增四度
   
   # 生成音阶
   entries = scale.generate()  # 舍入版本
@@ -455,7 +455,7 @@ class ScaleEntry:
     key_short: str
     key_long: str
 
-class PetersenScale_Phi:
+class PetersenScale:
     """
     Petersen可变比例音阶生成器
     
@@ -510,7 +510,7 @@ class PetersenScale_Phi:
         phi_info = get_phi_info(phi)
         dth_info = get_delta_theta_info(delta_theta, phi)
         
-        self.logger.info(f"Created PetersenScale_Phi with φ={phi:.6f} ({phi_info['phi_name']}), δθ={delta_theta}° ({dth_info['name']})")
+        self.logger.info(f"Created PetersenScale with φ={phi:.6f} ({phi_info['phi_name']}), δθ={delta_theta}° ({dth_info['name']})")
         self.logger.info(f"   φ效果: {phi_info['musical_description']}")
         self.logger.info(f"   δθ效果: {dth_info['description']}")
 
@@ -1209,7 +1209,7 @@ def compare_phi_values(phi_values: List[float], F_base: float = 55.0, delta_thet
     
     for phi in phi_values:
         try:
-            scale = PetersenScale_Phi(F_base=F_base, delta_theta=delta_theta, phi=phi)
+            scale = PetersenScale(F_base=F_base, delta_theta=delta_theta, phi=phi)
             phi_info = scale.get_phi_info()
             stats = scale.get_statistics()
             
@@ -1239,7 +1239,7 @@ def compare_delta_theta_values(dth_values: List[float], phi: float = 2.0, F_base
     
     for dth in dth_values:
         try:
-            scale = PetersenScale_Phi(F_base=F_base, delta_theta=dth, phi=phi)
+            scale = PetersenScale(F_base=F_base, delta_theta=dth, phi=phi)
             dth_info = scale.get_delta_theta_info()
             stats = scale.get_statistics()
             
@@ -1379,7 +1379,7 @@ if __name__ == "__main__":
 
     # 创建音阶对象
     try:
-        scale = PetersenScale_Phi(
+        scale = PetersenScale(
             F_base=args.F_base, 
             delta_theta=delta_theta_value, 
             phi=phi_value,

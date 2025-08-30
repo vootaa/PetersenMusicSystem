@@ -43,9 +43,9 @@ Petersen可变比例音阶生成器，实现了一套独特的音律系统，
 
 核心API示例
 # 创建不同类型的音阶
-    scale_golden = PetersenScale_Phi(phi=1.618)    # 黄金比例
-    scale_octave = PetersenScale_Phi(phi=2.0)      # 八度关系  
-    scale_fifth = PetersenScale_Phi(phi=1.5)       # 完全五度
+    scale_golden = PetersenScale(phi=1.618)    # 黄金比例
+    scale_octave = PetersenScale(phi=2.0)      # 八度关系  
+    scale_fifth = PetersenScale(phi=1.5)       # 完全五度
 
 # 生成和分析
     entries = scale.generate()                     # 生成音阶
