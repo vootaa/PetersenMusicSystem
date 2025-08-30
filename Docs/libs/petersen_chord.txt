@@ -1,0 +1,86 @@
+这是一个基于Petersen音阶系统的和弦扩展与根音提取库。
+
+以下是其主要作用和特点：
+
+核心功能
+Petersen和弦扩展器，实现了一套智能的和弦生成系统，
+结合了：
+    五行"中"极性根音提取（金、木、水、火、土的平衡态）
+    传统和弦比率（3/2完全五度、5/4大三度、6/5小三度等）
+    智能频率匹配算法（容差范围内复用现有音阶）
+    动态音阶扩展（白键稳定，黑键动态生成）
+
+主要特性
+1. 根音提取系统
+    自动筛选五行"中"极性音符（p=0）作为稳定根音
+    选择最低3个音区提供15个根音（5个五行 × 3个音区）
+    根音作为和弦构建的基础锚点
+
+2. 和弦比率预设系统
+    8种预设模式：大三和弦、小三和弦、纯律音阶、中国五声等
+    simple_ratios: [3/2, 5/4, 6/5] - 基础完全五度+三度组合
+    major_triad: [5/4, 3/2] - 标准大三和弦
+    minor_triad: [6/5, 3/2] - 标准小三和弦
+    golden_ratios: [1.618, 1.618²] - 黄金比例和声
+
+3. 智能匹配算法
+    容差匹配：在设定音分范围内匹配现有Petersen音阶
+    动态扩展：超出容差时创建新的和弦音
+    频率范围控制：避免过高或过低的不实用频率
+
+4. 完整的分析功能
+    和弦覆盖率分析：匹配率、音程分布统计
+    音分偏差计算：量化匹配精度
+    来源追踪：区分现有音阶音符vs新生成音符
+
+使用场景
+    钢琴设计
+        白键映射：Petersen基础音阶（稳定结构）
+        黑键映射：动态生成的和弦音（扩展结构）
+        多声部演奏：根音提供低音锚点，和弦音填充和声
+
+    音乐创作
+        和谐和弦：基于纯律比率的自然和声
+        实验和声：黄金比例等非传统比率探索
+        东方音乐：结合五行理论的和弦进行
+
+    音乐分析
+        音律兼容性研究：分析不同比率在Petersen系统中的适配度
+        和声色彩分析：量化不同预设的音响特征
+
+核心API示例
+# 创建和弦扩展器
+    from petersen_scale import PetersenScale
+    from petersen_chord import PetersenChordExtender
+    
+    base_scale = PetersenScale(F_base=55.0, phi=2.0)  # A1基频八度
+    extender = PetersenChordExtender(
+        petersen_scale=base_scale,
+        chord_ratios="simple_ratios",  # 或自定义 [3/2, 5/4, 6/5]
+        tolerance_cents=50  # 50音分匹配容差
+    )
+
+# 根音和和弦生成
+    root_notes = extender.extract_root_notes()        # 提取15个根音
+    extended_scale = extender.extend_scale_with_chords()  # 生成扩展音阶
+    chord = extender.get_chord_for_root("J0")          # 获取特定根音和弦
+
+# 分析和导出
+    analysis = extender.analyze_chord_coverage()      # 和弦覆盖分析
+    extender.export_extended_scale_csv()              # 导出扩展音阶
+    extender.export_chord_mapping_csv()               # 导出和弦映射关系
+
+数据结构
+    ChordTone: 和弦音条目（频率、比率、来源类型、音分偏差）
+    ExtendedScale: 完整扩展音阶（根音+原音阶+和弦音+映射关系）
+    CHORD_RATIOS: 预设和弦比率字典（8种经典模式）
+
+创新之处
+这个库将Petersen音阶的五行哲学基础与西方传统和声理论结合，创造了一个既保持东方音律特色又兼容西方和弦结构的混合系统。
+通过智能匹配算法，最大化复用现有音阶资源，同时提供灵活的扩展能力，为定制钢琴设计和实验音乐创作提供了理论与实践的完美桥梁。
+
+特别适用于：
+- 基于Petersen图的钢琴键盘设计（白键+黑键映射）
+- 五行阴阳节拍系统的和声支撑
+- 非十二平均律环境下的和弦音乐创作
+- 东西方音律融合的音乐理论
