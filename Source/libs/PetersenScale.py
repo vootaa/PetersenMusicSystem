@@ -108,10 +108,12 @@ PHI_PRESETS = {
     # 小间隔值（微分音效果）
     "sqrt_sqrt2": SQRT_SQRT2,   # √√2 ≈ 1.189 微分音
     "sqrt_sqrt3": SQRT_SQRT3,   # √√3 ≈ 1.316 中性二度
+    "e_over_2": math.e / 2.0,   # e/2 ≈ 1.3591（自然常数的一半）
     "tritone": SQRT2,           # √2 ≈ 1.414 增四度
     "sqrt_sqrt5": SQRT_SQRT5,   # √√5 ≈ 1.495 中性三度
     "fifth": 1.5,               # 1.5 完全五度
     "sqrt_sqrt6": SQRT_SQRT6,   # √√6 ≈ 1.565 增强三度
+    "pi_over_2": math.pi / 2.0, # π/2 ≈ 1.5708（π的一半）
     "golden": PHI,              # φ ≈ 1.618 黄金比例
     "sqrt_sqrt7": SQRT_SQRT7,   # √√7 ≈ 1.627 小七度近似
     "sqrt_sqrt8": SQRT_SQRT8,   # √√8 ≈ 1.682 大六度近似
@@ -122,8 +124,10 @@ PHI_PRESETS = {
     "sqrt5": SQRT5,             # √5 ≈ 2.236 九度
     "sqrt6": SQRT6,             # √6 ≈ 2.449 超八度
     "sqrt7": SQRT7,             # √7 ≈ 2.646 大十度
+    "e": math.e,                # e ≈ 2.718281828459（欧拉常数）
     "sqrt8": SQRT8,             # √8 ≈ 2.828 双增四度
     "ninth": 3.0,               # 3.0 纯九度
+    "pi": math.pi,              # π ≈ 3.1416
 }
 
 # delta_theta预设常量
