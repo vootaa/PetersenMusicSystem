@@ -375,7 +375,7 @@ class PetersenChordExtender:
         if path is None:
             base_name = self.petersen_scale._generate_filename_base()
             ratios_str = "_".join([f"{r:.3f}".replace(".", "p") for r in self.chord_ratios])
-            path = f"../data/petersen_extended_scale_{base_name}_ratios_{ratios_str}.csv"
+            path = f"../data/{base_name}_extended_scale_ratios_{ratios_str}.csv"
         
         path = Path(path)
         
@@ -408,7 +408,7 @@ class PetersenChordExtender:
         if path is None:
             base_name = self.petersen_scale._generate_filename_base()
             ratios_str = "_".join([f"{r:.3f}".replace(".", "p") for r in self.chord_ratios])
-            path = f"../data/petersen_chord_mapping_{base_name}_ratios_{ratios_str}.csv"
+            path = f"../data/{base_name}_chord_mapping_ratios_{ratios_str}.csv"
         
         path = Path(path)
         
