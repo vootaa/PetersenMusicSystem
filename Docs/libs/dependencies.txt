@@ -1,0 +1,13 @@
+petersen_scale.py (基础音阶)
+         ↓
+petersen_chord.py (和弦扩展)
+         ↓
+    ┌─────────────────┐
+    ↓                 ↓
+petersen_rhythm.py   petersen_melody.py
+(节奏与和声)          (旋律单元与图约束)
+    ↓                 ↓  
+    └─────────────────┘
+            ↓
+  petersen_composer.py
+    (自动作曲系统)
