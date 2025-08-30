@@ -1,13 +1,46 @@
-petersen_scale.py (基础音阶)
-         ↓
-petersen_chord.py (和弦扩展)
-         ↓
-    ┌─────────────────┐
-    ↓                 ↓
-petersen_rhythm.py   petersen_melody.py
-(节奏与和声)          (旋律单元与图约束)
-    ↓                 ↓  
-    └─────────────────┘
-            ↓
-  petersen_composer.py
-    (自动作曲系统)
+Petersen-Music 架构依赖图
+
+  petersen_scale.py (基础音阶)
+              ↓
+  petersen_chord.py (和弦扩展)
+              ↓
+      ┌─────────────────┐
+      ↓                 ↓
+  petersen_rhythm.py   petersen_melody.py
+    (节奏与和声)          (旋律单元与图约束)
+      ↓                 ↓  
+      └─────────────────┘
+              ↓
+    petersen_composer.py
+        (自动作曲系统)
+              ↓
+    petersen_performance.py
+      (演奏技巧与并行音符)
+              ↓
+      ┌─────────────────────────────────────┐
+      ↓                                     ↓
+  支持库模块                              高级渲染器
+      ├─ soundfont_manager.py               ↓
+      ├─ frequency_accurate.py    petersen_virtuoso_renderer.py
+      ├─ audio_effects.py           (大师级演奏渲染)
+      ├─ expression_control.py              ↓
+      ├─ performance_modes.py        ┌──────────────┐
+      └─ petersen_player.py          ↓              ↓
+              ↓                  实时试听模式  高质量WAV渲染模式
+      petersen_interactive_plus.py
+      (交互式演示程序)                ↓              ↓
+                                  快速预览        专业制作
+                                  单音符试听     完整作品输出
+                                  技法演示        录音室品质
+
+
+～～～～～～～～～～～～～
+依赖关系说明：
+  垂直依赖（功能层次）
+    从基础音阶 → 和弦 → 节奏旋律 → 作曲 → 演奏技法 → 渲染输出
+  水平依赖（同级协作）
+    支持库模块之间相互配合支持顶层渲染器
+双向流程
+  向上流程：基础数据 → 音乐内容 → 演奏效果
+  向下应用：用户需求 → 渲染控制 → 具体实现
+这个架构实现了从数学音阶理论到专业音乐制作的完整链条！

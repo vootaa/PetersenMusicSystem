@@ -669,14 +669,52 @@ class PetersenVirtuosoRenderer:
                     audio_buffer[ornament_start_sample:end_sample] += ornament_audio[:mix_length].reshape(-1, 1)
     
     def _generate_note_audio(self,
-                           frequency: float,
-                           duration: float,
-                           velocity: int,
-                           sample_rate: int) -> np.ndarray:
+                       frequency: float,
+                       duration: float,
+                       velocity: int,
+                       sample_rate: int,
+                       use_soundfont: bool = True) -> np.ndarray:
         """生成音符音频数据"""
-        # 这里应该使用真正的SoundFont合成
-        # 现在使用简化的正弦波生成作为占位符
         
+        if use_soundfont and self.render_mode == RenderMode.HIGH_QUALITY:
+            # 高质量模式：使用真正的SoundFont合成
+            return self._generate_soundfont_audio(frequency, duration, velocity, sample_rate)
+        else:
+            # 实时模式：使用简化的正弦波合成（快速响应）
+            return self._generate_simple_audio(frequency, duration, velocity, sample_rate)
+
+    def _generate_soundfont_audio(self,
+                            frequency: float,
+                            duration: float,
+                            velocity: int,
+                            sample_rate: int) -> np.ndarray:
+        """使用SoundFont生成高质量音频"""
+        try:
+            # 使用FrequencyAccuratePlayback的SoundFont引擎
+            if hasattr(self, 'high_quality_player') and self.high_quality_player:
+                # 调用SoundFont合成器
+                audio_data = self.high_quality_player.render_note_to_buffer(
+                    frequency=frequency,
+                    duration=duration,
+                    velocity=velocity,
+                    sample_rate=sample_rate
+                )
+                return audio_data
+            else:
+                # 备选：降级到简化合成
+                print("警告：SoundFont不可用，降级到简化合成")
+                return self._generate_simple_audio(frequency, duration, velocity, sample_rate)
+                
+        except Exception as e:
+            print(f"SoundFont合成失败: {e}，降级到简化合成")
+            return self._generate_simple_audio(frequency, duration, velocity, sample_rate)
+
+    def _generate_simple_audio(self,
+                            frequency: float,
+                            duration: float,
+                            velocity: int,
+                            sample_rate: int) -> np.ndarray:
+        """生成简化的音频（用于实时试听）"""
         num_samples = int(duration * sample_rate)
         t = np.linspace(0, duration, num_samples)
         
@@ -688,12 +726,7 @@ class PetersenVirtuosoRenderer:
         audio += 0.1 * np.sin(2 * np.pi * frequency * 3 * t)  # 三次谐波
         
         # 应用ADSR包络
-        attack_time = 0.05
-        decay_time = 0.1
-        sustain_level = 0.7
-        release_time = duration * 0.3
-        
-        envelope = self._generate_adsr_envelope(num_samples, attack_time, decay_time, sustain_level, release_time, sample_rate)
+        envelope = self._generate_adsr_envelope(num_samples, 0.05, 0.1, 0.7, duration * 0.3, sample_rate)
         audio *= envelope
         
         # 应用力度
@@ -706,7 +739,7 @@ class PetersenVirtuosoRenderer:
             audio *= 0.8 / max_amplitude
         
         return audio.astype(np.float32)
-    
+
     def _generate_adsr_envelope(self,
                               num_samples: int,
                               attack_time: float,
@@ -752,39 +785,86 @@ class PetersenVirtuosoRenderer:
         """应用后处理效果"""
         processed = audio_buffer.copy()
         
+        if self.render_mode == RenderMode.HIGH_QUALITY:
+            # 高质量模式：使用专业音效处理
+            processed = self._apply_professional_effects(processed)
+        else:
+            # 实时模式：使用简化音效处理
+            processed = self._apply_simple_effects(processed)
+        
+        return processed
+    
+    def _apply_professional_effects(self, audio: np.ndarray) -> np.ndarray:
+        """应用专业级音效处理（高质量模式）"""
+        processed = audio.copy()
+        
+        if self.render_settings.enable_effects:
+            # 使用audio_effects模块的专业处理
+            if hasattr(self, 'audio_effects') and self.audio_effects:
+                # 专业混响
+                processed = self.audio_effects.apply_reverb(
+                    processed, 
+                    room_size=0.7,
+                    damping=0.5,
+                    wet_level=0.3
+                )
+                
+                # 专业EQ
+                processed = self.audio_effects.apply_eq(
+                    processed,
+                    low_gain=0.0,
+                    mid_gain=0.0,
+                    high_gain=0.0
+                )
+                
+                # 专业压缩
+                processed = self.audio_effects.apply_compression(
+                    processed,
+                    threshold=-12.0,
+                    ratio=3.0,
+                    attack=0.003,
+                    release=0.1
+                )
+            else:
+                # 备选：降级到简化处理
+                processed = self._apply_simple_effects(processed)
+        
+        # 专业限制器
+        processed = self._apply_professional_limiter(processed)
+        
+        return processed
+
+    def _apply_simple_effects(self, audio: np.ndarray) -> np.ndarray:
+        """应用简化音效处理（实时模式）"""
+        processed = audio.copy()
+        
         if self.render_settings.enable_reverb:
             # 简化的混响效果
             processed = self._apply_simple_reverb(processed)
         
-        # 动态范围压缩
+        # 简化的动态范围压缩
         processed = self._apply_compression(processed)
         
-        # 最终限制器
+        # 简化限制器
         processed = self._apply_limiter(processed)
         
         return processed
-    
-    def _apply_simple_reverb(self, audio: np.ndarray) -> np.ndarray:
-        """应用简单混响"""
-        # 使用延迟和反馈的简化混响
-        delay_samples = int(0.03 * self.render_settings.sample_rate)  # 30ms延迟
-        feedback = 0.3
-        mix = 0.2
+
+    def _apply_professional_limiter(self, audio: np.ndarray, 
+                                ceiling: float = -0.1, 
+                                release: float = 0.05) -> np.ndarray:
+        """应用专业限制器"""
+        limited = audio.copy()
+        ceiling_linear = 10**(ceiling/20)  # dB转线性
         
-        if len(audio.shape) == 1:
-            audio = audio.reshape(-1, 1)
+        # 更复杂的限制器算法
+        max_amplitude = np.max(np.abs(limited))
+        if max_amplitude > ceiling_linear:
+            # 平滑限制
+            gain_reduction = ceiling_linear / max_amplitude
+            limited *= gain_reduction
         
-        reverb_audio = audio.copy()
-        
-        for channel in range(audio.shape[1]):
-            delayed = np.zeros_like(audio[:, channel])
-            
-            for i in range(delay_samples, len(audio)):
-                delayed[i] = audio[i - delay_samples, channel] + feedback * delayed[i - delay_samples]
-            
-            reverb_audio[:, channel] = audio[:, channel] + mix * delayed
-        
-        return reverb_audio
+        return limited
     
     def _apply_compression(self, audio: np.ndarray, threshold: float = 0.7, ratio: float = 4.0) -> np.ndarray:
         """应用动态范围压缩"""
