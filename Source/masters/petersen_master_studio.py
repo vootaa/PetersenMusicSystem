@@ -207,8 +207,8 @@ class MasterStudioConfig:
     include_midi: bool = True
     
     # SoundFont设置
-    preferred_soundfont: str = "GD_Steinway_Model_D274.sf2"
-    alternative_soundfont: str = "GD_Steinway_Model_D274II.sf2"
+    preferred_soundfont: str = "GD_Steinway_Model_D274II.sf2"
+    alternative_soundfont: str = "GD_Steinway_Model_D274.sf2"
     
     # 实时设置
     realtime_preview: bool = False
@@ -875,7 +875,7 @@ def parse_command_line_args():
     parser.add_argument('--soundfont-dir', type=str, default='../../Soundfonts',
                        help='SoundFont目录 (默认: ../../Soundfonts)')
     parser.add_argument('--preferred-soundfont', type=str, 
-                       default='GD_Steinway_Model_D274.sf2',
+                       default='GD_Steinway_Model_D274II.sf2',
                        help='首选SoundFont文件')
     
     # 分析设置
