@@ -180,7 +180,7 @@ class ChordNote:
     
     def get_frequencies(self) -> List[float]:
         """获取所有和弦音频率"""
-        return [tone.frequency for tone in self.chord_tones]
+        return [tone.freq for tone in self.chord_tones]
     
     def get_absolute_time(self, timing_grid: TimingGrid) -> float:
         """获取绝对时间（秒）"""
@@ -549,7 +549,7 @@ class PetersenRhythmGenerator:
         
         # 根音分布
         for note in rhythm_track.bass_notes:
-            key = f"{note.note_entry.key_short}({note.note_entry.frequency:.1f}Hz)"
+            key = f"{note.note_entry.key_short}({note.note_entry.freq:.1f}Hz)"
             analysis["root_note_distribution"][key] += 1
         
         return analysis
@@ -564,7 +564,7 @@ class PetersenRhythmGenerator:
         """
         if path is None:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            path = f"petersen_rhythm_{self.rhythm_style}_{timestamp}.csv"
+            path = f"../data/petersen_rhythm_{self.rhythm_style}_{timestamp}.csv"
         
         path = Path(path)
         
@@ -581,12 +581,12 @@ class PetersenRhythmGenerator:
                 if isinstance(event, BassNote):
                     f.write(f"低音,{event.measure},{event.beat},{event.position},"
                            f"{abs_time:.3f},{event.note_entry.key_short},"
-                           f"{event.note_entry.frequency:.2f},{event.duration:.2f},"
+                           f"{event.note_entry.freq:.2f},{event.duration:.2f},"
                            f"{event.velocity},{'强' if event.is_strong_beat else '弱'},"
                            f"根音\n")
                 
                 elif isinstance(event, ChordNote):
-                    chord_freqs = [f"{tone.frequency:.1f}" for tone in event.chord_tones]
+                    chord_freqs = [f"{tone.freq:.1f}" for tone in event.chord_tones]
                     chord_names = [tone.ratio_name for tone in event.chord_tones]
                     
                     f.write(f"和弦,{event.measure},{event.beat},{event.position},"
@@ -609,7 +609,7 @@ class PetersenRhythmGenerator:
         
         if path is None:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            path = f"petersen_rhythm_analysis_{self.rhythm_style}_{timestamp}.csv"
+            path = f"../data/petersen_rhythm_analysis_{self.rhythm_style}_{timestamp}.csv"
         
         path = Path(path)
         

@@ -1,0 +1,14 @@
+分析项目,数值,单位
+total_measures,4,
+total_bass_notes,20,
+total_chord_notes,40,
+bpm,120,
+rhythm_style,traditional,
+total_duration_seconds,10.0,
+strong_beat_ratio,1.0,
+chord_density_per_measure,10.0,
+根音分布统计:
+  M0(31.9Hz),8,次
+  S0(36.6Hz),4,次
+  H0(42.1Hz),4,次
+  T0(48.3Hz),4,次
