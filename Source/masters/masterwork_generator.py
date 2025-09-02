@@ -118,6 +118,8 @@ class MasterworkTrack:
     
     # 质量控制
     composition_quality: CompositionQuality
+
+    # 默认参数放在最后
     revision_count: int = 0
     quality_score: float = 0.0
     
@@ -133,7 +135,6 @@ class MasterworkAlbum:
     album_id: str
     title: str
     subtitle: str
-    artist_name: str = "Petersen AI Composer"
     
     # 专辑信息
     masterwork_type: MasterworkType
@@ -145,6 +146,12 @@ class MasterworkAlbum:
     mathematical_focus: List[str]
     artistic_vision: str
     target_audience: str
+
+    # 创作过程
+    creation_start: datetime
+    
+    # 现在所有默认参数放在后面
+    artist_name: str = "Petersen AI Composer"
     
     # 技术规格
     audio_quality: str = "48kHz/24bit"
@@ -152,7 +159,6 @@ class MasterworkAlbum:
     track_count: int = 0
     
     # 创作过程
-    creation_start: datetime
     creation_end: Optional[datetime] = None
     generation_log: List[str] = field(default_factory=list)
     
