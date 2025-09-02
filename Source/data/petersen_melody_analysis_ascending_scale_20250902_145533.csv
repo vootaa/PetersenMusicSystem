@@ -1,0 +1,11 @@
+分析项目,数值,单位/说明
+complexity_score,10.799999999999999,
+frequency_span_ratio,3.031433133020796,
+unique_node_ratio,0.3333333333333333,
+transition_density,0.8666666666666667,
+total_notes,30,
+unique_nodes,10,
+ring_transitions,14,
+zone_transitions,12,
+element_transitions,3,
+频率范围,55.51-168.28,Hz

@@ -67,27 +67,27 @@ class Element(Enum):
     FIRE = (3, "火")       # 火
     EARTH = (4, "土")      # 土
     
-    def __init__(self, value: int, chinese: str):
-        self.value = value
+    def __init__(self, index: int, chinese: str):
+        self.index = index
         self.chinese = chinese
     
     @classmethod
-    def from_value(cls, value: int):
-        """从数值获取元素"""
+    def from_index(cls, index: int):
+        """从索引获取元素"""
         for element in cls:
-            if element.value == value:
+            if element.index == index:
                 return element
-        raise ValueError(f"无效的元素值: {value}")
+        raise ValueError(f"无效的元素索引: {index}")
     
     def next_element(self) -> 'Element':
         """获取下一个元素（五行顺序）"""
-        next_value = (self.value + 1) % 5
-        return Element.from_value(next_value)
+        next_index = (self.index + 1) % 5
+        return Element.from_index(next_index)
     
     def prev_element(self) -> 'Element':
         """获取前一个元素（五行逆序）"""
-        prev_value = (self.value - 1) % 5
-        return Element.from_value(prev_value)
+        prev_index = (self.index - 1) % 5
+        return Element.from_index(prev_index)
 
 @dataclass
 class GraphNode:
@@ -105,12 +105,12 @@ class GraphNode:
             raise ValueError("节点必须关联音阶条目或和弦音")
     
     @property
-    def frequency(self) -> float:
+    def freq(self) -> float:
         """获取频率"""
         if self.scale_entry:
-            return self.scale_entry.frequency
+            return self.scale_entry.freq
         elif self.chord_tone:
-            return self.chord_tone.frequency
+            return self.chord_tone.freq
         return 0.0
     
     @property
@@ -150,9 +150,9 @@ class MelodyNote:
     articulation: str = "normal"   # 演奏技法
     
     @property
-    def frequency(self) -> float:
+    def freq(self) -> float:
         """获取频率"""
-        return self.graph_node.frequency
+        return self.graph_node.freq
     
     @property
     def key_name(self) -> str:
@@ -175,7 +175,7 @@ class MelodyUnit:
     
     def get_frequency_range(self) -> Tuple[float, float]:
         """获取频率范围"""
-        frequencies = [note.frequency for note in self.melody_notes]
+        frequencies = [note.freq for note in self.melody_notes]
         return min(frequencies), max(frequencies)
     
     def get_pattern_statistics(self) -> Dict[str, int]:
@@ -291,14 +291,14 @@ class PetersenGraph:
         """构建图节点"""
         # 从根音构建内环和中环节点
         for root in self.extended_scale.root_notes[:15]:  # 最多3个音区
-            element = Element.from_value(root.e)
+            element = Element.from_index(root.e)
             zone = root.n
             
             if zone >= self.max_zones:
                 continue
                 
             # 内环节点（五行中位）
-            inner_key = ("inner", element.value, 0, zone)
+            inner_key = ("inner", element.index, 0, zone)
             if inner_key not in self.nodes:
                 self.nodes[inner_key] = GraphNode(
                     ring="inner",
@@ -309,7 +309,7 @@ class PetersenGraph:
                 )
             
             # 中环节点（重复内环，用于连接）
-            middle_key = ("middle", element.value, 0, zone)
+            middle_key = ("middle", element.index, 0, zone)
             if middle_key not in self.nodes:
                 self.nodes[middle_key] = GraphNode(
                     ring="middle",
@@ -322,13 +322,13 @@ class PetersenGraph:
         # 从扩展音阶构建外环节点（阴阳位）
         for entry in self.extended_scale.original_entries:
             if entry.p != 0:  # 只要阴阳位
-                element = Element.from_value(entry.e)
+                element = Element.from_index(entry.e)
                 zone = entry.n
                 
                 if zone >= self.max_zones:
                     continue
                 
-                outer_key = ("outer", element.value, entry.p, zone)
+                outer_key = ("outer", element.index, entry.p, zone)
                 if outer_key not in self.nodes:
                     self.nodes[outer_key] = GraphNode(
                         ring="outer",
@@ -346,7 +346,7 @@ class PetersenGraph:
                 estimated_element, estimated_polarity = self._estimate_position(chord_tone)
                 estimated_zone = 0  # 简化：默认音区
                 
-                chord_key = ("chord", estimated_element.value, estimated_polarity, estimated_zone, chord_tone.frequency)
+                chord_key = ("chord", estimated_element.index, estimated_polarity, estimated_zone, chord_tone.freq)
                 if chord_key not in self.nodes:
                     self.nodes[chord_key] = GraphNode(
                         ring="chord",
@@ -411,10 +411,10 @@ class PetersenGraph:
         
         # 五角星跳跃：跳2个位置
         for offset in [2, -2]:  # +2和-2的跳跃
-            target_element_value = (node.element.value + offset) % 5
-            target_element = Element.from_value(target_element_value)
+            target_element_index = (node.element.index + offset) % 5
+            target_element = Element.from_index(target_element_index)
             
-            target_key = ("inner", target_element.value, 0, node.zone)
+            target_key = ("inner", target_element.index, 0, node.zone)
             if target_key in self.nodes:
                 neighbors.append(self.nodes[target_key])
         
@@ -422,14 +422,14 @@ class PetersenGraph:
     
     def _get_middle_ring_connections(self, node: GraphNode) -> List[GraphNode]:
         """获取中环连接"""
-        middle_key = ("middle", node.element.value, 0, node.zone)
+        middle_key = ("middle", node.element.index, 0, node.zone)
         if middle_key in self.nodes:
             return [self.nodes[middle_key]]
         return []
     
     def _get_inner_ring_connections(self, node: GraphNode) -> List[GraphNode]:
         """获取内环连接"""
-        inner_key = ("inner", node.element.value, 0, node.zone)
+        inner_key = ("inner", node.element.index, 0, node.zone)
         if inner_key in self.nodes:
             return [self.nodes[inner_key]]
         return []
@@ -440,7 +440,7 @@ class PetersenGraph:
         
         # 连接到同元素的阴阳位
         for polarity in [-1, 1]:
-            outer_key = ("outer", node.element.value, polarity, node.zone)
+            outer_key = ("outer", node.element.index, polarity, node.zone)
             if outer_key in self.nodes:
                 connections.append(self.nodes[outer_key])
         
@@ -448,7 +448,7 @@ class PetersenGraph:
     
     def _get_middle_ring_connections_from_outer(self, node: GraphNode) -> List[GraphNode]:
         """从外环到中环的连接"""
-        middle_key = ("middle", node.element.value, 0, node.zone)
+        middle_key = ("middle", node.element.index, 0, node.zone)
         if middle_key in self.nodes:
             return [self.nodes[middle_key]]
         return []
@@ -488,11 +488,11 @@ class PetersenGraph:
         """获取和弦音连接"""
         # 简化：连接到相近频率的图节点
         connections = []
-        target_freq = node.frequency
+        target_freq = node.freq
         
         for other_node in self.nodes.values():
             if other_node.ring != "chord" and other_node != node:
-                freq_ratio = target_freq / other_node.frequency
+                freq_ratio = target_freq / other_node.freq
                 # 如果频率比例合理（半音到全音范围）
                 if 0.9 <= freq_ratio <= 1.2:
                     connections.append(other_node)
@@ -511,14 +511,14 @@ class PetersenGraph:
         
         # 上行：下一个音区的相同位置
         up_zone = node.zone + 1
-        up_key = (node.ring, node.element.value, node.polarity, up_zone)
+        up_key = (node.ring, node.element.index, node.polarity, up_zone)
         if up_key in self.nodes:
             options.append(self.nodes[up_key])
         
         # 下行：前一个音区的相同位置
         down_zone = node.zone - 1
         if down_zone >= 0:
-            down_key = (node.ring, node.element.value, node.polarity, down_zone)
+            down_key = (node.ring, node.element.index, node.polarity, down_zone)
             if down_key in self.nodes:
                 options.append(self.nodes[down_key])
         
@@ -526,25 +526,25 @@ class PetersenGraph:
         if node.element == Element.EARTH and node.polarity == 0:  # 土中
             # 土中可以连接到金中（下一音区）
             if up_zone < self.max_zones:
-                gold_key = ("inner", Element.METAL.value, 0, up_zone)
+                gold_key = ("inner", Element.METAL.index, 0, up_zone)
                 if gold_key in self.nodes:
                     options.append(self.nodes[gold_key])
         
         elif node.element == Element.METAL and node.polarity == 0:  # 金中
             # 金中可以连接到土中（前一音区）
             if down_zone >= 0:
-                earth_key = ("inner", Element.EARTH.value, 0, down_zone)
+                earth_key = ("inner", Element.EARTH.index, 0, down_zone)
                 if earth_key in self.nodes:
                     options.append(self.nodes[earth_key])
         
         # 外环的跨音区连接
         if node.ring == "outer":
             if node.element == Element.EARTH and node.polarity == 1:  # 土阳
-                gold_yin_key = ("outer", Element.METAL.value, -1, up_zone)
+                gold_yin_key = ("outer", Element.METAL.index, -1, up_zone)
                 if gold_yin_key in self.nodes:
                     options.append(self.nodes[gold_yin_key])
             elif node.element == Element.METAL and node.polarity == -1:  # 金阴
-                earth_yang_key = ("outer", Element.EARTH.value, 1, down_zone)
+                earth_yang_key = ("outer", Element.EARTH.index, 1, down_zone)
                 if earth_yang_key in self.nodes:
                     options.append(self.nodes[earth_yang_key])
         
@@ -865,17 +865,17 @@ class PetersenMelodyGenerator:
     def _find_start_node(self, element: Element, polarity: int, zone: int) -> Optional[GraphNode]:
         """查找起始节点"""
         # 优先查找内环节点
-        inner_key = ("inner", element.value, polarity, zone)
+        inner_key = ("inner", element.index, polarity, zone)
         if inner_key in self.graph.nodes:
             return self.graph.nodes[inner_key]
         
         # 其次查找中环节点
-        middle_key = ("middle", element.value, polarity, zone)
+        middle_key = ("middle", element.index, polarity, zone)
         if middle_key in self.graph.nodes:
             return self.graph.nodes[middle_key]
         
         # 最后查找外环节点
-        outer_key = ("outer", element.value, polarity, zone)
+        outer_key = ("outer", element.index, polarity, zone)
         if outer_key in self.graph.nodes:
             return self.graph.nodes[outer_key]
         
@@ -951,7 +951,7 @@ class PetersenMelodyGenerator:
         """
         if path is None:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            path = f"petersen_melody_{melody_unit.pattern_used}_{timestamp}.csv"
+            path = f"../data/petersen_melody_{melody_unit.pattern_used}_{timestamp}.csv"
         
         path = Path(path)
         
@@ -964,7 +964,7 @@ class PetersenMelodyGenerator:
                 polarity_str = {-1: "阴", 0: "中", 1: "阳"}[node.polarity]
                 
                 f.write(f"{note.measure},{note.beat},{note.position},"
-                       f"{node},{note.frequency:.2f},{note.duration:.2f},"
+                       f"{node},{note.freq:.2f},{note.duration:.2f},"
                        f"{note.velocity},{'是' if note.is_ornament else '否'},"
                        f"{note.articulation},{node.ring},{node.element.chinese},"
                        f"{polarity_str},{node.zone}\n")
@@ -983,7 +983,7 @@ class PetersenMelodyGenerator:
         
         if path is None:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            path = f"petersen_melody_analysis_{melody_unit.pattern_used}_{timestamp}.csv"
+            path = f"../data/petersen_melody_analysis_{melody_unit.pattern_used}_{timestamp}.csv"
         
         path = Path(path)
         
