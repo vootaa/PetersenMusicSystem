@@ -21,45 +21,47 @@ Petersen Master Studio - 大师级音乐创作工作室
 使用示例：
 ```bash
 # 探索数学参数空间
-python petersen_master_studio.py --explore-mathematics \
+python3 petersen_master_studio.py --explore-mathematics \
   --phi-values golden,octave,fifth \
   --delta-theta-values 4.8,15.0,24.0 \
   --measures 16 --output-dir "mathematical_exploration/"
 
 # 数学美学对比
-python petersen_master_studio.py --compare-aesthetics \
+python3 petersen_master_studio.py --compare-aesthetics \
   --base-theme romantic_melody \
   --parameter-variations 5 \
   --comparison-report detailed
 
 # 展示大师级技艺
-python petersen_master_studio.py --showcase-virtuosity \
+python3 petersen_master_studio.py --showcase-virtuosity \
   --composition-length 32 \
   --technique-levels all \
   --quality studio
 
 # 交互式工作室
-python petersen_master_studio.py --interactive-workshop \
+python3 petersen_master_studio.py --interactive-workshop \
   --realtime-preview \
   --parameter-studio
 
 # 生成大师作品集
-python petersen_master_studio.py --generate-masterworks \
+python3 petersen_master_studio.py --generate-masterworks \
   --collection-theme mathematical_beauty \
   --works-count 10 \
   --export-formats wav,midi,analysis
 ```
 """
 
-import sys
 import argparse
 import json
-from pathlib import Path
+import time
+import random
 from typing import Dict, List, Optional, Union, Any, Tuple
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-import time
+
+import sys
+from pathlib import Path
 
 # 添加父目录到路径
 current_dir = Path(__file__).parent
@@ -83,23 +85,77 @@ except ImportError as e:
 
 # 导入大师级模块
 try:
-    from parameter_explorer import ParameterSpaceExplorer
-    from aesthetic_comparator import AestheticComparator
-    from composition_showcase import CompositionShowcase
-    from interactive_workshop import InteractiveWorkshop
-    from masterwork_generator import MasterworkGenerator
-    from soundfont_renderer import HighQualitySoundFontRenderer
+    from parameter_explorer import ParameterSpaceExplorer, ExplorationMode
+    from aesthetic_comparator import AestheticComparator, ComparisonDimension
+    from composition_showcase import CompositionShowcase, ShowcaseType
+    from interactive_workshop import InteractiveWorkshop, WorkshopMode
+    from masterwork_generator import MasterworkGenerator, MasterworkType, CompositionQuality
+    from soundfont_renderer import HighQualitySoundFontRenderer, RenderQuality
     from analysis_reporter import AnalysisReporter
-except ImportError:
-    # 如果大师级模块不存在，我们将在后续创建
-    print("⚠️ 大师级模块尚未完全加载，将使用基础功能")
-    ParameterSpaceExplorer = None
-    AestheticComparator = None
-    CompositionShowcase = None
-    InteractiveWorkshop = None
-    MasterworkGenerator = None
-    HighQualitySoundFontRenderer = None
-    AnalysisReporter = None
+except ImportError as e:
+    # 如果大师级模块不存在，创建占位符
+    print(f"⚠️ 大师级模块导入警告: {e}")
+    print("将使用基础功能模式")
+    
+    # 创建简单的占位符类
+    class ParameterSpaceExplorer:
+        def __init__(self, master_studio): pass
+        def run_exploration(self): return {"mode": "basic", "works": []}
+    
+    class AestheticComparator:
+        def __init__(self, master_studio): pass
+        def run_comparison(self): return {"comparisons": []}
+    
+    class CompositionShowcase:
+        def __init__(self, master_studio): pass
+        def run_showcase(self): return {"showcase_works": []}
+    
+    class InteractiveWorkshop:
+        def __init__(self, master_studio): pass
+        def run_session(self): return {"interactions": []}
+    
+    class MasterworkGenerator:
+        def __init__(self, master_studio): pass
+        def generate_masterwork_album(self): return {"album": "basic"}
+    
+    class HighQualitySoundFontRenderer:
+        def __init__(self, master_studio): pass
+        def render_composition(self, composition, output_path): return output_path
+    
+    class AnalysisReporter:
+        def __init__(self, master_studio): pass
+        def generate_comprehensive_report(self): return {"report": "basic"}
+    
+    # 简化的枚举类
+    class ExplorationMode:
+        QUICK_SURVEY = "quick_survey"
+        SYSTEMATIC_GRID = "systematic_grid"
+    
+    class ComparisonDimension:
+        PHI_VALUES = "phi_values"
+        COMPREHENSIVE = "comprehensive"
+    
+    class ShowcaseType:
+        MATHEMATICAL_BEAUTY = "mathematical_beauty"
+        VIRTUOSO_PERFORMANCE = "virtuoso_performance"
+    
+    class WorkshopMode:
+        FREE_EXPLORATION = "free_exploration"
+        GUIDED_TUTORIAL = "guided_tutorial"
+    
+    class MasterworkType:
+        SOLO_PIANO_ALBUM = "solo_piano_album"
+        CONCEPT_ALBUM = "concept_album"
+    
+    class CompositionQuality:
+        STANDARD = "standard"
+        HIGH = "high"
+        STUDIO = "studio"
+    
+    class RenderQuality:
+        STANDARD = "standard"
+        HIGH = "high"
+        STUDIO = "studio"
 
 class WorkMode(Enum):
     """工作模式"""
@@ -158,6 +214,9 @@ class MasterStudioConfig:
     realtime_preview: bool = False
     preview_duration: float = 4.0
     
+    # 并行处理设置
+    enable_parallel_generation: bool = True
+
 def create_default_config() -> MasterStudioConfig:
     """创建默认配置"""
     return MasterStudioConfig()
@@ -266,27 +325,14 @@ class PetersenMasterStudio:
     def _init_master_components(self):
         """初始化大师级组件"""
         try:
-            # 如果大师级模块可用，则初始化
-            if ParameterSpaceExplorer:
-                self.parameter_explorer = ParameterSpaceExplorer(self)
-            
-            if AestheticComparator:
-                self.aesthetic_comparator = AestheticComparator(self)
-            
-            if CompositionShowcase:
-                self.composition_showcase = CompositionShowcase(self)
-            
-            if InteractiveWorkshop:
-                self.interactive_workshop = InteractiveWorkshop(self)
-            
-            if MasterworkGenerator:
-                self.masterwork_generator = MasterworkGenerator(self)
-            
-            if HighQualitySoundFontRenderer:
-                self.soundfont_renderer = HighQualitySoundFontRenderer(self)
-            
-            if AnalysisReporter:
-                self.analysis_reporter = AnalysisReporter(self)
+            # 初始化大师级组件
+            self.parameter_explorer = ParameterSpaceExplorer(self)
+            self.aesthetic_comparator = AestheticComparator(self)
+            self.composition_showcase = CompositionShowcase(self)
+            self.interactive_workshop = InteractiveWorkshop(self)
+            self.masterwork_generator = MasterworkGenerator(self)
+            self.soundfont_renderer = HighQualitySoundFontRenderer(self)
+            self.analysis_reporter = AnalysisReporter(self)
             
             print("✓ 大师级组件初始化完成")
             
@@ -374,108 +420,34 @@ class PetersenMasterStudio:
             "analysis_reports": []
         }
         
-        # 生成参数组合
-        param_combinations = self._generate_parameter_combinations()
-        
-        print(f"📊 生成 {len(param_combinations)} 个参数组合")
-        
-        # 为每个参数组合创建作品
-        for i, params in enumerate(param_combinations, 1):
-            print(f"\n🎼 创作第 {i}/{len(param_combinations)} 个作品...")
-            print(f"   参数: φ={params['phi_name']}, δθ={params['delta_theta_name']}")
+        try:
+            # 配置探索参数
+            config = self.parameter_explorer.configure_exploration(
+                mode=ExplorationMode.QUICK_SURVEY if len(self.config.phi_values) <= 3 else ExplorationMode.SYSTEMATIC_GRID,
+                max_combinations=min(20, len(self.config.phi_values) * len(self.config.delta_theta_values)),
+                phi_filter=self.config.phi_values,
+                delta_theta_filter=self.config.delta_theta_values,
+                measures_per_work=self.config.measures_count
+            )
             
-            try:
-                # 创建基础音阶系统
-                scale = PetersenScale(
-                    F_base=params['f_base'],
-                    phi=params['phi_value'],
-                    delta_theta=params['delta_theta_value']
-                )
-                
-                # 创建和弦扩展
-                chord_extender = PetersenChordExtender(
-                    petersen_scale=scale,
-                    chord_ratios=params['chord_ratios']
-                )
-                extended_scale = chord_extender.extend_scale_with_chords()
-                
-                # 创建作曲器
-                composer = PetersenAutoComposer(
-                    petersen_scale=scale,
-                    chord_extender=chord_extender,
-                    composition_style=COMPOSITION_STYLES[params['composition_style']],
-                    bpm=120
-                )
-                
-                # 生成作曲
-                composition = composer.compose(measures=self.config.measures_count)
-                
-                # 保存作品
-                work_name = f"math_exploration_{i:02d}_{params['phi_name']}_{params['delta_theta_name']}"
-                work_results = self._save_composition_work(composition, work_name, params)
-                
-                results["generated_works"].append(work_results)
-                results["parameter_combinations"].append(params)
-                
-                # 如果启用实时预览
-                if self.config.realtime_preview and self.enhanced_player:
-                    print("   🔊 实时预览...")
-                    self._preview_composition_snippet(composition)
-                
-            except Exception as e:
-                print(f"   ❌ 参数组合 {i} 创作失败: {e}")
-                continue
-        
-        # 生成对比分析报告
-        if self.config.include_analysis and results["generated_works"]:
-            print("\n📈 生成数学美学分析报告...")
-            analysis_report = self._generate_mathematics_analysis(results)
-            results["analysis_reports"].append(analysis_report)
+            # 运行探索
+            exploration_results = self.parameter_explorer.run_exploration(config)
+            
+            # 整合结果
+            results["parameter_combinations"] = [combo.__dict__ for combo in exploration_results.explored_combinations]
+            results["generated_works"] = exploration_results.successful_works
+            results["analysis_reports"] = [exploration_results.parameter_effects]
+            
+        except Exception as e:
+            print(f"❌ 数学探索失败: {e}")
+            results["error"] = str(e)
         
         return results
-    
-    def _generate_parameter_combinations(self) -> List[Dict[str, Any]]:
-        """生成参数组合"""
-        combinations = []
-        
-        for phi_name in self.config.phi_values:
-            for delta_theta_name in self.config.delta_theta_values:
-                for f_base in self.config.f_base_values:
-                    for chord_set in self.config.chord_ratio_sets:
-                        for composition_style in self.config.composition_styles:
-                            
-                            # 获取实际数值
-                            phi_value = PRESET_PHI_VALUES.get(phi_name, 1.618)
-                            delta_theta_value = PRESET_DELTA_THETA_VALUES.get(delta_theta_name, 15.0)
-                            chord_ratios = CHORD_RATIOS_PRESETS.get(chord_set, CHORD_RATIOS_PRESETS["major_triad"])
-                            
-                            combination = {
-                                "phi_name": phi_name,
-                                "phi_value": phi_value,
-                                "delta_theta_name": delta_theta_name,
-                                "delta_theta_value": delta_theta_value,
-                                "f_base": f_base,
-                                "chord_set": chord_set,
-                                "chord_ratios": chord_ratios,
-                                "composition_style": composition_style
-                            }
-                            
-                            combinations.append(combination)
-        
-        return combinations
     
     def _run_aesthetic_comparison(self) -> Dict[str, Any]:
         """运行数学美学对比"""
         print("🎨 进行数学美学对比分析...")
         
-        if not self.aesthetic_comparator:
-            # 使用基础实现
-            return self._basic_aesthetic_comparison()
-        
-        return self.aesthetic_comparator.run_comparison()
-    
-    def _basic_aesthetic_comparison(self) -> Dict[str, Any]:
-        """基础美学对比实现"""
         results = {
             "mode": "aesthetic_comparison",
             "base_theme": "mathematical_beauty",
@@ -483,48 +455,29 @@ class PetersenMasterStudio:
             "comparison_metrics": {}
         }
         
-        print("🎼 生成基础主题变奏...")
-        
-        # 生成几个不同参数的版本进行对比
-        base_params = {
-            "phi_name": "golden",
-            "delta_theta_name": "15.0", 
-            "composition_style": "balanced_journey"
-        }
-        
-        variations = [
-            {"phi_name": "octave", "delta_theta_name": "15.0"},
-            {"phi_name": "golden", "delta_theta_name": "24.0"},
-            {"phi_name": "fifth", "delta_theta_name": "4.8"}
-        ]
-        
-        # 为每个变奏创建作品
-        for i, variation in enumerate(variations, 1):
-            print(f"\n🎵 创作变奏 {i}: φ={variation['phi_name']}, δθ={variation['delta_theta_name']}")
+        try:
+            # 运行美学对比
+            comparison_result = self.aesthetic_comparator.run_comparison(
+                dimension=ComparisonDimension.PHI_VALUES if len(self.config.phi_values) > 1 else ComparisonDimension.COMPREHENSIVE
+            )
             
-            params = {**base_params, **variation}
-            params.update({
-                "phi_value": PRESET_PHI_VALUES[params["phi_name"]],
-                "delta_theta_value": PRESET_DELTA_THETA_VALUES[params["delta_theta_name"]],
-                "f_base": 55.0,
-                "chord_ratios": CHORD_RATIOS_PRESETS["major_triad"]
-            })
+            # 整合结果
+            results["variations"] = [
+                {
+                    "parameters": params,
+                    "aesthetic_score": score.__dict__ if hasattr(score, '__dict__') else score
+                }
+                for params, score in zip(comparison_result.parameter_sets, comparison_result.aesthetic_scores)
+            ]
+            results["comparison_metrics"] = {
+                "ranking": comparison_result.ranking,
+                "insights": comparison_result.insights,
+                "recommendations": comparison_result.recommendations
+            }
             
-            try:
-                composition = self._create_composition_from_params(params)
-                
-                work_name = f"aesthetic_variation_{i:02d}_{variation['phi_name']}_{variation['delta_theta_name']}"
-                work_results = self._save_composition_work(composition, work_name, params)
-                
-                results["variations"].append(work_results)
-                
-                # 实时预览
-                if self.config.realtime_preview and self.enhanced_player:
-                    print("   🔊 预览变奏...")
-                    self._preview_composition_snippet(composition)
-                
-            except Exception as e:
-                print(f"   ❌ 变奏 {i} 创作失败: {e}")
+        except Exception as e:
+            print(f"❌ 美学对比失败: {e}")
+            results["error"] = str(e)
         
         return results
     
@@ -532,58 +485,30 @@ class PetersenMasterStudio:
         """运行大师级技艺展示"""
         print("🎭 展示Petersen大师级演奏技艺...")
         
-        if not self.composition_showcase:
-            return self._basic_virtuosity_showcase()
-        
-        return self.composition_showcase.run_showcase()
-    
-    def _basic_virtuosity_showcase(self) -> Dict[str, Any]:
-        """基础技艺展示实现"""
         results = {
             "mode": "virtuosity_showcase",
             "showcase_pieces": [],
             "technique_demonstrations": []
         }
         
-        print("🎼 创作大师级展示作品...")
-        
-        # 创建一个复杂的作品展示多种技法
-        params = {
-            "phi_name": "golden",
-            "phi_value": PRESET_PHI_VALUES["golden"],
-            "delta_theta_name": "15.0",
-            "delta_theta_value": PRESET_DELTA_THETA_VALUES["15.0"],
-            "f_base": 55.0,
-            "chord_ratios": CHORD_RATIOS_PRESETS["major_seventh"],
-            "composition_style": "virtuoso_journey"
-        }
-        
         try:
-            # 创建复杂作品
-            composition = self._create_composition_from_params(params)
+            # 运行作曲展示
+            showcase_session = self.composition_showcase.run_showcase("virtuoso_recital")
             
-            # 应用高级演奏技法
-            if hasattr(composition, 'apply_performance_techniques'):
-                composition.apply_performance_techniques([
-                    "thirds_parallel",
-                    "octave_cascade", 
-                    "cross_hand_weaving",
-                    "harmonic_resonance"
-                ])
-            
-            # 保存展示作品
-            work_name = f"virtuosity_showcase_{int(time.time())}"
-            work_results = self._save_composition_work(composition, work_name, params)
-            
-            results["showcase_pieces"].append(work_results)
-            
-            # 高质量渲染
-            if self.config.quality_level in [QualityLevel.HIGH, QualityLevel.STUDIO]:
-                print("🎭 渲染录音室级别作品...")
-                self._render_studio_quality(composition, work_name)
+            # 整合结果
+            results["showcase_pieces"] = [
+                {
+                    "title": work.title,
+                    "showcase_type": work.showcase_type.value if hasattr(work.showcase_type, 'value') else str(work.showcase_type),
+                    "complexity_score": work.structural_analysis.get("complexity_score", 0),
+                    "files": work.generated_files
+                }
+                for work in showcase_session.showcase_works
+            ]
             
         except Exception as e:
-            print(f"❌ 技艺展示创作失败: {e}")
+            print(f"❌ 技艺展示失败: {e}")
+            results["error"] = str(e)
         
         return results
     
@@ -591,13 +516,6 @@ class PetersenMasterStudio:
         """运行交互式工作室"""
         print("🛠️ 启动交互式参数工作室...")
         
-        if not self.interactive_workshop:
-            return self._basic_interactive_session()
-        
-        return self.interactive_workshop.run_session()
-    
-    def _basic_interactive_session(self) -> Dict[str, Any]:
-        """基础交互式会话"""
         results = {
             "mode": "interactive_workshop",
             "session_duration": 0,
@@ -605,56 +523,16 @@ class PetersenMasterStudio:
             "final_creation": None
         }
         
-        if not self.enhanced_player or not self.enhanced_player.is_initialized:
-            print("❌ 交互式模式需要播放器支持")
-            return results
-        
-        start_time = time.time()
-        
         try:
-            print("🎹 交互式演示开始...")
-            print("将演示几个不同参数组合的音乐效果")
+            # 运行交互式会话
+            workshop_results = self.interactive_workshop.run_session(WorkshopMode.FREE_EXPLORATION)
             
-            demo_params = [
-                {"phi_name": "golden", "delta_theta_name": "15.0", "description": "黄金比例 + 15等分"},
-                {"phi_name": "octave", "delta_theta_name": "24.0", "description": "八度关系 + 24等分"},
-                {"phi_name": "fifth", "delta_theta_name": "4.8", "description": "完全五度 + 五角星"},
-            ]
-            
-            for i, demo in enumerate(demo_params, 1):
-                print(f"\n🎵 演示 {i}: {demo['description']}")
-                
-                # 创建快速作品
-                params = {
-                    **demo,
-                    "phi_value": PRESET_PHI_VALUES[demo["phi_name"]],
-                    "delta_theta_value": PRESET_DELTA_THETA_VALUES[demo["delta_theta_name"]],
-                    "f_base": 55.0,
-                    "chord_ratios": CHORD_RATIOS_PRESETS["major_triad"]
-                }
-                
-                # 创建短小的演示作品
-                composition = self._create_demo_composition(params)
-                
-                if composition:
-                    print("   🔊 播放演示...")
-                    self._preview_composition_snippet(composition, duration=3.0)
-                    
-                    interaction = {
-                        "demo_id": i,
-                        "parameters": demo,
-                        "timestamp": time.time() - start_time
-                    }
-                    results["interactions"].append(interaction)
-                    
-                    # 短暂暂停
-                    time.sleep(1.0)
-            
-            results["session_duration"] = time.time() - start_time
-            print(f"\n✓ 交互式演示完成，耗时 {results['session_duration']:.1f} 秒")
+            # 整合结果
+            results.update(workshop_results)
             
         except Exception as e:
-            print(f"❌ 交互式会话失败: {e}")
+            print(f"❌ 交互式工作室失败: {e}")
+            results["error"] = str(e)
         
         return results
     
@@ -662,13 +540,6 @@ class PetersenMasterStudio:
         """运行大师作品集生成"""
         print("🏆 生成Petersen大师作品集...")
         
-        if not self.masterwork_generator:
-            return self._basic_masterwork_generation()
-        
-        return self.masterwork_generator.generate_collection()
-    
-    def _basic_masterwork_generation(self) -> Dict[str, Any]:
-        """基础大师作品生成"""
         results = {
             "mode": "masterwork_generation",
             "collection_theme": "petersen_mathematical_beauty",
@@ -676,60 +547,24 @@ class PetersenMasterStudio:
             "collection_analysis": {}
         }
         
-        print(f"🎼 创作 {self.config.works_count} 首大师级作品...")
-        
-        # 选择最佳参数组合
-        masterwork_params = [
-            {
-                "name": "Golden Harmony",
-                "phi_name": "golden", "delta_theta_name": "15.0",
-                "style": "harmonic_exploration"
-            },
-            {
-                "name": "Octave Cathedral", 
-                "phi_name": "octave", "delta_theta_name": "24.0",
-                "style": "architectural_journey"
-            },
-            {
-                "name": "Sacred Geometry",
-                "phi_name": "fifth", "delta_theta_name": "4.8", 
-                "style": "mystical_contemplation"
-            }
-        ]
-        
-        # 限制作品数量
-        selected_params = masterwork_params[:self.config.works_count]
-        
-        for i, work_spec in enumerate(selected_params, 1):
-            print(f"\n🎭 创作第 {i} 首: 《{work_spec['name']}》")
+        try:
+            # 生成大师作品
+            album = self.masterwork_generator.generate_masterwork_album(
+                album_template="golden_ratio_variations",
+                quality_level=CompositionQuality.STUDIO if self.config.quality_level == QualityLevel.STUDIO else CompositionQuality.HIGH
+            )
             
-            params = {
-                **work_spec,
-                "phi_value": PRESET_PHI_VALUES[work_spec["phi_name"]],
-                "delta_theta_value": PRESET_DELTA_THETA_VALUES[work_spec["delta_theta_name"]],
-                "f_base": 55.0,
-                "chord_ratios": CHORD_RATIOS_PRESETS["complex_jazz"],
-                "composition_style": work_spec.get("style", "balanced_journey")
-            }
+            # 整合结果
+            results["masterworks"] = [{
+                "album_id": album.album_id,
+                "title": album.title,
+                "track_count": len(album.tracks),
+                "quality_score": album.overall_quality_score
+            }]
             
-            try:
-                # 创作更长的作品
-                composition = self._create_composition_from_params(params)
-                
-                # 保存大师作品
-                work_name = f"masterwork_{i:02d}_{work_spec['name'].lower().replace(' ', '_')}"
-                work_results = self._save_composition_work(composition, work_name, params)
-                work_results["title"] = work_spec["name"]
-                
-                results["masterworks"].append(work_results)
-                
-                # 如果是高质量模式，进行专业渲染
-                if self.config.quality_level in [QualityLevel.HIGH, QualityLevel.STUDIO]:
-                    print("   🎭 进行录音室级别渲染...")
-                    self._render_studio_quality(composition, work_name)
-                
-            except Exception as e:
-                print(f"   ❌ 大师作品 {i} 创作失败: {e}")
+        except Exception as e:
+            print(f"❌ 大师作品生成失败: {e}")
+            results["error"] = str(e)
         
         return results
     
@@ -789,6 +624,7 @@ class PetersenMasterStudio:
             
         except Exception as e:
             print(f"❌ 快速预览失败: {e}")
+            results["error"] = str(e)
         
         return results
     
@@ -796,53 +632,18 @@ class PetersenMasterStudio:
         """运行系统分析"""
         print("📊 分析Petersen音乐系统...")
         
-        if not self.analysis_reporter:
-            return self._basic_system_analysis()
-        
-        return self.analysis_reporter.generate_comprehensive_report()
-    
-    def _basic_system_analysis(self) -> Dict[str, Any]:
-        """基础系统分析"""
-        results = {
-            "mode": "system_analysis",
-            "analysis_timestamp": datetime.now().isoformat(),
-            "parameter_space_info": {},
-            "capability_assessment": {},
-            "performance_metrics": {}
-        }
-        
-        print("📈 收集系统能力信息...")
-        
-        # 参数空间分析
-        results["parameter_space_info"] = {
-            "available_phi_values": len(PRESET_PHI_VALUES),
-            "available_delta_theta_values": len(PRESET_DELTA_THETA_VALUES), 
-            "chord_ratio_sets": len(CHORD_RATIOS_PRESETS),
-            "rhythm_styles": len(RHYTHM_STYLE_PRESETS),
-            "melody_patterns": len(MELODY_PATTERN_PRESETS),
-            "composition_styles": len(COMPOSITION_STYLES),
-            "performance_techniques": len(PERFORMANCE_TECHNIQUES)
-        }
-        
-        # 能力评估
-        results["capability_assessment"] = {
-            "player_available": self.enhanced_player is not None and self.enhanced_player.is_initialized,
-            "soundfont_loaded": self._check_soundfont_status(),
-            "realtime_capability": self.enhanced_player is not None,
-            "high_quality_rendering": True,  # 基于配置
-            "parameter_exploration": True,
-            "interactive_preview": self.enhanced_player is not None
-        }
-        
-        # 性能指标
-        if self.enhanced_player:
-            results["performance_metrics"] = {
-                "sample_rate": getattr(self.enhanced_player.config, 'sample_rate', 44100),
-                "buffer_size": getattr(self.enhanced_player.config, 'buffer_size', 512),
-                "accurate_frequency": getattr(self.enhanced_player.config, 'enable_accurate_frequency', True)
+        try:
+            analysis_report = self.analysis_reporter.generate_comprehensive_report()
+            return {
+                "mode": "system_analysis",
+                "report": analysis_report.__dict__ if hasattr(analysis_report, '__dict__') else analysis_report
             }
-        
-        return results
+        except Exception as e:
+            print(f"❌ 系统分析失败: {e}")
+            return {
+                "mode": "system_analysis",
+                "error": str(e)
+            }
     
     # === 辅助方法 ===
     
@@ -850,15 +651,15 @@ class PetersenMasterStudio:
         """从参数创建作曲"""
         # 创建基础音阶
         scale = PetersenScale(
-            F_base=params['f_base'],
-            phi=params['phi_value'],
-            delta_theta=params['delta_theta_value']
+            F_base=params.get('f_base', 55.0),
+            phi=params.get('phi_value', 1.618),
+            delta_theta=params.get('delta_theta_value', 15.0)
         )
         
         # 创建和弦扩展
         chord_extender = PetersenChordExtender(
             petersen_scale=scale,
-            chord_ratios=params['chord_ratios']
+            chord_ratios=params.get('chord_ratios', CHORD_RATIOS_PRESETS['major_triad'])
         )
         
         # 创建作曲器
@@ -875,30 +676,6 @@ class PetersenMasterStudio:
         # 生成作曲
         return composer.compose(measures=self.config.measures_count)
     
-    def _create_demo_composition(self, params: Dict[str, Any]):
-        """创建演示用的短作品"""
-        # 类似于 _create_composition_from_params 但是更短
-        scale = PetersenScale(
-            F_base=params['f_base'],
-            phi=params['phi_value'],
-            delta_theta=params['delta_theta_value']
-        )
-        
-        chord_extender = PetersenChordExtender(
-            petersen_scale=scale,
-            chord_ratios=params['chord_ratios']
-        )
-        
-        composer = PetersenAutoComposer(
-            petersen_scale=scale,
-            chord_extender=chord_extender,
-            composition_style=COMPOSITION_STYLES['balanced_journey'],
-            bpm=140  # 稍快一些用于演示
-        )
-        
-        # 生成2小节的短作品
-        return composer.compose(measures=2)
-    
     def _create_quick_demo_composition(self):
         """创建快速演示作品"""
         try:
@@ -909,38 +686,11 @@ class PetersenMasterStudio:
                 "chord_ratios": CHORD_RATIOS_PRESETS["major_triad"]
             }
             
-            return self._create_demo_composition(params)
+            return self._create_composition_from_params(params)
             
         except Exception as e:
             print(f"❌ 快速演示作品创建失败: {e}")
             return None
-    
-    def _preview_composition_snippet(self, composition, duration: float = 4.0):
-        """预览作曲片段"""
-        if not self.enhanced_player or not self.enhanced_player.is_initialized:
-            print("⚠️ 播放器不可用，跳过预览")
-            return
-        
-        try:
-            # 这里需要根据实际的composition结构来提取音频数据
-            # 目前使用简化实现
-            print(f"   播放 {duration} 秒预览...")
-            
-            # 如果composition有frequency数据，直接播放
-            if hasattr(composition, 'get_preview_frequencies'):
-                frequencies, names = composition.get_preview_frequencies()
-                self.enhanced_player.play_frequencies(
-                    frequencies=frequencies[:8],  # 限制音符数量
-                    key_names=names[:8],
-                    duration=duration / 8,
-                    gap=0.05,
-                    use_accurate_frequency=True
-                )
-            else:
-                print("   ⚠️ 作曲对象不支持直接预览")
-            
-        except Exception as e:
-            print(f"   ⚠️ 预览失败: {e}")
     
     def _save_composition_work(self, composition, work_name: str, params: Dict[str, Any]) -> Dict[str, Any]:
         """保存作曲作品"""
@@ -983,67 +733,6 @@ class PetersenMasterStudio:
         
         return work_results
     
-    def _render_studio_quality(self, composition, work_name: str):
-        """渲染录音室质量音频"""
-        try:
-            if not self.soundfont_renderer:
-                print("   ⚠️ 高质量渲染器不可用")
-                return
-            
-            output_path = self.config.output_directory / work_name / f"{work_name}_studio.wav"
-            
-            # 使用高质量渲染器
-            result_path = self.soundfont_renderer.render_composition(
-                composition,
-                output_path,
-                quality_level=self.config.quality_level
-            )
-            
-            if result_path:
-                print(f"   ✓ 录音室质量渲染完成: {result_path.name}")
-            
-        except Exception as e:
-            print(f"   ❌ 录音室质量渲染失败: {e}")
-    
-    def _generate_mathematics_analysis(self, results: Dict[str, Any]) -> Dict[str, Any]:
-        """生成数学分析报告"""
-        analysis = {
-            "report_type": "mathematics_analysis",
-            "timestamp": datetime.now().isoformat(),
-            "parameter_effects": {},
-            "aesthetic_metrics": {},
-            "recommendations": []
-        }
-        
-        # 分析参数对音乐效果的影响
-        works = results.get("generated_works", [])
-        
-        if works:
-            # 按φ值分组分析
-            phi_groups = {}
-            for work in works:
-                params = work.get("parameters", {})
-                phi_name = params.get("phi_name", "unknown")
-                
-                if phi_name not in phi_groups:
-                    phi_groups[phi_name] = []
-                phi_groups[phi_name].append(work)
-            
-            analysis["parameter_effects"]["phi_value_impact"] = {
-                "groups": list(phi_groups.keys()),
-                "group_sizes": {k: len(v) for k, v in phi_groups.items()},
-                "observations": "不同φ值产生显著不同的和声特征"
-            }
-            
-            # 推荐
-            analysis["recommendations"] = [
-                "黄金比例φ=1.618产生最和谐的音响效果",
-                "15等分δθ=15.0提供丰富的旋律变化", 
-                "建议组合使用多种参数以获得最佳美学体验"
-            ]
-        
-        return analysis
-    
     def _collect_system_info(self) -> Dict[str, Any]:
         """收集系统信息"""
         info = {
@@ -1064,15 +753,6 @@ class PetersenMasterStudio:
             }
         
         return info
-    
-    def _check_soundfont_status(self) -> bool:
-        """检查SoundFont状态"""
-        if not self.enhanced_player:
-            return False
-        
-        return self.enhanced_player.is_initialized and \
-               hasattr(self.enhanced_player, 'soundfont_manager') and \
-               self.enhanced_player.soundfont_manager is not None
     
     def _save_session_summary(self):
         """保存会话摘要"""
@@ -1123,22 +803,22 @@ def parse_command_line_args():
         epilog="""
 使用示例:
   # 探索数学参数空间
-  python petersen_master_studio.py --explore-mathematics --phi-values golden,octave --measures 8
+  python3 petersen_master_studio.py --explore-mathematics --phi-values golden,octave --measures 8
   
   # 数学美学对比
-  python petersen_master_studio.py --compare-aesthetics --variations 3
+  python3 petersen_master_studio.py --compare-aesthetics --variations 3
   
   # 展示大师级技艺
-  python petersen_master_studio.py --showcase-virtuosity --quality studio
+  python3 petersen_master_studio.py --showcase-virtuosity --quality studio
   
   # 交互式工作室
-  python petersen_master_studio.py --interactive-workshop --realtime-preview
+  python3 petersen_master_studio.py --interactive-workshop --realtime-preview
   
   # 生成大师作品集
-  python petersen_master_studio.py --generate-masterworks --works-count 5
+  python3 petersen_master_studio.py --generate-masterworks --works-count 5
   
   # 快速预览
-  python petersen_master_studio.py --quick-preview
+  python3 petersen_master_studio.py --quick-preview
         """
     )
     
