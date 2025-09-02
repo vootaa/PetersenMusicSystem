@@ -331,7 +331,13 @@ class PetersenMasterStudio:
             self.composition_showcase = CompositionShowcase(self)
             self.interactive_workshop = InteractiveWorkshop(self)
             self.masterwork_generator = MasterworkGenerator(self)
-            self.soundfont_renderer = HighQualitySoundFontRenderer(self)
+
+            # 正确初始化声音字体渲染器，传递播放器实例
+            self.soundfont_renderer = HighQualitySoundFontRenderer(
+                master_studio=self,
+                enhanced_player=self.enhanced_player  # 传递播放器实例
+            )
+            
             self.analysis_reporter = AnalysisReporter(self)
             
             print("✓ 大师级组件初始化完成")

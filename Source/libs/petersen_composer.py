@@ -431,27 +431,110 @@ class MultiTrackComposition:
             "harmony_complexity_score": len(chord_types) / len(self.chord_track) if self.chord_track else 0
         }
     
-    def export_midi(self, path: Union[str, Path]) -> None:
-        """
-        导出到MIDI文件
+    def export_midi(self, filename: str = None):
+        """导出为MIDI文件"""
+        if not filename:
+            filename = f"../data/petersen_composition_{int(time.time())}.mid"
         
-        Args:
-            path: 输出路径
-        """
-        # 简化的MIDI导出（实际实现需要mido库）
-        path = Path(path)
+        try:
+            # 创建真实的MIDI文件而不是占位符
+            mid = mido.MidiFile()
+            track = mido.MidiTrack()
+            mid.tracks.append(track)
+            
+            # 设置tempo
+            tempo = mido.bpm2tempo(self.bpm)
+            track.append(mido.MetaMessage('set_tempo', tempo=tempo))
+            
+            # 转换时间戳为MIDI时间
+            current_time = 0
+            
+            # 合并所有音符事件
+            all_events = []
+            
+            # 添加旋律轨道
+            for note in self.melody_track:
+                start_time = note['timestamp']
+                end_time = start_time + note['duration']
+                
+                # MIDI音符号（简化映射）
+                midi_note = self._frequency_to_midi_note(note['freq'])
+                velocity = note['velocity']
+                
+                all_events.append({
+                    'time': start_time,
+                    'type': 'note_on',
+                    'note': midi_note,
+                    'velocity': velocity
+                })
+                all_events.append({
+                    'time': end_time,
+                    'type': 'note_off',
+                    'note': midi_note,
+                    'velocity': 0
+                })
+            
+            # 添加和弦轨道
+            for chord in self.chord_track:
+                start_time = chord['timestamp']
+                end_time = start_time + chord['duration']
+                
+                for freq in chord['frequencies']:
+                    midi_note = self._frequency_to_midi_note(freq)
+                    velocity = chord['velocity']
+                    
+                    all_events.append({
+                        'time': start_time,
+                        'type': 'note_on',
+                        'note': midi_note,
+                        'velocity': velocity
+                    })
+                    all_events.append({
+                        'time': end_time,
+                        'type': 'note_off',
+                        'note': midi_note,
+                        'velocity': 0
+                    })
+            
+            # 排序事件
+            all_events.sort(key=lambda x: x['time'])
+            
+            # 转换为MIDI消息
+            for event in all_events:
+                delta_time = int((event['time'] - current_time) * 480)  # 480 ticks per beat
+                current_time = event['time']
+                
+                if event['type'] == 'note_on':
+                    track.append(mido.Message('note_on', 
+                                            channel=0, 
+                                            note=event['note'], 
+                                            velocity=event['velocity'], 
+                                            time=delta_time))
+                else:
+                    track.append(mido.Message('note_off', 
+                                            channel=0, 
+                                            note=event['note'], 
+                                            velocity=0, 
+                                            time=delta_time))
+            
+            # 保存文件
+            mid.save(filename)
+            print(f"MIDI文件已保存: {filename}")
+            
+        except Exception as e:
+            print(f"MIDI导出失败: {e}")
+            # 如果MIDI导出失败，创建占位符
+            self._create_midi_placeholder(filename)
+
+    def _frequency_to_midi_note(self, frequency: float) -> int:
+        """将频率转换为MIDI音符号"""
+        import math
+        if frequency <= 0:
+            return 60  # 默认中央C
         
-        # 这里应该使用真正的MIDI库，如mido
-        # 现在只是创建一个占位符文件
-        with open(path, 'w') as f:
-            f.write(f"# MIDI导出占位符\n")
-            f.write(f"# 作曲风格: {self.composition_style}\n")
-            f.write(f"# BPM: {self.bpm}\n")
-            f.write(f"# 小节数: {self.total_measures}\n")
-            f.write(f"# 总时长: {self.get_total_duration_seconds():.2f}秒\n")
-            f.write(f"# 创建时间: {self.creation_time}\n")
-        
-        print(f"MIDI文件导出到: {path} (占位符)")
+        # 使用标准公式: MIDI = 12 * log2(f/440) + 69
+        midi_note = int(12 * math.log2(frequency / 440) + 69)
+        return max(0, min(127, midi_note))  # 限制在有效范围内
     
     def export_musicxml(self, path: Union[str, Path]) -> None:
         """
