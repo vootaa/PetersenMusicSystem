@@ -331,13 +331,7 @@ class PetersenMasterStudio:
             self.composition_showcase = CompositionShowcase(self)
             self.interactive_workshop = InteractiveWorkshop(self)
             self.masterwork_generator = MasterworkGenerator(self)
-
-            # 正确初始化声音字体渲染器，传递播放器实例
-            self.soundfont_renderer = HighQualitySoundFontRenderer(
-                master_studio=self,
-                enhanced_player=self.enhanced_player  # 传递播放器实例
-            )
-            
+            self.soundfont_renderer = HighQualitySoundFontRenderer(self)
             self.analysis_reporter = AnalysisReporter(self)
             
             print("✓ 大师级组件初始化完成")
@@ -420,6 +414,240 @@ class PetersenMasterStudio:
             print(f"❌ 会话执行失败: {e}")
             raise
     
+    def play_generated_work(self, work_path: str, 
+                           play_mode: str = "enhanced", 
+                           preview_duration: Optional[float] = None) -> bool:
+        """
+        播放生成的作品
+        
+        Args:
+            work_path: 作品文件路径
+            play_mode: 播放模式 ("enhanced", "csv", "realtime")
+            preview_duration: 预览时长（秒），None表示播放全部
+            
+        Returns:
+            播放成功返回True
+        """
+        if not self.is_initialized:
+            print("❌ 工作室未初始化")
+            return False
+        
+        work_path = Path(work_path)
+        
+        try:
+            if play_mode == "enhanced" and self.enhanced_player:
+                return self._play_with_enhanced_player(work_path, preview_duration)
+            
+            elif play_mode == "csv":
+                return self._play_with_csv_player(work_path, preview_duration)
+            
+            elif play_mode == "realtime":
+                return self._play_with_realtime_renderer(work_path, preview_duration)
+            
+            else:
+                print(f"❌ 未知播放模式: {play_mode}")
+                return False
+                
+        except Exception as e:
+            print(f"❌ 播放失败: {e}")
+            return False
+    
+    def _play_with_enhanced_player(self, work_path: Path, preview_duration: Optional[float]) -> bool:
+        """使用EnhancedPetersenPlayer播放"""
+        print(f"🎵 使用增强播放器播放: {work_path.name}")
+        
+        # 检查是否有对应的CSV分析文件
+        csv_path = work_path.parent / f"{work_path.stem}_analysis.csv"
+        
+        if csv_path.exists():
+            # 导入CSV播放器
+            try:
+                from csv_player import CSVMusicPlayer
+                
+                csv_player = CSVMusicPlayer(self.enhanced_player)
+                
+                if csv_player.load_csv_composition(str(csv_path)):
+                    print(f"✓ 加载CSV作曲文件: {csv_path.name}")
+                    
+                    # 获取作曲信息
+                    info = csv_player.get_composition_info()
+                    total_duration = info.get("duration", 0)
+                    
+                    print(f"📊 作曲信息:")
+                    print(f"   总音符: {info.get('total_notes', 0)}")
+                    print(f"   总时长: {total_duration:.1f}秒")
+                    
+                    # 确定播放时长
+                    if preview_duration and preview_duration < total_duration:
+                        print(f"⏯️  预览播放 {preview_duration:.1f}秒")
+                        csv_player.play_composition(0, preview_duration)
+                    else:
+                        print("⏯️  完整播放")
+                        csv_player.play_composition()
+                    
+                    return True
+                else:
+                    print(f"❌ CSV文件加载失败")
+                    return False
+                    
+            except ImportError as e:
+                print(f"⚠️ CSV播放器导入失败: {e}")
+                return False
+        
+        else:
+            # 没有CSV文件，尝试其他方式
+            print("⚠️ 未找到对应的CSV分析文件，尝试其他播放方式")
+            return self._play_with_generic_method(work_path, preview_duration)
+    
+    def _play_with_csv_player(self, work_path: Path, preview_duration: Optional[float]) -> bool:
+        """使用CSV播放器播放"""
+        # 查找CSV文件
+        if work_path.suffix.lower() == '.csv':
+            csv_path = work_path
+        else:
+            csv_path = work_path.parent / f"{work_path.stem}_analysis.csv"
+        
+        if not csv_path.exists():
+            print(f"❌ CSV文件不存在: {csv_path}")
+            return False
+        
+        try:
+            from csv_player import CSVMusicPlayer
+            
+            csv_player = CSVMusicPlayer(self.enhanced_player)
+            
+            if csv_player.load_csv_composition(str(csv_path)):
+                print(f"🎵 CSV播放: {csv_path.name}")
+                
+                if preview_duration:
+                    csv_player.play_composition(0, preview_duration)
+                else:
+                    csv_player.play_composition()
+                
+                return True
+            else:
+                return False
+                
+        except Exception as e:
+            print(f"❌ CSV播放失败: {e}")
+            return False
+    
+    def _play_with_realtime_renderer(self, work_path: Path, preview_duration: Optional[float]) -> bool:
+        """使用实时渲染器播放"""
+        if not self.soundfont_renderer:
+            print("❌ SoundFont渲染器不可用")
+            return False
+        
+        try:
+            # 需要从文件重新加载作曲对象
+            composition = self._load_composition_from_file(work_path)
+            
+            if composition:
+                duration = preview_duration or 10.0  # 默认预览10秒
+                return self.soundfont_renderer.render_composition_realtime(composition, duration)
+            else:
+                print("❌ 无法从文件加载作曲")
+                return False
+                
+        except Exception as e:
+            print(f"❌ 实时渲染播放失败: {e}")
+            return False
+    
+    def _play_with_generic_method(self, work_path: Path, preview_duration: Optional[float]) -> bool:
+        """通用播放方法"""
+        if not self.enhanced_player:
+            return False
+        
+        # 生成演示音阶
+        from petersen_scale import PetersenScale
+        
+        # 从配置获取参数
+        phi_value = PHI_PRESETS.get(self.config.phi_values[0], 1.618)
+        delta_theta_value = float(self.config.delta_theta_values[0])
+        
+        scale = PetersenScale(F_base=55.0, phi=phi_value, delta_theta=delta_theta_value)
+        scale_entries = scale.get_scale_entries()[:8]
+        
+        print(f"🎵 演示音阶播放 (φ={phi_value:.3f}, δθ={delta_theta_value:.1f}°)")
+        
+        frequencies = [entry.freq for entry in scale_entries]
+        key_names = [entry.key_short for entry in scale_entries]
+        
+        # 调整播放时长
+        duration = min(preview_duration or 4.0, 0.6)
+        
+        return self.enhanced_player.play_frequencies(
+            frequencies=frequencies,
+            key_names=key_names,
+            duration=duration,
+            gap=0.1,
+            show_progress=True
+        )
+    
+    def _load_composition_from_file(self, work_path: Path):
+        """从文件加载作曲对象（占位符方法）"""
+        # 这个方法需要根据实际的文件格式实现
+        # 目前返回None，表示不支持从文件重新加载
+        print("⚠️ 暂不支持从文件重新加载作曲对象")
+        return None
+    
+    def play_all_generated_works(self, mode: str = "enhanced", preview_only: bool = True) -> int:
+        """
+        播放所有生成的作品
+        
+        Args:
+            mode: 播放模式
+            preview_only: 是否只播放预览
+            
+        Returns:
+            成功播放的作品数量
+        """
+        if not self.session_results or "generated_works" not in self.session_results:
+            print("❌ 没有找到生成的作品")
+            return 0
+        
+        works = self.session_results["generated_works"]
+        success_count = 0
+        
+        print(f"🎵 播放 {len(works)} 个生成的作品...")
+        
+        for i, work in enumerate(works):
+            print(f"\n🎼 播放作品 {i+1}/{len(works)}: {work['work_name']}")
+            
+            # 查找文件
+            work_files = work.get("files", [])
+            play_file = None
+            
+            # 优先选择CSV文件
+            for file_path in work_files:
+                if file_path.endswith("_analysis.csv"):
+                    play_file = file_path
+                    break
+            
+            # 如果没有CSV，选择第一个文件
+            if not play_file and work_files:
+                play_file = work_files[0]
+            
+            if play_file:
+                preview_duration = 6.0 if preview_only else None
+                
+                success = self.play_generated_work(play_file, mode, preview_duration)
+                if success:
+                    success_count += 1
+                    print(f"   ✓ 播放成功")
+                else:
+                    print(f"   ❌ 播放失败")
+                
+                # 作品间暂停
+                if i < len(works) - 1:
+                    print("   ⏸️  间隔暂停...")
+                    time.sleep(2.0)
+            else:
+                print(f"   ⚠️ 未找到可播放文件")
+        
+        print(f"\n✓ 播放完成，成功: {success_count}/{len(works)}")
+        return success_count
+
     def _run_mathematics_exploration(self) -> Dict[str, Any]:
         """运行数学参数空间探索"""
         print("🔍 探索Petersen数学参数空间...")
@@ -467,6 +695,37 @@ class PetersenMasterStudio:
             if results["generated_works"]:
                 analysis_report = self._generate_exploration_analysis(results)
                 results["analysis_reports"].append(analysis_report)
+            
+            # 添加播放选项
+            if results["generated_works"] and self.enhanced_player and self.enhanced_player.is_initialized:
+                print(f"\n🎵 是否播放生成的作品预览？")
+                print(f"   生成了 {len(results['generated_works'])} 个作品")
+                
+                # 自动播放前几个作品的预览
+                preview_count = min(3, len(results["generated_works"]))
+                print(f"🎼 自动播放前 {preview_count} 个作品预览...")
+                
+                for i in range(preview_count):
+                    work = results["generated_works"][i]
+                    print(f"\n🎵 预览作品 {i+1}: {work['work_name']}")
+                    
+                    # 查找CSV文件
+                    csv_file = None
+                    for file_path in work.get("files", []):
+                        if file_path.endswith("_analysis.csv"):
+                            csv_file = file_path
+                            break
+                    
+                    if csv_file:
+                        success = self.play_generated_work(csv_file, "csv", 4.0)  # 4秒预览
+                        if success:
+                            print(f"   ✓ 预览播放完成")
+                        else:
+                            print(f"   ⚠️ 预览播放失败")
+                    
+                    # 预览间暂停
+                    if i < preview_count - 1:
+                        time.sleep(1.5)
             
         except Exception as e:
             print(f"❌ 数学探索失败: {e}")
