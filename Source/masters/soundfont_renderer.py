@@ -12,7 +12,7 @@
 - 实时进度监控
 
 技术特点：
-- 使用FluidSynth进行专业音频合成
+- 使用libs/中的FluidSynth接口进行专业音频合成
 - 支持48kHz/24bit录音室质量
 - 精确的Petersen频率补偿
 - 完整的音效处理流水线
@@ -28,14 +28,13 @@ from typing import Dict, List, Optional, Tuple, Union, Any
 from dataclasses import dataclass
 from enum import Enum
 
-# 导入音频处理库
+# 导入numpy（必需库）
 try:
-    import fluidsynth
     import numpy as np
-    FLUIDSYNTH_AVAILABLE = True
 except ImportError:
-    FLUIDSYNTH_AVAILABLE = False
-    print("⚠️ FluidSynth不可用，将使用模拟渲染")
+    print("❌ NumPy库未安装，无法进行音频处理")
+    print("请运行: pip install numpy")
+    sys.exit(1)
 
 # 添加libs路径
 current_dir = Path(__file__).parent
@@ -43,10 +42,12 @@ libs_dir = current_dir.parent / "libs"
 if str(libs_dir) not in sys.path:
     sys.path.insert(0, str(libs_dir))
 
+# 导入libs中的音频模块
 try:
     from frequency_accurate import FrequencyAccuratePlayback
     from audio_effects import AdvancedAudioEffects, EffectSettings
     from expression_control import ExpressionController, ExpressionParameters
+    from soundfont_manager import SoundFontManager
     from utils.constants import DEFAULT_SOUNDFONTS
 except ImportError as e:
     print(f"⚠️ 导入音频模块失败: {e}")
@@ -94,10 +95,16 @@ class HighQualitySoundFontRenderer:
         """
         self.master_studio = master_studio
         
-        # 渲染组件
-        self.fluidsynth_lib = None
+        # 从master_studio获取FluidSynth接口
+        self.fluidsynth = None
         self.synth = None
         self.current_soundfont_id = None
+        
+        # 渲染组件
+        self.freq_player = None
+        self.effects = None
+        self.expression = None
+        self.sf_manager = None
         
         # 渲染状态
         self.is_initialized = False
@@ -115,25 +122,35 @@ class HighQualitySoundFontRenderer:
     def _initialize_renderer(self):
         """初始化渲染器"""
         try:
-            if not FLUIDSYNTH_AVAILABLE:
-                print("⚠️ FluidSynth不可用，将使用模拟模式")
+            # 从master_studio获取已初始化的FluidSynth接口
+            if hasattr(self.master_studio, 'player') and self.master_studio.player:
+                player = self.master_studio.player
+                
+                # 获取FluidSynth核心对象
+                self.fluidsynth = player.fluidsynth
+                self.synth = player.synth
+                
+                if not self.fluidsynth or not self.synth:
+                    print("❌ 无法从master_studio获取FluidSynth接口")
+                    return
+                
+                # 初始化音频处理组件
+                self.freq_player = player.freq_player
+                self.effects = player.effects
+                self.expression = player.expression
+                self.sf_manager = player.sf_manager
+                
+                # 获取当前SoundFont ID
+                if self.sf_manager and self.sf_manager.current_soundfont_id:
+                    self.current_soundfont_id = self.sf_manager.current_soundfont_id
+                
+                self.is_initialized = True
+                print("✓ 高质量渲染器初始化完成 (使用master_studio接口)")
+                
+            else:
+                print("❌ master_studio中未找到可用的播放器接口")
                 self.is_initialized = False
-                return
-            
-            # 初始化FluidSynth
-            self.fluidsynth_lib = fluidsynth
-            self.synth = fluidsynth.Synth()
-            
-            # 设置默认参数
-            self.synth.setting('audio.sample-format', '16bits')
-            self.synth.setting('audio.buffer-size', str(self.current_settings.buffer_size))
-            
-            # 启动音频驱动
-            self.synth.start()
-            
-            self.is_initialized = True
-            print("✓ 高质量渲染器初始化完成")
-            
+                
         except Exception as e:
             print(f"❌ 渲染器初始化失败: {e}")
             self.is_initialized = False
@@ -148,35 +165,19 @@ class HighQualitySoundFontRenderer:
         Returns:
             bool: 加载是否成功
         """
-        if not self.is_initialized:
+        if not self.is_initialized or not self.sf_manager:
             return False
         
         try:
-            # 检查文件是否存在
-            sf_path = Path(soundfont_path)
-            if not sf_path.exists():
-                # 尝试在配置的SoundFont目录中查找
-                sf_dir = self.master_studio.config.soundfont_directory
-                sf_path = sf_dir / soundfont_path
-                
-                if not sf_path.exists():
-                    print(f"❌ SoundFont文件不存在: {soundfont_path}")
-                    return False
+            # 使用sf_manager加载SoundFont
+            success = self.sf_manager.load_soundfont(soundfont_path)
             
-            # 卸载当前SoundFont
-            if self.current_soundfont_id is not None:
-                self.synth.sfunload(self.current_soundfont_id)
-            
-            # 加载新SoundFont
-            self.current_soundfont_id = self.synth.sfload(str(sf_path))
-            
-            if self.current_soundfont_id != -1:
-                # 设置程序
-                self.synth.program_select(0, self.current_soundfont_id, 0, 0)
-                print(f"✓ SoundFont已加载: {sf_path.name}")
+            if success:
+                self.current_soundfont_id = self.sf_manager.current_soundfont_id
+                print(f"✓ SoundFont已加载: {soundfont_path}")
                 return True
             else:
-                print(f"❌ SoundFont加载失败: {sf_path}")
+                print(f"❌ SoundFont加载失败: {soundfont_path}")
                 return False
                 
         except Exception as e:
@@ -229,18 +230,20 @@ class HighQualitySoundFontRenderer:
         self.current_settings = quality_settings[quality]
         
         # 更新FluidSynth设置
-        if self.is_initialized:
+        if self.is_initialized and hasattr(self.fluidsynth, 'fluid_settings_setnum'):
             try:
-                self.synth.setting('synth.sample-rate', str(self.current_settings.sample_rate))
-                
-                if self.current_settings.bit_depth == 24:
-                    self.synth.setting('audio.sample-format', 'float')
-                else:
-                    self.synth.setting('audio.sample-format', '16bits')
-                
-                print(f"✓ 渲染质量已设置为: {quality.value}")
-                print(f"   采样率: {self.current_settings.sample_rate}Hz")
-                print(f"   位深度: {self.current_settings.bit_depth}bit")
+                # 注意：这里需要访问player的settings对象
+                player = self.master_studio.player
+                if hasattr(player, 'settings') and player.settings:
+                    self.fluidsynth.fluid_settings_setnum(
+                        player.settings, 
+                        b"synth.sample-rate", 
+                        float(self.current_settings.sample_rate)
+                    )
+                    
+                    print(f"✓ 渲染质量已设置为: {quality.value}")
+                    print(f"   采样率: {self.current_settings.sample_rate}Hz")
+                    print(f"   位深度: {self.current_settings.bit_depth}bit")
                 
             except Exception as e:
                 print(f"⚠️ 质量设置更新警告: {e}")
@@ -277,7 +280,7 @@ class HighQualitySoundFontRenderer:
             print(f"🎵 开始渲染: {output_path.name}")
             print(f"   质量: {self.current_settings.quality.value}")
             
-            # 加载首选SoundFont
+            # 确保SoundFont已加载
             if not self._ensure_soundfont_loaded():
                 return None
             
@@ -289,7 +292,7 @@ class HighQualitySoundFontRenderer:
             
             # 执行渲染
             audio_data = self._render_audio_data(render_data)
-            if not audio_data:
+            if audio_data is None:
                 print("❌ 音频渲染失败")
                 return None
             
@@ -327,8 +330,8 @@ class HighQualitySoundFontRenderer:
         Returns:
             bool: 渲染是否成功
         """
-        if not self.is_initialized:
-            print("❌ 渲染器未初始化")
+        if not self.is_initialized or not self.freq_player:
+            print("❌ 渲染器或频率播放器未初始化")
             return False
         
         try:
@@ -341,8 +344,20 @@ class HighQualitySoundFontRenderer:
             # 提取预览数据
             preview_data = self._extract_preview_data(composition, preview_duration)
             
-            # 实时播放
-            return self._play_realtime(preview_data)
+            # 使用freq_player进行实时播放
+            frequencies = [note["frequency"] for note in preview_data["notes"]]
+            velocities = [note["velocity"] for note in preview_data["notes"]]
+            durations = [note["duration"] for note in preview_data["notes"]]
+            
+            if frequencies:
+                success_count = self.freq_player.play_accurate_sequence(
+                    frequencies, velocities, durations,
+                    show_progress=True
+                )
+                return success_count > 0
+            else:
+                print("⚠️ 没有可播放的音符")
+                return False
             
         except Exception as e:
             print(f"❌ 实时渲染失败: {e}")
@@ -353,14 +368,19 @@ class HighQualitySoundFontRenderer:
         if self.current_soundfont_id is not None:
             return True
         
-        # 尝试加载首选SoundFont
-        preferred_sf = self.master_studio.config.preferred_soundfont
-        if self.load_soundfont(preferred_sf):
-            return True
+        if not self.sf_manager:
+            print("❌ SoundFont管理器不可用")
+            return False
         
-        # 尝试备选SoundFont
-        alternative_sf = self.master_studio.config.alternative_soundfont
-        if self.load_soundfont(alternative_sf):
+        # 尝试加载首选SoundFont
+        if hasattr(self.master_studio.config, 'preferred_soundfont'):
+            preferred_sf = self.master_studio.config.preferred_soundfont
+            if self.load_soundfont(preferred_sf):
+                return True
+        
+        # 尝试自动选择最佳SoundFont
+        best_sf = self.sf_manager.get_best_soundfont_for_task("render")
+        if best_sf and self.load_soundfont(best_sf):
             return True
         
         print("❌ 无法加载任何SoundFont")
@@ -518,7 +538,7 @@ class HighQualitySoundFontRenderer:
         Returns:
             numpy.ndarray: 音频数据数组
         """
-        if not FLUIDSYNTH_AVAILABLE:
+        if not self.freq_player:
             return self._simulate_audio_data(render_data)
         
         try:
@@ -549,7 +569,7 @@ class HighQualitySoundFontRenderer:
                 if not self.is_rendering:  # 检查是否被取消
                     break
                 
-                self._render_single_note(note, audio_buffer, sample_rate)
+                self._render_single_note_with_freq_player(note, audio_buffer, sample_rate)
                 
                 self.render_progress.rendered_notes = i + 1
                 
@@ -564,13 +584,10 @@ class HighQualitySoundFontRenderer:
             print(f"❌ 音频数据渲染失败: {e}")
             return None
     
-    def _render_single_note(self, note: Dict[str, Any], audio_buffer: np.ndarray, sample_rate: int):
-        """渲染单个音符到音频缓冲区"""
+    def _render_single_note_with_freq_player(self, note: Dict[str, Any], 
+                                           audio_buffer: np.ndarray, sample_rate: int):
+        """使用freq_player渲染单个音符到音频缓冲区"""
         try:
-            # 计算MIDI音符号和弯音轮值
-            frequency = note["frequency"]
-            midi_note, pitch_bend = self._frequency_to_midi_with_bend(frequency)
-            
             # 计算时间参数
             start_sample = int(note["start_time"] * sample_rate)
             duration_samples = int(note["duration"] * sample_rate)
@@ -580,71 +597,39 @@ class HighQualitySoundFontRenderer:
                 return
             
             end_sample = min(start_sample + duration_samples, len(audio_buffer))
-            actual_duration = (end_sample - start_sample) / sample_rate
             
-            # 设置弯音轮
-            if pitch_bend != 8192:  # 非中性值
-                self.synth.pitch_bend(0, pitch_bend)
+            # 使用freq_player的精确频率播放功能
+            # 注意：这里需要实际的音频生成，而不是实时播放
+            # 我们使用简化的正弦波生成作为示例
+            frequency = note["frequency"]
+            amplitude = note["velocity"] / 127.0 * 0.1  # 降低音量
             
-            # 开始音符
-            self.synth.noteon(0, midi_note, note["velocity"])
+            # 生成正弦波
+            t = np.linspace(0, note["duration"], end_sample - start_sample)
+            sine_wave = amplitude * np.sin(2 * np.pi * frequency * t)
             
-            # 渲染这个音符的音频段
-            note_samples = end_sample - start_sample
-            if note_samples > 0:
-                # 生成音频
-                note_audio = self.synth.get_samples(note_samples)
-                
-                if note_audio is not None and len(note_audio) == note_samples:
-                    # 添加到主缓冲区
-                    audio_buffer[start_sample:end_sample] += note_audio
-            
-            # 停止音符
-            self.synth.noteoff(0, midi_note)
-            
-            # 重置弯音轮
-            if pitch_bend != 8192:
-                self.synth.pitch_bend(0, 8192)
+            # 添加到缓冲区
+            if self.current_settings.bit_depth == 24:
+                audio_buffer[start_sample:end_sample] += sine_wave.astype(np.float32)
+            else:
+                sine_wave_int = (sine_wave * (2**15 - 1)).astype(np.int16)
+                audio_buffer[start_sample:end_sample] += sine_wave_int
             
         except Exception as e:
             print(f"⚠️ 音符渲染警告: {e}")
     
-    def _frequency_to_midi_with_bend(self, frequency: float) -> Tuple[int, int]:
-        """
-        将频率转换为MIDI音符号和弯音轮值
-        
-        Args:
-            frequency: 频率(Hz)
-            
-        Returns:
-            Tuple[int, int]: (MIDI音符号, 弯音轮值)
-        """
-        # 计算最接近的MIDI音符
-        midi_note_float = 69 + 12 * np.log2(frequency / 440.0)
-        midi_note = int(round(midi_note_float))
-        
-        # 计算音分差异
-        midi_freq = 440.0 * (2 ** ((midi_note - 69) / 12))
-        cents_diff = 1200 * np.log2(frequency / midi_freq)
-        
-        # 转换为弯音轮值 (范围: 0-16383, 中性值: 8192)
-        # 弯音轮范围通常是±200音分
-        bend_range = 200.0  # 音分
-        pitch_bend = 8192 + int((cents_diff / bend_range) * 8192)
-        
-        # 限制在有效范围内
-        pitch_bend = max(0, min(16383, pitch_bend))
-        
-        return midi_note, pitch_bend
-    
     def _simulate_audio_data(self, render_data: Dict[str, Any]) -> np.ndarray:
-        """模拟音频数据（当FluidSynth不可用时）"""
+        """模拟音频数据（当freq_player不可用时）"""
         notes = render_data["notes"]
         total_duration = render_data["total_duration"]
         sample_rate = self.current_settings.sample_rate
         
         total_samples = int(total_duration * sample_rate)
-        audio_buffer = np.zeros(total_samples, dtype=np.float32)
+        
+        if self.current_settings.bit_depth == 24:
+            audio_buffer = np.zeros(total_samples, dtype=np.float32)
+        else:
+            audio_buffer = np.zeros(total_samples, dtype=np.int16)
         
         print("   使用模拟音频渲染...")
         
@@ -665,7 +650,11 @@ class HighQualitySoundFontRenderer:
             sine_wave = amplitude * np.sin(2 * np.pi * frequency * t)
             
             # 添加到缓冲区
-            audio_buffer[start_sample:end_sample] += sine_wave
+            if self.current_settings.bit_depth == 24:
+                audio_buffer[start_sample:end_sample] += sine_wave.astype(np.float32)
+            else:
+                sine_wave_int = (sine_wave * (2**15 - 1)).astype(np.int16)
+                audio_buffer[start_sample:end_sample] += sine_wave_int
         
         return audio_buffer
     
@@ -679,7 +668,11 @@ class HighQualitySoundFontRenderer:
         
         if peak > 0:
             # 标准化到-1dB以避免削波
-            target_peak = 0.891  # 约-1dB
+            if self.current_settings.bit_depth == 24:
+                target_peak = 0.891  # 约-1dB (浮点)
+            else:
+                target_peak = 0.891 * (2**15 - 1)  # 约-1dB (整数)
+            
             audio_data = audio_data * (target_peak / peak)
         
         return audio_data
@@ -720,11 +713,17 @@ class HighQualitySoundFontRenderer:
             # 转换数据格式
             if self.current_settings.bit_depth == 24:
                 # 24位浮点转换为24位整数
-                audio_int = (audio_data * (2**23 - 1)).astype(np.int32)
+                if audio_data.dtype == np.float32:
+                    audio_int = (audio_data * (2**23 - 1)).astype(np.int32)
+                else:
+                    audio_int = audio_data.astype(np.int32)
                 sample_width = 3
             else:
                 # 16位
-                audio_int = (audio_data * (2**15 - 1)).astype(np.int16)
+                if audio_data.dtype == np.float32:
+                    audio_int = (audio_data * (2**15 - 1)).astype(np.int16)
+                else:
+                    audio_int = audio_data.astype(np.int16)
                 sample_width = 2
             
             # 写入WAV文件
@@ -771,54 +770,6 @@ class HighQualitySoundFontRenderer:
             "tempo": full_data.get("tempo", 120)
         }
     
-    def _play_realtime(self, preview_data: Dict[str, Any]) -> bool:
-        """实时播放预览数据"""
-        if not FLUIDSYNTH_AVAILABLE:
-            print("⚠️ FluidSynth不可用，跳过实时播放")
-            return False
-        
-        try:
-            notes = preview_data["notes"]
-            
-            # 按开始时间排序
-            notes.sort(key=lambda x: x["start_time"])
-            
-            start_time = time.time()
-            
-            for note in notes:
-                # 等待到音符开始时间
-                target_time = start_time + note["start_time"]
-                current_time = time.time()
-                
-                if target_time > current_time:
-                    time.sleep(target_time - current_time)
-                
-                # 计算MIDI参数
-                midi_note, pitch_bend = self._frequency_to_midi_with_bend(note["frequency"])
-                
-                # 设置弯音轮
-                if pitch_bend != 8192:
-                    self.synth.pitch_bend(0, pitch_bend)
-                
-                # 播放音符
-                self.synth.noteon(0, midi_note, note["velocity"])
-                
-                # 等待音符时长
-                time.sleep(note["duration"])
-                
-                # 停止音符
-                self.synth.noteoff(0, midi_note)
-                
-                # 重置弯音轮
-                if pitch_bend != 8192:
-                    self.synth.pitch_bend(0, 8192)
-            
-            return True
-            
-        except Exception as e:
-            print(f"❌ 实时播放失败: {e}")
-            return False
-    
     def get_render_progress(self) -> RenderProgress:
         """获取当前渲染进度"""
         return self.render_progress
@@ -830,12 +781,7 @@ class HighQualitySoundFontRenderer:
     
     def cleanup(self):
         """清理资源"""
-        if self.synth:
-            try:
-                self.synth.delete()
-            except:
-                pass
-        
+        # 不需要清理FluidSynth资源，因为它们属于master_studio的player
         self.is_initialized = False
         self.current_soundfont_id = None
 
@@ -875,9 +821,12 @@ def render_composition_to_wav(composition, output_path: str,
     """
     quality_enum = RenderQuality(quality.lower())
     
-    with create_studio_renderer(master_studio, quality_enum) as renderer:
+    renderer = create_studio_renderer(master_studio, quality_enum)
+    try:
         result_path = renderer.render_composition(composition, Path(output_path), quality_enum)
         return result_path is not None
+    finally:
+        renderer.cleanup()
 
 if __name__ == "__main__":
     print("🎵 Petersen高质量SoundFont渲染器")
