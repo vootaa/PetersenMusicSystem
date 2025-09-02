@@ -356,11 +356,16 @@ class PetersenMasterStudio:
             if phi not in available_phi:
                 print(f"⚠️ 未知φ值预设: {phi}")
         
-        # 验证δθ值预设
+        # 验证δθ值预设 - 修复：支持数值字符串
         available_delta_theta = list(DELTA_THETA_PRESETS.keys())
         for delta_theta in self.config.delta_theta_values:
             if delta_theta not in available_delta_theta:
-                print(f"⚠️ 未知δθ值预设: {delta_theta}")
+                # 尝试解析为数值
+                try:
+                    float(delta_theta)
+                    print(f"✓ 自定义δθ值: {delta_theta}")
+                except ValueError:
+                    print(f"⚠️ 无效δθ值: {delta_theta}")
     
     def run_session(self) -> Dict[str, Any]:
         """运行工作会话"""
@@ -421,28 +426,127 @@ class PetersenMasterStudio:
         }
         
         try:
-            # 配置探索参数
-            config = self.parameter_explorer.configure_exploration(
-                mode=ExplorationMode.QUICK_SURVEY if len(self.config.phi_values) <= 3 else ExplorationMode.SYSTEMATIC_GRID,
-                max_combinations=min(20, len(self.config.phi_values) * len(self.config.delta_theta_values)),
-                phi_filter=self.config.phi_values,
-                delta_theta_filter=self.config.delta_theta_values,
-                measures_per_work=self.config.measures_count
-            )
+            # 生成参数组合
+            parameter_combinations = self._generate_parameter_combinations()
             
-            # 运行探索
-            exploration_results = self.parameter_explorer.run_exploration(config)
+            print(f"📊 生成了 {len(parameter_combinations)} 个参数组合")
             
-            # 整合结果
-            results["parameter_combinations"] = [combo.__dict__ for combo in exploration_results.explored_combinations]
-            results["generated_works"] = exploration_results.successful_works
-            results["analysis_reports"] = [exploration_results.parameter_effects]
+            # 为每个参数组合生成作品
+            for i, params in enumerate(parameter_combinations):
+                try:
+                    print(f"\n🎵 生成作品 {i+1}/{len(parameter_combinations)}")
+                    print(f"   参数: φ={params['phi_value']:.3f}, δθ={params['delta_theta_value']:.1f}°")
+                    
+                    # 创建作曲
+                    composition = self._create_composition_from_params(params)
+                    
+                    if composition:
+                        # 保存作品
+                        work_name = f"exploration_{i+1:02d}_phi{params['phi_value']:.3f}_dt{params['delta_theta_value']:.1f}"
+                        work_result = self._save_composition_work(composition, work_name, params)
+                        
+                        # 添加到结果
+                        results["parameter_combinations"].append(params)
+                        results["generated_works"].append(work_result)
+                        
+                        print(f"   ✓ 作品生成成功: {work_name}")
+                    else:
+                        print(f"   ❌ 作品生成失败")
+                        
+                except Exception as e:
+                    print(f"   ❌ 参数组合 {i+1} 失败: {e}")
+                    continue
+            
+            # 生成探索报告
+            if results["generated_works"]:
+                analysis_report = self._generate_exploration_analysis(results)
+                results["analysis_reports"].append(analysis_report)
             
         except Exception as e:
             print(f"❌ 数学探索失败: {e}")
             results["error"] = str(e)
         
         return results
+    
+    def _generate_parameter_combinations(self) -> List[Dict[str, Any]]:
+        """生成参数组合"""
+        combinations = []
+        
+        # 解析φ值
+        phi_values = []
+        for phi_str in self.config.phi_values:
+            if phi_str in PHI_PRESETS:
+                phi_values.append(PHI_PRESETS[phi_str])
+            else:
+                try:
+                    phi_values.append(float(phi_str))
+                except ValueError:
+                    print(f"⚠️ 跳过无效φ值: {phi_str}")
+                    continue
+        
+        # 解析δθ值
+        delta_theta_values = []
+        for dt_str in self.config.delta_theta_values:
+            if dt_str in DELTA_THETA_PRESETS:
+                delta_theta_values.append(DELTA_THETA_PRESETS[dt_str])
+            else:
+                try:
+                    delta_theta_values.append(float(dt_str))
+                except ValueError:
+                    print(f"⚠️ 跳过无效δθ值: {dt_str}")
+                    continue
+        
+        # 生成组合
+        for phi in phi_values:
+            for delta_theta in delta_theta_values:
+                for f_base in self.config.f_base_values:
+                    combinations.append({
+                        "phi_value": phi,
+                        "delta_theta_value": delta_theta,
+                        "f_base": f_base,
+                        "chord_ratios": CHORD_RATIOS.get(
+                            self.config.chord_ratio_sets[0], 
+                            CHORD_RATIOS["major_triad"]
+                        ),
+                        "composition_style": self.config.composition_styles[0]
+                    })
+        
+        return combinations
+    
+    def _generate_exploration_analysis(self, results: Dict[str, Any]) -> Dict[str, Any]:
+        """生成探索分析报告"""
+        analysis = {
+            "exploration_summary": {
+                "total_combinations": len(results["parameter_combinations"]),
+                "successful_works": len(results["generated_works"]),
+                "success_rate": len(results["generated_works"]) / max(1, len(results["parameter_combinations"]))
+            },
+            "parameter_analysis": {
+                "phi_range": [],
+                "delta_theta_range": [],
+                "most_successful_params": None
+            },
+            "musical_analysis": {
+                "complexity_scores": [],
+                "harmonic_richness": [],
+                "rhythmic_variety": []
+            }
+        }
+        
+        if results["parameter_combinations"]:
+            # 分析φ值范围
+            phi_values = [p["phi_value"] for p in results["parameter_combinations"]]
+            analysis["parameter_analysis"]["phi_range"] = [min(phi_values), max(phi_values)]
+            
+            # 分析δθ值范围
+            dt_values = [p["delta_theta_value"] for p in results["parameter_combinations"]]
+            analysis["parameter_analysis"]["delta_theta_range"] = [min(dt_values), max(dt_values)]
+            
+            # 最成功的参数组合（简化版）
+            if results["generated_works"]:
+                analysis["parameter_analysis"]["most_successful_params"] = results["parameter_combinations"][0]
+        
+        return analysis
     
     def _run_aesthetic_comparison(self) -> Dict[str, Any]:
         """运行数学美学对比"""
