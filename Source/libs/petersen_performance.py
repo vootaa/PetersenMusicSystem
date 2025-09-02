@@ -102,10 +102,10 @@ class PerformanceNote:
         frequencies = []
         
         # 主音符
-        if hasattr(self.primary_note, 'frequency'):
-            base_freq = self.primary_note.frequency
+        if hasattr(self.primary_note, 'freq'):
+            base_freq = self.primary_note.freq
         elif hasattr(self.primary_note, 'note_entry'):
-            base_freq = self.primary_note.note_entry.frequency
+            base_freq = self.primary_note.note_entry.freq
         else:
             base_freq = self.primary_note.get_frequencies()[0]  # 和弦音取第一个
         
@@ -130,7 +130,7 @@ class PerformanceNote:
 class Ornament:
     """装饰音"""
     type: str                          # 装饰音类型
-    frequency: float                   # 频率
+    freq: float                        # 频率
     duration: float                    # 持续时间
     velocity: int                      # 力度
     timing_offset: float               # 相对主音符的时间偏移
@@ -195,7 +195,7 @@ class PerformanceComposition:
         """导出演奏版详细CSV"""
         if path is None:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            path = f"petersen_performance_{self.performance_level.value}_{timestamp}.csv"
+            path = f"../data/petersen_performance_{self.performance_level.value}_{timestamp}.csv"
         
         path = Path(path)
         events = self.get_all_performance_events()
@@ -207,7 +207,7 @@ class PerformanceComposition:
                 frequencies = perf_note.get_all_frequencies()
                 main_freq = frequencies[0][0]
                 parallel_freqs = "+".join(f"{f[0]:.1f}" for f in frequencies[1:])
-                ornament_info = "+".join(f"{o.type}({o.frequency:.1f}Hz)" for o in perf_note.ornaments)
+                ornament_info = "+".join(f"{o.type}({o.freq:.1f}Hz)" for o in perf_note.ornaments)
                 
                 f.write(f"{time:.3f},{track},演奏音符,{main_freq:.2f},"
                        f"{parallel_freqs or '无'},{ornament_info or '无'},"
@@ -679,10 +679,10 @@ class PetersenPerformanceRenderer:
         """应用装饰音技法"""
         if random.random() < self.density_params["ornament_frequency"]:
             # 获取主音频率
-            if hasattr(performance_note.primary_note, 'frequency'):
-                base_freq = performance_note.primary_note.frequency
+            if hasattr(performance_note.primary_note, 'freq'):
+                base_freq = performance_note.primary_note.freq
             elif hasattr(performance_note.primary_note, 'note_entry'):
-                base_freq = performance_note.primary_note.note_entry.frequency
+                base_freq = performance_note.primary_note.note_entry.freq
             else:
                 return  # 无法获取频率
             
@@ -692,7 +692,7 @@ class PetersenPerformanceRenderer:
                 interval = technique.get("ornament_interval", 9/8)
                 ornament = Ornament(
                     type="trill",
-                    frequency=base_freq * interval,
+                    freq=base_freq * interval,
                     duration=0.1,
                     velocity=performance_note.primary_note.velocity // 2,
                     timing_offset=0.05
@@ -705,7 +705,7 @@ class PetersenPerformanceRenderer:
                 for i, interval in enumerate(intervals[:2]):  # 最多2个前倚音
                     ornament = Ornament(
                         type="grace_note",
-                        frequency=base_freq * interval,
+                        freq=base_freq * interval,
                         duration=technique.get("ornament_duration", 0.05),
                         velocity=performance_note.primary_note.velocity // 3,
                         timing_offset=-0.1 - i * 0.05
@@ -740,7 +740,7 @@ class PetersenPerformanceRenderer:
                 cascade_freq = base_freq * (1.2 ** i)  # 上行级进
                 ornament = Ornament(
                     type="cascade",
-                    frequency=cascade_freq,
+                    freq=cascade_freq,
                     duration=cascade_speed,
                     velocity=performance_note.primary_note.velocity - i * 10,
                     timing_offset=i * cascade_speed
@@ -778,10 +778,10 @@ class PetersenPerformanceRenderer:
     
     def _get_note_frequency(self, note: Union[BassNote, ChordNote, MelodyNote]) -> float:
         """获取音符频率"""
-        if hasattr(note, 'frequency'):
-            return note.frequency
+        if hasattr(note, 'freq'):
+            return note.freq
         elif hasattr(note, 'note_entry'):
-            return note.note_entry.frequency
+            return note.note_entry.freq
         elif hasattr(note, 'get_frequencies'):
             frequencies = note.get_frequencies()
             return frequencies[0] if frequencies else 440.0
@@ -1003,7 +1003,7 @@ if __name__ == "__main__":
     # 导出演奏版本
     print(f"\n导出演奏版本...")
     performance_composition.export_performance_csv()
-    performance_composition.export_performance_midi("superhuman_performance.mid")
+    performance_composition.export_performance_midi("../data/superhuman_performance.mid")
     
     # 比较不同演奏级别
     print(f"\n" + "="*60)
