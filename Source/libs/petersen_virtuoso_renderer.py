@@ -407,7 +407,7 @@ class PetersenVirtuosoRenderer:
             for i, (entry, technique_info) in enumerate(enhanced_sequence):
                 # 播放主音符
                 self.frequency_player.play_frequency(
-                    frequency=entry.frequency,
+                    frequency=entry.freq,
                     duration=duration_per_note,
                     velocity=80
                 )
@@ -474,7 +474,7 @@ class PetersenVirtuosoRenderer:
                         velocity_factors = tech_config.get("velocity_factors", [1.0] * len(intervals))
                         
                         for interval, vel_factor in zip(intervals[:self.render_settings.max_parallel_voices], velocity_factors):
-                            parallel_freq = entry.frequency * interval
+                            parallel_freq = entry.freq * interval
                             parallel_freqs.append((parallel_freq, vel_factor))
                         
                         technique_info["parallel_frequencies"] = parallel_freqs
@@ -656,7 +656,7 @@ class PetersenVirtuosoRenderer:
             
             if ornament_start_sample < len(audio_buffer):
                 ornament_audio = self._generate_note_audio(
-                    frequency=ornament.frequency,
+                    frequency=ornament.freq,
                     duration=ornament.duration,
                     velocity=ornament.velocity,
                     sample_rate=sample_rate
@@ -1014,11 +1014,11 @@ class InteractiveExplorer:
             return False
         
         try:
-            print(f"播放音符: {scale_entry.key_short} ({scale_entry.frequency:.2f}Hz)")
+            print(f"播放音符: {scale_entry.key_short} ({scale_entry.freq:.2f}Hz)")
             
             # 播放主音符
             self.renderer.frequency_player.play_frequency(
-                frequency=scale_entry.frequency,
+                frequency=scale_entry.freq,
                 duration=duration,
                 velocity=velocity
             )
@@ -1047,7 +1047,7 @@ class InteractiveExplorer:
             velocity_factors = tech_config.get("velocity_factors", [1.0] * len(intervals))
             
             for interval, vel_factor in zip(intervals, velocity_factors):
-                parallel_freq = scale_entry.frequency * interval
+                parallel_freq = scale_entry.freq * interval
                 parallel_velocity = int(velocity * vel_factor)
                 
                 self.renderer.frequency_player.play_frequency(
@@ -1079,7 +1079,7 @@ class InteractiveExplorer:
             
             for entry in scale_entries:
                 self.renderer.frequency_player.play_frequency(
-                    frequency=entry.frequency,
+                    frequency=entry.freq,
                     duration=duration,
                     velocity=velocity
                 )
@@ -1182,7 +1182,7 @@ def demo_virtuoso_renderer():
     
     output_path = studio_renderer.render_composition(
         basic_composition,
-        "demo_virtuoso_performance.wav",
+        "../output/demo_virtuoso_performance.wav",
         techniques="adaptive",
         progress_callback=progress_callback
     )
