@@ -331,7 +331,16 @@ class PetersenMasterStudio:
             self.composition_showcase = CompositionShowcase(self)
             self.interactive_workshop = InteractiveWorkshop(self)
             self.masterwork_generator = MasterworkGenerator(self)
-            self.soundfont_renderer = HighQualitySoundFontRenderer(self)
+
+            # 确保播放器可用后再初始化渲染器
+            if self.enhanced_player and self.enhanced_player.is_initialized:
+                # 为了兼容性，添加player属性指向enhanced_player
+                self.player = self.enhanced_player
+                self.soundfont_renderer = HighQualitySoundFontRenderer(self)
+            else:
+                print("⚠️ 播放器不可用，跳过SoundFont渲染器初始化")
+                self.soundfont_renderer = None
+            
             self.analysis_reporter = AnalysisReporter(self)
             
             print("✓ 大师级组件初始化完成")
@@ -500,7 +509,7 @@ class PetersenMasterStudio:
             return self._play_with_generic_method(work_path, preview_duration)
     
     def _play_with_csv_player(self, work_path: Path, preview_duration: Optional[float]) -> bool:
-        """使用CSV播放器播放"""
+        """使用CSV播放器播放（改进版，支持无pandas）"""
         # 查找CSV文件
         if work_path.suffix.lower() == '.csv':
             csv_path = work_path
@@ -512,24 +521,133 @@ class PetersenMasterStudio:
             return False
         
         try:
-            from csv_player import CSVMusicPlayer
-            
-            csv_player = CSVMusicPlayer(self.enhanced_player)
-            
-            if csv_player.load_csv_composition(str(csv_path)):
-                print(f"🎵 CSV播放: {csv_path.name}")
+            # 首先尝试使用pandas版本的CSV播放器
+            try:
+                import pandas as pd
+                from csv_player import CSVMusicPlayer
                 
-                if preview_duration:
-                    csv_player.play_composition(0, preview_duration)
+                csv_player = CSVMusicPlayer(self.enhanced_player)
+                
+                if csv_player.load_csv_composition(str(csv_path)):
+                    print(f"🎵 CSV播放（pandas）: {csv_path.name}")
+                    
+                    if preview_duration:
+                        csv_player.play_composition(0, preview_duration)
+                    else:
+                        csv_player.play_composition()
+                    
+                    return True
                 else:
-                    csv_player.play_composition()
-                
-                return True
-            else:
-                return False
+                    return False
+                    
+            except ImportError:
+                # pandas不可用，使用内置CSV解析器
+                print("⚠️ pandas库未安装，使用内置CSV播放器")
+                return self._play_csv_with_builtin_parser(csv_path, preview_duration)
                 
         except Exception as e:
             print(f"❌ CSV播放失败: {e}")
+            # 最后尝试参数演示播放
+            return self._play_parameter_demo_fallback(work_path)
+    
+    def _play_csv_with_builtin_parser(self, csv_path: Path, preview_duration: Optional[float]) -> bool:
+        """使用内置CSV解析器播放（不依赖pandas）"""
+        try:
+            import csv
+            
+            print(f"🎵 内置CSV播放: {csv_path.name}")
+            
+            notes = []
+            with open(csv_path, 'r', encoding='utf-8') as file:
+                reader = csv.DictReader(file)
+                for row in reader:
+                    try:
+                        note = {
+                            'time': float(row.get('时间(秒)', row.get('time', 0))),
+                            'frequency': float(row.get('频率(Hz)', row.get('frequency', 440))),
+                            'duration': float(row.get('持续时间', row.get('duration', 0.5))),
+                            'velocity': int(row.get('力度', row.get('velocity', 80)))
+                        }
+                        notes.append(note)
+                    except (ValueError, KeyError):
+                        continue  # 跳过无效行
+            
+            if not notes:
+                print("❌ 未找到有效音符数据")
+                return False
+            
+            print(f"📊 加载了 {len(notes)} 个音符")
+            
+            # 排序并限制预览
+            notes.sort(key=lambda x: x['time'])
+            
+            if preview_duration:
+                notes = [n for n in notes if n['time'] <= preview_duration]
+                preview_notes = notes[:30]  # 限制预览音符数量
+            else:
+                preview_notes = notes[:50]  # 限制总音符数量
+            
+            # 播放音符
+            import time as time_module
+            start_time = time_module.time()
+            
+            for i, note in enumerate(preview_notes):
+                # 等待到正确时间
+                target_time = note['time']
+                elapsed = time_module.time() - start_time
+                
+                if target_time > elapsed:
+                    time_module.sleep(target_time - elapsed)
+                
+                # 播放音符
+                self.enhanced_player.play_single_frequency(
+                    frequency=note['frequency'],
+                    duration=min(note['duration'] * 0.8, 0.4),  # 限制最大时长
+                    velocity=note['velocity'],
+                    use_accurate_frequency=True
+                )
+                
+                # 显示进度
+                if (i + 1) % 10 == 0:
+                    progress = (i + 1) / len(preview_notes) * 100
+                    print(f"   播放进度: {progress:.0f}%")
+                
+                # 预览模式下限制时长
+                if preview_duration and target_time >= preview_duration:
+                    break
+            
+            print("✓ 内置CSV播放完成")
+            return True
+            
+        except Exception as e:
+            print(f"❌ 内置CSV播放失败: {e}")
+            return False
+    
+    def _play_parameter_demo_fallback(self, work_path: Path) -> bool:
+        """参数演示回退播放"""
+        try:
+            print("🎵 使用参数演示播放")
+            
+            # 从配置获取参数
+            phi_value = PHI_PRESETS.get(self.config.phi_values[0], 1.618)
+            delta_theta_value = float(self.config.delta_theta_values[0])
+            
+            scale = PetersenScale(F_base=55.0, phi=phi_value, delta_theta=delta_theta_value)
+            scale_entries = scale.get_scale_entries()[:8]
+            
+            frequencies = [entry.freq for entry in scale_entries]
+            key_names = [entry.key_short for entry in scale_entries]
+            
+            return self.enhanced_player.play_frequencies(
+                frequencies=frequencies,
+                key_names=key_names,
+                duration=0.4,
+                gap=0.1,
+                show_progress=True
+            )
+            
+        except Exception as e:
+            print(f"❌ 参数演示播放失败: {e}")
             return False
     
     def _play_with_realtime_renderer(self, work_path: Path, preview_duration: Optional[float]) -> bool:
@@ -702,7 +820,7 @@ class PetersenMasterStudio:
                 print(f"   生成了 {len(results['generated_works'])} 个作品")
                 
                 # 自动播放前几个作品的预览
-                preview_count = min(3, len(results["generated_works"]))
+                preview_count = min(4, len(results["generated_works"]))
                 print(f"🎼 自动播放前 {preview_count} 个作品预览...")
                 
                 for i in range(preview_count):

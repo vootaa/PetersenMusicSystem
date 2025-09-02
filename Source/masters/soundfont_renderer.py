@@ -122,33 +122,56 @@ class HighQualitySoundFontRenderer:
     def _initialize_renderer(self):
         """初始化渲染器"""
         try:
-            # 从master_studio获取已初始化的FluidSynth接口
-            if hasattr(self.master_studio, 'player') and self.master_studio.player:
+            # 修正：从master_studio获取已初始化的播放器
+            player = None
+            
+            # 尝试多种属性名
+            if hasattr(self.master_studio, 'enhanced_player') and self.master_studio.enhanced_player:
+                player = self.master_studio.enhanced_player
+                print("✓ 找到 enhanced_player 接口")
+            elif hasattr(self.master_studio, 'player') and self.master_studio.player:
                 player = self.master_studio.player
-                
-                # 获取FluidSynth核心对象
+                print("✓ 找到 player 接口")
+            else:
+                print("❌ master_studio中未找到可用的播放器接口")
+                self.is_initialized = False
+                return
+            
+            # 获取FluidSynth核心对象
+            if hasattr(player, 'fluidsynth') and hasattr(player, 'synth'):
                 self.fluidsynth = player.fluidsynth
                 self.synth = player.synth
                 
                 if not self.fluidsynth or not self.synth:
-                    print("❌ 无法从master_studio获取FluidSynth接口")
+                    print("❌ 无法从播放器获取FluidSynth接口")
+                    self.is_initialized = False
                     return
                 
                 # 初始化音频处理组件
-                self.freq_player = player.freq_player
-                self.effects = player.effects
-                self.expression = player.expression
-                self.sf_manager = player.sf_manager
+                self.freq_player = getattr(player, 'freq_player', None)
+                self.effects = getattr(player, 'effects', None)
+                self.expression = getattr(player, 'expression', None)
+                self.sf_manager = getattr(player, 'sf_manager', None)
                 
                 # 获取当前SoundFont ID
-                if self.sf_manager and self.sf_manager.current_soundfont_id:
+                if self.sf_manager and hasattr(self.sf_manager, 'current_soundfont_id'):
                     self.current_soundfont_id = self.sf_manager.current_soundfont_id
                 
                 self.is_initialized = True
-                print("✓ 高质量渲染器初始化完成 (使用master_studio接口)")
+                print("✓ 高质量渲染器初始化完成")
+                
+                # 显示可用功能
+                available_features = []
+                if self.freq_player: available_features.append("精确频率播放")
+                if self.effects: available_features.append("音效处理")
+                if self.expression: available_features.append("表现力控制")
+                if self.sf_manager: available_features.append("SoundFont管理")
+                
+                if available_features:
+                    print(f"   可用功能: {', '.join(available_features)}")
                 
             else:
-                print("❌ master_studio中未找到可用的播放器接口")
+                print("❌ 播放器缺少必需的FluidSynth接口")
                 self.is_initialized = False
                 
         except Exception as e:

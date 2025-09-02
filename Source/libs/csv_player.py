@@ -1,6 +1,6 @@
-import pandas as pd
 import time
 from typing import List, Dict, Optional
+import pandas as pd
 from enhanced_petersen_player import EnhancedPetersenPlayer
 
 class CSVMusicPlayer:
