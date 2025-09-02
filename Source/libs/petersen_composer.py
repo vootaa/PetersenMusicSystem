@@ -377,13 +377,13 @@ class MultiTrackComposition:
         all_frequencies = []
         
         for note in self.bass_track:
-            all_frequencies.append(note.note_entry.frequency)
+            all_frequencies.append(note.note_entry.freq)
         
         for note in self.chord_track:
             all_frequencies.extend(note.get_frequencies())
         
         for note in self.melody_track:
-            all_frequencies.append(note.frequency)
+            all_frequencies.append(note.freq)
         
         if not all_frequencies:
             return {}
@@ -483,7 +483,7 @@ class MultiTrackComposition:
         """
         if path is None:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            path = f"petersen_composition_{self.composition_style}_{timestamp}.csv"
+            path = f"../data/petersen_composition_{self.composition_style}_{timestamp}.csv"
         
         path = Path(path)
         
@@ -497,13 +497,13 @@ class MultiTrackComposition:
             for time, track_type, note in all_events:
                 if track_type == "bass":
                     f.write(f"{time:.3f},低音,{note.measure},{note.beat},{note.position},"
-                           f"{note.note_entry.key_short},{note.note_entry.frequency:.2f},"
+                           f"{note.note_entry.key_short},{note.note_entry.freq:.2f},"
                            f"{note.duration:.2f},{note.velocity},"
                            f"根音-{'强' if note.is_strong_beat else '弱'}拍\n")
                 
                 elif track_type == "chord":
                     chord_names = "+".join(tone.ratio_name for tone in note.chord_tones)
-                    chord_freqs = "+".join(f"{tone.frequency:.1f}" for tone in note.chord_tones)
+                    chord_freqs = "+".join(f"{tone.freq:.1f}" for tone in note.chord_tones)
                     f.write(f"{time:.3f},和弦,{note.measure},{note.beat},{note.position},"
                            f"{chord_names},{chord_freqs},"
                            f"{note.duration:.2f},{note.velocity},"
@@ -511,7 +511,7 @@ class MultiTrackComposition:
                 
                 elif track_type == "melody":
                     f.write(f"{time:.3f},旋律,{note.measure},{note.beat},{note.position},"
-                           f"{note.key_name},{note.frequency:.2f},"
+                           f"{note.key_name},{note.freq:.2f},"
                            f"{note.duration:.2f},{note.velocity},"
                            f"{note.articulation}-{'装饰' if note.is_ornament else '主音'}\n")
         
@@ -781,7 +781,7 @@ class PetersenAutoComposer:
         
         for melody_note in melody_notes:
             # 如果旋律音接近和声音，增强力度
-            melody_freq = melody_note.frequency
+            melody_freq = melody_note.freq
             for harmony_freq in harmony_frequencies:
                 freq_ratio = melody_freq / harmony_freq
                 if 0.95 <= freq_ratio <= 1.05:  # 接近同音
@@ -1006,8 +1006,8 @@ class PetersenAutoComposer:
         # 分析旋律音程跳跃
         large_jumps = 0
         for i in range(1, len(composition.melody_track)):
-            prev_freq = composition.melody_track[i-1].frequency
-            curr_freq = composition.melody_track[i].frequency
+            prev_freq = composition.melody_track[i-1].freq
+            curr_freq = composition.melody_track[i].freq
             ratio = max(curr_freq, prev_freq) / min(curr_freq, prev_freq)
             if ratio > 1.5:  # 超过完全五度的跳跃
                 large_jumps += 1
@@ -1113,8 +1113,8 @@ if __name__ == "__main__":
     # 导出文件
     print(f"\n导出文件...")
     composition.export_score_csv()
-    composition.export_midi("petersen_composition.mid")
-    composition.export_musicxml("petersen_composition.xml")
+    composition.export_midi("../data/petersen_composition.mid")
+    composition.export_musicxml("../data/petersen_composition.xml")
     
     # 播放预览
     print(f"\n预览播放:")
