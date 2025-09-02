@@ -23,8 +23,8 @@ if str(libs_dir) not in sys.path:
     sys.path.insert(0, str(libs_dir))
 
 try:
-    from petersen_scale import PetersenScale, PRESET_PHI_VALUES, PRESET_DELTA_THETA_VALUES
-    from petersen_chord import PetersenChordExtender, CHORD_RATIOS_PRESETS
+    from petersen_scale import PetersenScale, PHI_PRESETS, DELTA_THETA_PRESETS
+    from petersen_chord import PetersenChordExtender, CHORD_RATIOS
     from petersen_composer import PetersenAutoComposer, COMPOSITION_STYLES
 except ImportError as e:
     print(f"⚠️ 导入基础模块失败: {e}")
@@ -160,13 +160,13 @@ class AestheticComparator:
             # 创建音阶和组件
             scale = PetersenScale(
                 F_base=55.0,
-                phi=PRESET_PHI_VALUES[params["phi_name"]],
-                delta_theta=PRESET_DELTA_THETA_VALUES[params["delta_theta_name"]]
+                phi=PHI_PRESETS[params["phi_name"]],
+                delta_theta=DELTA_THETA_PRESETS[params["delta_theta_name"]]
             )
             
             chord_extender = PetersenChordExtender(
                 petersen_scale=scale,
-                chord_ratios=CHORD_RATIOS_PRESETS[params["chord_set"]]
+                chord_ratios=CHORD_RATIOS[params["chord_set"]]
             )
             
             composer = PetersenAutoComposer(
@@ -202,7 +202,7 @@ class AestheticComparator:
         harmonic_consonance = phi_consonance.get(params["phi_name"], 0.60)
         
         # 旋律流畅度（基于δθ值）
-        delta_theta_value = PRESET_DELTA_THETA_VALUES[params["delta_theta_name"]]
+        delta_theta_value = DELTA_THETA_PRESETS[params["delta_theta_name"]]
         if delta_theta_value <= 8.0:
             melodic_smoothness = 0.90
         elif delta_theta_value <= 15.0:

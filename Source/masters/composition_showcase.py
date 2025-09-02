@@ -51,10 +51,10 @@ if str(libs_dir) not in sys.path:
     sys.path.insert(0, str(libs_dir))
 
 try:
-    from petersen_scale import PetersenScale, PRESET_PHI_VALUES, PRESET_DELTA_THETA_VALUES
-    from petersen_chord import PetersenChordExtender, CHORD_RATIOS_PRESETS
-    from petersen_rhythm import PetersenRhythmGenerator, RHYTHM_STYLE_PRESETS
-    from petersen_melody import PetersenMelodyGenerator, MELODY_PATTERN_PRESETS
+    from petersen_scale import PetersenScale, PHI_PRESETS, DELTA_THETA_PRESETS
+    from petersen_chord import PetersenChordExtender, CHORD_RATIOS
+    from petersen_rhythm import PetersenRhythmGenerator, RHYTHM_STYLES
+    from petersen_melody import PetersenMelodyGenerator, MELODY_PATTERNS
     from petersen_composer import PetersenAutoComposer, COMPOSITION_STYLES
     from petersen_performance import PetersenPerformanceRenderer, PERFORMANCE_TECHNIQUES
 except ImportError as e:
@@ -463,9 +463,9 @@ class CompositionShowcase:
         # 记录参数
         showcase_work.mathematical_parameters = {
             "phi_name": phi_name,
-            "phi_value": PRESET_PHI_VALUES.get(phi_name, 1.618),
+            "phi_value": PHI_PRESETS.get(phi_name, 1.618),
             "delta_theta_name": delta_theta_name,
-            "delta_theta_value": PRESET_DELTA_THETA_VALUES.get(delta_theta_name, 15.0)
+            "delta_theta_value": DELTA_THETA_PRESETS.get(delta_theta_name, 15.0)
         }
         
         showcase_work.musical_parameters = {
@@ -484,7 +484,7 @@ class CompositionShowcase:
         
         chord_extender = PetersenChordExtender(
             petersen_scale=scale,
-            chord_ratios=CHORD_RATIOS_PRESETS.get(chord_set, CHORD_RATIOS_PRESETS["major_triad"])
+            chord_ratios=CHORD_RATIOS.get(chord_set, CHORD_RATIOS["major_triad"])
         )
         
         # 根据展示类型调整作曲风格

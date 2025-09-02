@@ -52,10 +52,10 @@ if str(libs_dir) not in sys.path:
     sys.path.insert(0, str(libs_dir))
 
 try:
-    from petersen_scale import PetersenScale, PRESET_PHI_VALUES, PRESET_DELTA_THETA_VALUES
-    from petersen_chord import PetersenChordExtender, CHORD_RATIOS_PRESETS
-    from petersen_rhythm import PetersenRhythmGenerator, RHYTHM_STYLE_PRESETS
-    from petersen_melody import PetersenMelodyGenerator, MELODY_PATTERN_PRESETS
+    from petersen_scale import PetersenScale, PHI_PRESETS, DELTA_THETA_PRESETS
+    from petersen_chord import PetersenChordExtender, CHORD_RATIOS
+    from petersen_rhythm import PetersenRhythmGenerator, RHYTHM_STYLES
+    from petersen_melody import PetersenMelodyGenerator, MELODY_PATTERNS
     from petersen_composer import PetersenAutoComposer, COMPOSITION_STYLES
     from petersen_performance import PetersenPerformanceRenderer, PERFORMANCE_TECHNIQUES
 except ImportError as e:
@@ -778,57 +778,57 @@ class InteractiveWorkshop:
     
     def _set_phi_value(self, phi_name: str) -> bool:
         """设置φ值"""
-        if phi_name in PRESET_PHI_VALUES:
+        if phi_name in PHI_PRESETS:
             self.state.current_phi_name = phi_name
-            self.state.current_phi_value = PRESET_PHI_VALUES[phi_name]
+            self.state.current_phi_value = PHI_PRESETS[phi_name]
             self._update_musical_components()
             return True
         else:
             print(f"❌ 未知φ值: {phi_name}")
-            print(f"可用φ值: {', '.join(PRESET_PHI_VALUES.keys())}")
+            print(f"可用φ值: {', '.join(PHI_PRESETS.keys())}")
             return False
     
     def _set_delta_theta_value(self, delta_name: str) -> bool:
         """设置δθ值"""
-        if delta_name in PRESET_DELTA_THETA_VALUES:
+        if delta_name in DELTA_THETA_PRESETS:
             self.state.current_delta_theta_name = delta_name
-            self.state.current_delta_theta_value = PRESET_DELTA_THETA_VALUES[delta_name]
+            self.state.current_delta_theta_value = DELTA_THETA_PRESETS[delta_name]
             self._update_musical_components()
             return True
         else:
             print(f"❌ 未知δθ值: {delta_name}")
-            print(f"可用δθ值: {', '.join(PRESET_DELTA_THETA_VALUES.keys())}")
+            print(f"可用δθ值: {', '.join(DELTA_THETA_PRESETS.keys())}")
             return False
     
     def _set_chord_ratios(self, chord_name: str) -> bool:
         """设置和弦比率"""
-        if chord_name in CHORD_RATIOS_PRESETS:
+        if chord_name in CHORD_RATIOS:
             self.state.current_chord_set = chord_name
             self._update_musical_components()
             return True
         else:
             print(f"❌ 未知和弦类型: {chord_name}")
-            print(f"可用和弦: {', '.join(CHORD_RATIOS_PRESETS.keys())}")
+            print(f"可用和弦: {', '.join(CHORD_RATIOS.keys())}")
             return False
     
     def _set_rhythm_style(self, rhythm_name: str) -> bool:
         """设置节奏风格"""
-        if rhythm_name in RHYTHM_STYLE_PRESETS:
+        if rhythm_name in RHYTHM_STYLES:
             self.state.current_rhythm_style = rhythm_name
             return True
         else:
             print(f"❌ 未知节奏风格: {rhythm_name}")
-            print(f"可用节奏: {', '.join(RHYTHM_STYLE_PRESETS.keys())}")
+            print(f"可用节奏: {', '.join(RHYTHM_STYLES.keys())}")
             return False
     
     def _set_melody_pattern(self, pattern_name: str) -> bool:
         """设置旋律模式"""
-        if pattern_name in MELODY_PATTERN_PRESETS:
+        if pattern_name in MELODY_PATTERNS:
             self.state.current_melody_pattern = pattern_name
             return True
         else:
             print(f"❌ 未知旋律模式: {pattern_name}")
-            print(f"可用模式: {', '.join(MELODY_PATTERN_PRESETS.keys())}")
+            print(f"可用模式: {', '.join(MELODY_PATTERNS.keys())}")
             return False
     
     def _set_composition_style(self, style_name: str) -> bool:
@@ -858,7 +858,7 @@ class InteractiveWorkshop:
                 self.current_scale = self.scale_cache[cache_key]
             
             # 创建和弦扩展器
-            chord_ratios = CHORD_RATIOS_PRESETS[self.state.current_chord_set]
+            chord_ratios = CHORD_RATIOS[self.state.current_chord_set]
             self.current_chord_extender = PetersenChordExtender(
                 petersen_scale=self.current_scale,
                 chord_ratios=chord_ratios
@@ -1112,31 +1112,31 @@ class InteractiveWorkshop:
         
         if preset_type in ["phi", "φ"]:
             print("🎵 可用φ值预设:")
-            for name, value in PRESET_PHI_VALUES.items():
+            for name, value in PHI_PRESETS.items():
                 current = " ← 当前" if name == self.state.current_phi_name else ""
                 print(f"  {name}: {value:.3f}{current}")
                 
         elif preset_type in ["delta", "θ", "theta"]:
             print("🎵 可用δθ值预设:")
-            for name, value in PRESET_DELTA_THETA_VALUES.items():
+            for name, value in DELTA_THETA_PRESETS.items():
                 current = " ← 当前" if name == self.state.current_delta_theta_name else ""
                 print(f"  {name}: {value:.1f}°{current}")
                 
         elif preset_type in ["chord", "harmony"]:
             print("🎵 可用和弦预设:")
-            for name in CHORD_RATIOS_PRESETS.keys():
+            for name in CHORD_RATIOS.keys():
                 current = " ← 当前" if name == self.state.current_chord_set else ""
                 print(f"  {name}{current}")
                 
         elif preset_type in ["rhythm", "beat"]:
             print("🎵 可用节奏风格:")
-            for name in RHYTHM_STYLE_PRESETS.keys():
+            for name in RHYTHM_STYLES.keys():
                 current = " ← 当前" if name == self.state.current_rhythm_style else ""
                 print(f"  {name}{current}")
                 
         elif preset_type in ["melody", "pattern"]:
             print("🎵 可用旋律模式:")
-            for name in MELODY_PATTERN_PRESETS.keys():
+            for name in MELODY_PATTERNS.keys():
                 current = " ← 当前" if name == self.state.current_melody_pattern else ""
                 print(f"  {name}{current}")
                 
@@ -1156,11 +1156,11 @@ class InteractiveWorkshop:
         print()
         
         preset_types = [
-            ("φ值", PRESET_PHI_VALUES),
-            ("δθ值", PRESET_DELTA_THETA_VALUES),
-            ("和弦", CHORD_RATIOS_PRESETS),
-            ("节奏", RHYTHM_STYLE_PRESETS),
-            ("旋律", MELODY_PATTERN_PRESETS),
+            ("φ值", PHI_PRESETS),
+            ("δθ值", DELTA_THETA_PRESETS),
+            ("和弦", CHORD_RATIOS),
+            ("节奏", RHYTHM_STYLES),
+            ("旋律", MELODY_PATTERNS),
             ("风格", COMPOSITION_STYLES)
         ]
         
@@ -1174,18 +1174,18 @@ class InteractiveWorkshop:
         import random
         
         # 随机选择参数
-        phi_names = list(PRESET_PHI_VALUES.keys())
-        delta_names = list(PRESET_DELTA_THETA_VALUES.keys())
-        chord_names = list(CHORD_RATIOS_PRESETS.keys())
-        rhythm_names = list(RHYTHM_STYLE_PRESETS.keys())
-        melody_names = list(MELODY_PATTERN_PRESETS.keys())
+        phi_names = list(PHI_PRESETS.keys())
+        delta_names = list(DELTA_THETA_PRESETS.keys())
+        chord_names = list(CHORD_RATIOS.keys())
+        rhythm_names = list(RHYTHM_STYLES.keys())
+        melody_names = list(MELODY_PATTERNS.keys())
         style_names = list(COMPOSITION_STYLES.keys())
         
         self.state.current_phi_name = random.choice(phi_names)
-        self.state.current_phi_value = PRESET_PHI_VALUES[self.state.current_phi_name]
+        self.state.current_phi_value = PHI_PRESETS[self.state.current_phi_name]
         
         self.state.current_delta_theta_name = random.choice(delta_names)
-        self.state.current_delta_theta_value = PRESET_DELTA_THETA_VALUES[self.state.current_delta_theta_name]
+        self.state.current_delta_theta_value = DELTA_THETA_PRESETS[self.state.current_delta_theta_name]
         
         self.state.current_f_base = random.uniform(40.0, 80.0)
         self.state.current_chord_set = random.choice(chord_names)

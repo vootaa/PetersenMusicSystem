@@ -49,10 +49,10 @@ if str(libs_dir) not in sys.path:
     sys.path.insert(0, str(libs_dir))
 
 try:
-    from petersen_scale import PetersenScale, PRESET_PHI_VALUES, PRESET_DELTA_THETA_VALUES
-    from petersen_chord import PetersenChordExtender, CHORD_RATIOS_PRESETS
-    from petersen_rhythm import PetersenRhythmGenerator, RHYTHM_STYLE_PRESETS
-    from petersen_melody import PetersenMelodyGenerator, MELODY_PATTERN_PRESETS
+    from petersen_scale import PetersenScale, PHI_PRESETS, DELTA_THETA_PRESETS
+    from petersen_chord import PetersenChordExtender, CHORD_RATIOS
+    from petersen_rhythm import PetersenRhythmGenerator, RHYTHM_STYLES
+    from petersen_melody import PetersenMelodyGenerator, MELODY_PATTERNS
     from petersen_composer import PetersenAutoComposer, COMPOSITION_STYLES
     from petersen_performance import PetersenPerformanceRenderer, PERFORMANCE_TECHNIQUES
 except ImportError as e:
@@ -280,12 +280,12 @@ class ParameterSpaceExplorer:
                 
                 combination = ParameterCombination(
                     phi_name=phi_name,
-                    phi_value=PRESET_PHI_VALUES[phi_name],
+                    phi_value=PHI_PRESETS[phi_name],
                     delta_theta_name=delta_theta_name,
-                    delta_theta_value=PRESET_DELTA_THETA_VALUES[delta_theta_name],
+                    delta_theta_value=DELTA_THETA_PRESETS[delta_theta_name],
                     f_base=55.0,  # 固定基频
                     chord_set="major_triad",
-                    chord_ratios=CHORD_RATIOS_PRESETS["major_triad"],
+                    chord_ratios=CHORD_RATIOS["major_triad"],
                     rhythm_style="traditional",
                     melody_pattern="balanced",
                     composition_style="balanced_journey"
@@ -311,9 +311,9 @@ class ParameterSpaceExplorer:
         print("🗂️ 生成系统网格参数组合...")
         
         # 获取所有可用参数
-        phi_values = list(PRESET_PHI_VALUES.keys())
-        delta_theta_values = list(PRESET_DELTA_THETA_VALUES.keys())
-        chord_sets = list(CHORD_RATIOS_PRESETS.keys())
+        phi_values = list(PHI_PRESETS.keys())
+        delta_theta_values = list(DELTA_THETA_PRESETS.keys())
+        chord_sets = list(CHORD_RATIOS.keys())
         composition_styles = list(COMPOSITION_STYLES.keys())
         
         # 应用过滤器
@@ -341,12 +341,12 @@ class ParameterSpaceExplorer:
             
             combination = ParameterCombination(
                 phi_name=phi_name,
-                phi_value=PRESET_PHI_VALUES[phi_name],
+                phi_value=PHI_PRESETS[phi_name],
                 delta_theta_name=delta_theta_name,
-                delta_theta_value=PRESET_DELTA_THETA_VALUES[delta_theta_name],
+                delta_theta_value=DELTA_THETA_PRESETS[delta_theta_name],
                 f_base=55.0,
                 chord_set=chord_set,
-                chord_ratios=CHORD_RATIOS_PRESETS[chord_set],
+                chord_ratios=CHORD_RATIOS[chord_set],
                 rhythm_style="traditional",
                 melody_pattern="balanced",
                 composition_style=comp_style
@@ -429,9 +429,9 @@ class ParameterSpaceExplorer:
         combinations = []
         
         # 获取所有可用参数
-        phi_values = list(PRESET_PHI_VALUES.keys())
-        delta_theta_values = list(PRESET_DELTA_THETA_VALUES.keys())
-        chord_sets = list(CHORD_RATIOS_PRESETS.keys())
+        phi_values = list(PHI_PRESETS.keys())
+        delta_theta_values = list(DELTA_THETA_PRESETS.keys())
+        chord_sets = list(CHORD_RATIOS.keys())
         composition_styles = list(COMPOSITION_STYLES.keys())
         
         # 应用过滤器
@@ -458,14 +458,14 @@ class ParameterSpaceExplorer:
             
             combination = ParameterCombination(
                 phi_name=phi_name,
-                phi_value=PRESET_PHI_VALUES[phi_name],
+                phi_value=PHI_PRESETS[phi_name],
                 delta_theta_name=delta_theta_name,
-                delta_theta_value=PRESET_DELTA_THETA_VALUES[delta_theta_name],
+                delta_theta_value=DELTA_THETA_PRESETS[delta_theta_name],
                 f_base=f_base,
                 chord_set=chord_set,
-                chord_ratios=CHORD_RATIOS_PRESETS[chord_set],
-                rhythm_style=random.choice(list(RHYTHM_STYLE_PRESETS.keys())),
-                melody_pattern=random.choice(list(MELODY_PATTERN_PRESETS.keys())),
+                chord_ratios=CHORD_RATIOS[chord_set],
+                rhythm_style=random.choice(list(RHYTHM_STYLES.keys())),
+                melody_pattern=random.choice(list(MELODY_PATTERNS.keys())),
                 composition_style=comp_style
             )
             
@@ -528,12 +528,12 @@ class ParameterSpaceExplorer:
         
         combination = ParameterCombination(
             phi_name=phi_name,
-            phi_value=PRESET_PHI_VALUES[phi_name],
+            phi_value=PHI_PRESETS[phi_name],
             delta_theta_name=delta_theta_name,
-            delta_theta_value=PRESET_DELTA_THETA_VALUES[delta_theta_name],
+            delta_theta_value=DELTA_THETA_PRESETS[delta_theta_name],
             f_base=params.get("f_base", 55.0),
             chord_set=chord_set,
-            chord_ratios=CHORD_RATIOS_PRESETS[chord_set],
+            chord_ratios=CHORD_RATIOS[chord_set],
             rhythm_style=params.get("rhythm_style", "traditional"),
             melody_pattern=params.get("melody_pattern", "balanced"),
             composition_style=params.get("composition_style", "balanced_journey")
@@ -1001,7 +1001,7 @@ class ParameterSpaceExplorer:
             if phi_name != base_combination.phi_name:
                 variation = ParameterCombination(
                     phi_name=phi_name,
-                    phi_value=PRESET_PHI_VALUES[phi_name],
+                    phi_value=PHI_PRESETS[phi_name],
                     delta_theta_name=base_combination.delta_theta_name,
                     delta_theta_value=base_combination.delta_theta_value,
                     f_base=base_combination.f_base,

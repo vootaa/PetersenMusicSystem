@@ -71,10 +71,10 @@ if str(libs_dir) not in sys.path:
 
 # 导入基础模块
 try:
-    from petersen_scale import PetersenScale, PRESET_PHI_VALUES, PRESET_DELTA_THETA_VALUES
-    from petersen_chord import PetersenChordExtender, CHORD_RATIOS_PRESETS
-    from petersen_rhythm import PetersenRhythmGenerator, RHYTHM_STYLE_PRESETS
-    from petersen_melody import PetersenMelodyGenerator, MELODY_PATTERN_PRESETS
+    from petersen_scale import PetersenScale, PHI_PRESETS, DELTA_THETA_PRESETS
+    from petersen_chord import PetersenChordExtender, CHORD_RATIOS
+    from petersen_rhythm import PetersenRhythmGenerator, RHYTHM_STYLES
+    from petersen_melody import PetersenMelodyGenerator, MELODY_PATTERNS
     from petersen_composer import PetersenAutoComposer, COMPOSITION_STYLES
     from petersen_performance import PetersenPerformanceRenderer, PERFORMANCE_TECHNIQUES
     from petersen_player import EnhancedPetersenPlayer, PlayerConfiguration
@@ -351,13 +351,13 @@ class PetersenMasterStudio:
     def _verify_parameter_presets(self):
         """验证参数预设"""
         # 验证φ值预设
-        available_phi = list(PRESET_PHI_VALUES.keys())
+        available_phi = list(PHI_PRESETS.keys())
         for phi in self.config.phi_values:
             if phi not in available_phi:
                 print(f"⚠️ 未知φ值预设: {phi}")
         
         # 验证δθ值预设
-        available_delta_theta = list(PRESET_DELTA_THETA_VALUES.keys())
+        available_delta_theta = list(DELTA_THETA_PRESETS.keys())
         for delta_theta in self.config.delta_theta_values:
             if delta_theta not in available_delta_theta:
                 print(f"⚠️ 未知δθ值预设: {delta_theta}")
@@ -659,7 +659,7 @@ class PetersenMasterStudio:
         # 创建和弦扩展
         chord_extender = PetersenChordExtender(
             petersen_scale=scale,
-            chord_ratios=params.get('chord_ratios', CHORD_RATIOS_PRESETS['major_triad'])
+            chord_ratios=params.get('chord_ratios', CHORD_RATIOS['major_triad'])
         )
         
         # 创建作曲器
@@ -683,7 +683,7 @@ class PetersenMasterStudio:
                 "f_base": 55.0,
                 "phi_value": 1.618,
                 "delta_theta_value": 15.0,
-                "chord_ratios": CHORD_RATIOS_PRESETS["major_triad"]
+                "chord_ratios": CHORD_RATIOS["major_triad"]
             }
             
             return self._create_composition_from_params(params)

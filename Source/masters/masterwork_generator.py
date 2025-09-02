@@ -59,10 +59,10 @@ if str(libs_dir) not in sys.path:
     sys.path.insert(0, str(libs_dir))
 
 try:
-    from petersen_scale import PetersenScale, PRESET_PHI_VALUES, PRESET_DELTA_THETA_VALUES
-    from petersen_chord import PetersenChordExtender, CHORD_RATIOS_PRESETS
-    from petersen_rhythm import PetersenRhythmGenerator, RHYTHM_STYLE_PRESETS
-    from petersen_melody import PetersenMelodyGenerator, MELODY_PATTERN_PRESETS
+    from petersen_scale import PetersenScale, PHI_PRESETS, DELTA_THETA_PRESETS
+    from petersen_chord import PetersenChordExtender, CHORD_RATIOS
+    from petersen_rhythm import PetersenRhythmGenerator, RHYTHM_STYLES
+    from petersen_melody import PetersenMelodyGenerator, MELODY_PATTERNS
     from petersen_composer import PetersenAutoComposer, COMPOSITION_STYLES
     from petersen_performance import PetersenPerformanceRenderer, PERFORMANCE_TECHNIQUES
 except ImportError as e:
@@ -630,9 +630,9 @@ class MasterworkGenerator:
                 subtitle=f"Mathematical study {i + 1}",
                 composer_notes=f"Independent study of {template['mathematical_focus'][i % len(template['mathematical_focus'])]}",
                 mathematical_concept=template["mathematical_focus"][i % len(template["mathematical_focus"])],
-                phi_configuration={"phi_name": list(PRESET_PHI_VALUES.keys())[i % len(PRESET_PHI_VALUES)]},
-                delta_theta_configuration={"delta_theta_name": list(PRESET_DELTA_THETA_VALUES.keys())[i % len(PRESET_DELTA_THETA_VALUES)]},
-                harmonic_architecture={"chord_set": list(CHORD_RATIOS_PRESETS.keys())[i % len(CHORD_RATIOS_PRESETS)]},
+                phi_configuration={"phi_name": list(PHI_PRESETS.keys())[i % len(PHI_PRESETS)]},
+                delta_theta_configuration={"delta_theta_name": list(DELTA_THETA_PRESETS.keys())[i % len(DELTA_THETA_PRESETS)]},
+                harmonic_architecture={"chord_set": list(CHORD_RATIOS.keys())[i % len(CHORD_RATIOS)]},
                 estimated_duration=avg_duration,
                 difficulty_level="intermediate",
                 emotional_trajectory=["balanced"],
@@ -713,13 +713,13 @@ class MasterworkGenerator:
             # 创建音乐组件
             scale = PetersenScale(
                 F_base=55.0,
-                phi=PRESET_PHI_VALUES.get(phi_name, 1.618),
-                delta_theta=PRESET_DELTA_THETA_VALUES.get(delta_theta_name, 15.0)
+                phi=PHI_PRESETS.get(phi_name, 1.618),
+                delta_theta=DELTA_THETA_PRESETS.get(delta_theta_name, 15.0)
             )
             
             chord_extender = PetersenChordExtender(
                 petersen_scale=scale,
-                chord_ratios=CHORD_RATIOS_PRESETS.get(chord_set, CHORD_RATIOS_PRESETS["major_seventh"])
+                chord_ratios=CHORD_RATIOS.get(chord_set, CHORD_RATIOS["major_seventh"])
             )
             
             # 选择作曲风格
@@ -862,7 +862,7 @@ class MasterworkGenerator:
         """评估旋律趣味性"""
         # 基于δθ值和数学概念
         delta_theta_name = track.delta_theta_configuration.get("delta_theta_name", "15.0")
-        delta_theta_value = PRESET_DELTA_THETA_VALUES.get(delta_theta_name, 15.0)
+        delta_theta_value = DELTA_THETA_PRESETS.get(delta_theta_name, 15.0)
         
         # 较小的δθ值通常产生更有趣的旋律
         if delta_theta_value <= 8.0:
@@ -1307,7 +1307,7 @@ Petersen数学音乐理论的丰富表现力。每首作品都围绕特定的数
         # 稍微调整参数以增加变化
         if track.revision_count == 1:
             # 第一次重试：调整δθ值
-            delta_options = list(PRESET_DELTA_THETA_VALUES.keys())
+            delta_options = list(DELTA_THETA_PRESETS.keys())
             current_delta = track.delta_theta_configuration.get("delta_theta_name", "15.0")
             if current_delta in delta_options:
                 current_index = delta_options.index(current_delta)
@@ -1316,7 +1316,7 @@ Petersen数学音乐理论的丰富表现力。每首作品都围绕特定的数
         
         elif track.revision_count == 2:
             # 第二次重试：调整和弦设置
-            chord_options = list(CHORD_RATIOS_PRESETS.keys())
+            chord_options = list(CHORD_RATIOS.keys())
             current_chord = track.harmonic_architecture.get("chord_set", "major_seventh")
             if current_chord in chord_options:
                 current_index = chord_options.index(current_chord)
